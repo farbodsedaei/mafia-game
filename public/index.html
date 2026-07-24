@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>MAFIA — Night Session</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0D13;
+    --surface:#151A24;
+    --surface-2:#1C2330;
+    --line: rgba(237,239,244,0.09);
+    --line-strong: rgba(237,239,244,0.16);
+    --text:#EDEFF4;
+    --text-muted:#8A93A6;
+    --text-faint:#5B6478;
+    --red:#C4364B;
+    --red-bright:#E14C63;
+    --red-dim:#3A1620;
+    --gold:#D4A857;
+    --gold-dim:#3A311D;
+    --slate:#6E7A94;
+    --slate-dim:#1E2634;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(60% 50% at 50% 0%, rgba(196,54,75,0.08), transparent 60%),
+      radial-gradient(80% 60% at 80% 100%, rgba(212,168,87,0.05), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+  }
+  .eyebrow{font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-faint); font-weight:600;}
+  h1,h2,h3{font-family:'Playfair Display', serif; margin:0; letter-spacing:-0.01em;}
+  #app{max-width:480px; margin:0 auto; min-height:100vh; padding: max(28px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom)); display:flex; flex-direction:column; position:relative;}
+  .screen{display:none; flex-direction:column; flex:1; animation: rise .38s ease both;}
+  .screen.active{display:flex;}
+  @keyframes rise{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+  .brandmark{display:flex; align-items:center; gap:10px; margin-bottom:auto;}
+  .brandmark .dot{width:8px; height:8px; border-radius:50%; background:var(--red-bright); box-shadow:0 0 12px var(--red-bright);}
+  .brandmark span{font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.2em; color:var(--text-faint); text-transform:uppercase;}
+  .btn{appearance:none; border:none; cursor:pointer; font-family:'Inter', sans-serif; font-weight:700; font-size:16px; padding:17px 22px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:10px; transition: transform .15s ease, opacity .15s ease; width:100%;}
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--red-bright); color:#fff; box-shadow:0 8px 24px -8px rgba(225,76,99,0.55);}
+  .btn-primary:disabled{background:var(--surface-2); color:var(--text-faint); box-shadow:none; cursor:not-allowed;}
+  .btn-outline{background:transparent; color:var(--text); border:1.5px solid var(--line-strong);}
+  .btn-ghost{background:var(--surface); color:var(--text-muted); font-weight:600; font-size:14px; padding:13px 18px;}
+  .btn-gold{background:var(--gold); color:#20180A;}
+  .stack{display:flex; flex-direction:column; gap:12px;}
+  .grow{flex:1;}
+  .center{display:flex; flex-direction:column; align-items:center; text-align:center; justify-content:center;}
+  .field{display:flex; flex-direction:column; gap:8px; margin-bottom:18px;}
+  .field label{font-size:13px; font-weight:600; color:var(--text-muted);}
+  .field input{background:var(--surface); border:1.5px solid var(--line); color:var(--text); font-family:'Inter', sans-serif; font-size:17px; font-weight:600; padding:15px 16px; border-radius:12px; outline:none; width:100%;}
+  .field input:focus{border-color:var(--red-bright);}
+  .field input.code-input{text-align:center; letter-spacing:0.3em; text-transform:uppercase; font-family:'JetBrains Mono', monospace;}
+  .stepper{display:flex; align-items:center; gap:14px;}
+  .stepper button{width:46px; height:46px; border-radius:12px; border:1.5px solid var(--line-strong); background:var(--surface); color:var(--text); font-size:20px; font-weight:700; cursor:pointer;}
+  .stepper .val{flex:1; text-align:center; font-family:'Playfair Display', serif; font-size:28px; font-weight:800;}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px;}
+  .hint{font-size:13px; color:var(--text-muted); line-height:1.5;}
+  .slot{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:10px;}
+  .slot.connected{border-color: rgba(212,168,87,0.35); background:linear-gradient(180deg, rgba(212,168,87,0.06), transparent);}
+  .slot .num{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-faint); width:26px; height:26px; border-radius:50%; border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .slot.connected .num{color:var(--gold); border-color:var(--gold);}
+  .slot .name{font-weight:700; font-size:15px; flex:1;}
+  .slot .status{font-size:13px; color:var(--text-faint); flex:1;}
+  .slot .check{color:var(--gold); font-size:18px;}
+  .room-code-display{font-family:'JetBrains Mono',monospace; font-size:38px; font-weight:700; letter-spacing:0.15em; text-align:center; color:var(--gold); margin:6px 0;}
+  .link-box{display:flex; align-items:center; gap:10px; background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-top:6px;}
+  .link-box span{flex:1; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .link-box button{flex-shrink:0; background:var(--surface); border:1px solid var(--line-strong); color:var(--text); border-radius:8px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer;}
+  .step-pill{display:inline-flex; align-items:center; gap:8px; background:var(--surface-2); padding:8px 14px; border-radius:999px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; color:var(--gold); text-transform:uppercase; margin:0 auto 18px;}
+  .role-card{width:100%; max-width:300px; aspect-ratio:3/4.4; margin:0 auto; perspective:1400px; cursor:pointer;}
+  .role-card-inner{position:relative; width:100%; height:100%; transition:transform .7s cubic-bezier(.2,.8,.2,1); transform-style:preserve-3d;}
+  .role-card.flipped .role-card-inner{transform:rotateY(180deg);}
+  .role-face{position:absolute; inset:0; border-radius:22px; backface-visibility:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; border:1px solid var(--line-strong);}
+  .role-back{background: repeating-linear-gradient(135deg, rgba(196,54,75,0.10) 0 2px, transparent 2px 22px), var(--surface);}
+  .role-back .moon{width:54px; height:54px; border-radius:50%; background:var(--gold); box-shadow: -14px 0 0 -6px var(--bg) inset, 0 0 30px rgba(212,168,87,0.35); margin-bottom:18px;}
+  .role-front{transform:rotateY(180deg); text-align:center;}
+  .role-front.is-mafia{background:linear-gradient(180deg, var(--red-dim), var(--surface));}
+  .role-front.is-villager{background:linear-gradient(180deg, var(--slate-dim), var(--surface));}
+  .role-title{font-size:34px; font-weight:900; margin:14px 0 10px; letter-spacing:0.01em;}
+  .is-mafia .role-title{color:var(--red-bright);}
+  .is-villager .role-title{color:#C9D2E3;}
+  .role-desc{font-size:14px; color:var(--text-muted); line-height:1.55;}
+  table.dossier{width:100%; border-collapse:collapse;}
+  table.dossier td{padding:13px 6px; border-bottom:1px solid var(--line); font-size:15px;}
+  table.dossier tr:last-child td{border-bottom:none;}
+  .tag{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.08em; padding:5px 10px; border-radius:6px; text-transform:uppercase;}
+  .tag.mafia{background:var(--red-dim); color:var(--red-bright);}
+  .tag.villager{background:var(--slate-dim); color:var(--slate);}
+  .spinner{width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,0.25); border-top-color:#fff; animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .pulse-dot{width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:0.3;} 50%{opacity:1;}}
+  .toast{position:fixed; left:50%; bottom:32px; transform:translateX(-50%); background:var(--surface-2); border:1px solid var(--line-strong); color:var(--text); padding:12px 18px; border-radius:12px; font-size:13px; font-weight:600; z-index:100; max-width:85%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
+  .banner{background:var(--gold-dim); border:1px solid rgba(212,168,87,0.3); color:var(--gold); font-size:13px; padding:12px 14px; border-radius:12px; margin-bottom:16px; line-height:1.5;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LANDING -->
+  <div class="screen active" id="screen-landing">
+    <div class="brandmark"><div class="dot"></div><span id="conn-indicator">Connecting&hellip;</span></div>
+    <div class="grow center">
+      <div class="eyebrow" style="margin-bottom:14px;">A Game of Suspicion</div>
+      <h1 style="font-size:56px; line-height:0.95;">MAFIA</h1>
+      <p class="hint" style="max-width:280px; margin-top:16px;">Play together from anywhere. Roles are dealt in secret, straight to each phone.</p>
+    </div>
+    <div class="stack" style="margin-top:24px;">
+      <button class="btn btn-primary" onclick="App.goLanding('host')">I'm the Host <span style="opacity:.7">— God</span></button>
+      <button class="btn btn-outline" onclick="App.goLanding('player')">I'm a Player</button>
+    </div>
+  </div>
+
+  <!-- HOST SETUP -->
+  <div class="screen" id="screen-host-setup">
+    <div class="eyebrow">Host &middot; New Session</div>
+    <h2 style="font-size:28px; margin:10px 0 26px;">Set up the game</h2>
+    <div class="field">
+      <label>Number of players</label>
+      <div class="stepper">
+        <button onclick="App.stepPlayers(-1)">&minus;</button>
+        <div class="val" id="val-players">6</div>
+        <button onclick="App.stepPlayers(1)">&plus;</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Number of Mafia</label>
+      <div class="stepper">
+        <button onclick="App.stepMafia(-1)">&minus;</button>
+        <div class="val" id="val-mafia">2</div>
+        <button onclick="App.stepMafia(1)">&plus;</button>
+      </div>
+      <div class="hint" id="mafia-hint"></div>
+    </div>
+    <div class="grow"></div>
+    <div class="stack">
+      <button class="btn btn-primary" onclick="App.createLobby()">Create Lobby</button>
+      <button class="btn btn-ghost" onclick="App.goLanding()">Back</button>
+    </div>
+  </div>
+
+  <!-- HOST LOBBY -->
+  <div class="screen" id="screen-host-lobby">
+    <div class="eyebrow" id="lobby-eyebrow">Host &middot; Lobby</div>
+    <h2 style="font-size:24px; margin:10px 0 16px;">Invite your players</h2>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="hint" style="text-align:center;">Room code</div>
+      <div class="room-code-display" id="room-code-display">&mdash;&mdash;&mdash;&mdash;&mdash;</div>
+      <div class="link-box">
+        <span id="room-link-text">generating link&hellip;</span>
+        <button onclick="App.copyLink()">Copy</button>
+      </div>
+      <button class="btn btn-gold" style="margin-top:14px;" onclick="App.shareLink()">Share Invite Link</button>
+    </div>
+    <div id="slot-list"></div>
+    <div class="grow"></div>
+    <button class="btn btn-primary" id="btn-assign" onclick="App.assignRoles()" disabled>Assign Roles</button>
+  </div>
+
+  <!-- HOST SUMMARY -->
+  <div class="screen" id="screen-host-summary">
+    <div class="eyebrow">Roles Assigned</div>
+    <h2 style="font-size:26px; margin:10px 0 20px;">The Dossier</h2>
+    <div class="card"><table class="dossier" id="dossier-table"></table></div>
+    <p class="hint" style="margin-top:16px;">Only you can see this. Players received their roles privately on their own phones.</p>
+    <div class="grow"></div>
+    <button class="btn btn-outline" onclick="App.newGame()">Start a New Game</button>
+  </div>
+
+  <!-- PLAYER JOIN -->
+  <div class="screen" id="screen-player-join">
+    <div class="eyebrow">Player</div>
+    <h2 style="font-size:28px; margin:10px 0 20px;">Join the session</h2>
+    <div class="grow center">
+      <div class="card" style="width:100%;">
+        <div class="field">
+          <label>Room code</label>
+          <input type="text" id="input-room-code" class="code-input" placeholder="ABCDE" maxlength="5" autocomplete="off" autocapitalize="characters">
+        </div>
+        <button class="btn btn-primary" onclick="App.playerJoinByCode()">Join Game</button>
+      </div>
+    </div>
+    <button class="btn btn-ghost" onclick="App.goLanding()">Back</button>
+  </div>
+
+  <!-- PLAYER CONNECTING -->
+  <div class="screen" id="screen-player-connecting">
+    <div class="grow center">
+      <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
+      <h3 style="font-size:20px; margin-bottom:8px;" id="connecting-title">Connecting to host&hellip;</h3>
+      <p class="hint" id="connecting-hint">Setting up a direct, private connection.</p>
+    </div>
+  </div>
+
+  <!-- PLAYER NAME -->
+  <div class="screen" id="screen-player-name">
+    <div class="eyebrow">Connected</div>
+    <h2 style="font-size:26px; margin:10px 0 20px;">What's your name?</h2>
+    <div class="field">
+      <label>This is shown to the host only</label>
+      <input type="text" id="input-player-name" placeholder="e.g. Priya" maxlength="24" autocomplete="off">
+    </div>
+    <button class="btn btn-primary" onclick="App.playerSubmitName()">Join Game</button>
+  </div>
+
+  <!-- PLAYER WAITING -->
+  <div class="screen" id="screen-player-waiting">
+    <div class="grow center">
+      <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
+      <h3 style="font-size:20px; margin-bottom:8px;">You're in, <span id="wait-name"></span>.</h3>
+      <p class="hint">Waiting for the host to assign roles&hellip;</p>
+    </div>
+  </div>
+
+  <!-- PLAYER ROLE REVEAL -->
+  <div class="screen" id="screen-player-role">
+    <div class="eyebrow" style="text-align:center; margin-bottom:22px;">Your Role &middot; Keep it secret</div>
+    <div class="grow center">
+      <div class="role-card" id="role-card" onclick="App.flipRole()">
+        <div class="role-card-inner">
+          <div class="role-face role-back"><div class="moon"></div><div class="eyebrow">Tap to Reveal</div></div>
+          <div class="role-face role-front" id="role-front">
+            <div class="eyebrow" id="role-eyebrow">Case File</div>
+            <div class="role-title" id="role-title">???</div>
+            <div class="role-desc" id="role-desc"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="hint" style="text-align:center;">Tap the card again to hide it.</p>
+  </div>
+
+</div>
+<div id="toast-host"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  const ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ];
+
+  const state = {
+    role: null,
+    numPlayers: 6,
+    numMafia: 2,
+    room: null,
+    players: new Map(),   // playerId -> {name, connected, pc, dc, role}
+    ws: null,
+    playerPC: null,
+    playerDC: null,
+    playerId: null,
+    pendingJoinCode: null
+  };
+
+  function $(id){ return document.getElementById(id); }
+  function showScreen(id){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    $(id).classList.add('active');
+  }
+  function toast(msg, ms){
+    ms = ms || 2800;
+    const host = $('toast-host');
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    host.innerHTML = '';
+    host.appendChild(el);
+    setTimeout(()=>{ if(el.parentNode) el.remove(); }, ms);
+  }
+  function shuffle(arr){
+    for(let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  /* ---------------- WebSocket signaling ---------------- */
+  function connectWS(onOpen){
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(proto + '//' + location.host + '/ws');
+    state.ws = ws;
+    ws.onopen = () => { $('conn-indicator').textContent = 'Connected'; if(onOpen) onOpen(); };
+    ws.onclose = () => { $('conn-indicator').textContent = 'Disconnected'; toast('Lost connection to the server.'); };
+    ws.onerror = () => { $('conn-indicator').textContent = 'Connection error'; };
+    ws.onmessage = (evt) => {
+      let msg;
+      try{ msg = JSON.parse(evt.data); }catch(e){ return; }
+      handleWSMessage(msg);
+    };
+  }
+  function wsSend(obj){
+    if(state.ws && state.ws.readyState === 1) state.ws.send(JSON.stringify(obj));
+  }
+
+  function handleWSMessage(msg){
+    if(msg.type === 'room-created'){
+      state.room = msg.room;
+      renderLobbyHeader();
+      return;
+    }
+    if(msg.type === 'player-hello'){
+      hostBeginConnectionTo(msg.playerId);
+      return;
+    }
+    if(msg.type === 'player-left'){
+      const p = state.players.get(msg.playerId);
+      if(p){ p.connected = false; renderLobby(); }
+      return;
+    }
+    if(msg.type === 'signal'){
+      if(state.role === 'host') hostHandleSignal(msg.from, msg.payload);
+      else playerHandleSignal(msg.payload);
+      return;
+    }
+    if(msg.type === 'joined'){
+      state.playerId = msg.playerId;
+      state.room = msg.room;
+      $('connecting-title').textContent = 'Waiting for host&hellip;';
+      $('connecting-hint').textContent = 'The host will connect to you automatically.';
+      return;
+    }
+    if(msg.type === 'room-not-found'){
+      toast('That room code wasn\u2019t found. Double-check it with the host.');
+      showScreen('screen-player-join');
+      return;
+    }
+    if(msg.type === 'host-left'){
+      toast('The host ended the session.');
+      showScreen('screen-player-join');
+      return;
+    }
+  }
+
+  /* ---------------- App / Landing ---------------- */
+  const App = {};
+
+  App.goLanding = function(role){
+    if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); }
+    else if(role === 'player'){ state.role = 'player'; showScreen('screen-player-join'); }
+    else { state.role = null; showScreen('screen-landing'); }
+  };
+
+  App.stepPlayers = function(delta){
+    state.numPlayers = Math.max(3, Math.min(20, state.numPlayers + delta));
+    if(state.numMafia >= state.numPlayers) state.numMafia = Math.max(1, state.numPlayers - 2);
+    renderSetupValues();
+  };
+  App.stepMafia = function(delta){
+    state.numMafia = Math.max(1, Math.min(state.numPlayers - 1, state.numMafia + delta));
+    renderSetupValues();
+  };
+  function renderSetupValues(){
+    $('val-players').textContent = state.numPlayers;
+    $('val-mafia').textContent = state.numMafia;
+    $('mafia-hint').textContent = (state.numPlayers - state.numMafia) + ' will be Villagers.';
+  }
+
+  App.createLobby = function(){
+    state.players = new Map();
+    wsSend({ type: 'create-room' });
+    showScreen('screen-host-lobby');
+    renderLobby();
+  };
+
+  function inviteURL(){
+    return location.origin + '/?join=' + state.room;
+  }
+  function renderLobbyHeader(){
+    $('room-code-display').textContent = state.room ? state.room.split('').join(' ') : '\u2014\u2014\u2014\u2014\u2014';
+    $('room-link-text').textContent = state.room ? inviteURL() : 'generating link\u2026';
+  }
+  App.copyLink = function(){
+    if(!state.room) return;
+    navigator.clipboard.writeText(inviteURL()).then(()=> toast('Link copied.'));
+  };
+  App.shareLink = function(){
+    if(!state.room) return;
+    const url = inviteURL();
+    if(navigator.share){
+      navigator.share({ title: 'Join our Mafia game', text: 'Room code ' + state.room, url: url }).catch(()=>{});
+    } else {
+      navigator.clipboard.writeText(url).then(()=> toast('Link copied \u2014 paste it to your players.'));
+    }
+  };
+
+  function renderLobby(){
+    const connectedCount = Array.from(state.players.values()).filter(p => p.connected && p.name).length;
+    $('lobby-eyebrow').textContent = 'Host \u00b7 Lobby \u00b7 ' + connectedCount + '/' + state.numPlayers + ' joined';
+    const list = $('slot-list');
+    list.innerHTML = '';
+    let i = 0;
+    for(const [id, p] of state.players.entries()){
+      i++;
+      const ready = p.connected && p.name;
+      const row = document.createElement('div');
+      row.className = 'slot' + (ready ? ' connected' : '');
+      row.innerHTML =
+        '<div class="num">' + i + '</div>' +
+        (ready
+          ? '<div class="name">' + escapeHtml(p.name) + '</div><div class="check">&#10003;</div>'
+          : '<div class="status">Connecting&hellip;</div>');
+      list.appendChild(row);
+    }
+    const remaining = state.numPlayers - state.players.size;
+    for(let r = 0; r < remaining; r++){
+      i++;
+      const row = document.createElement('div');
+      row.className = 'slot';
+      row.innerHTML = '<div class="num">' + i + '</div><div class="status">Waiting for player to join with the link&hellip;</div>';
+      list.appendChild(row);
+    }
+    $('btn-assign').disabled = connectedCount < state.numPlayers;
+  }
+
+  /* ---------------- Host: WebRTC per player ---------------- */
+  function hostBeginConnectionTo(playerId){
+    if(state.players.size >= state.numPlayers && !state.players.has(playerId)){
+      // Room already full; ignore additional joiners.
+      return;
+    }
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const dc = pc.createDataChannel('mafia');
+    const entry = { name: null, connected: false, pc, dc, role: null };
+    state.players.set(playerId, entry);
+    renderLobby();
+
+    setupHostDataChannel(dc, playerId);
+
+    pc.onicecandidate = (e) => {
+      if(e.candidate){
+        wsSend({ type: 'signal', to: playerId, payload: { kind: 'candidate', candidate: e.candidate } });
+      }
+    };
+
+    pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
+      wsSend({ type: 'signal', to: playerId, payload: { kind: 'offer', sdp: pc.localDescription } });
+    });
+  }
+
+  function hostHandleSignal(playerId, payload){
+    const entry = state.players.get(playerId);
+    if(!entry) return;
+    if(payload.kind === 'answer'){
+      entry.pc.setRemoteDescription(payload.sdp).catch(()=>{});
+    } else if(payload.kind === 'candidate'){
+      entry.pc.addIceCandidate(payload.candidate).catch(()=>{});
+    }
+  }
+
+  function setupHostDataChannel(dc, playerId){
+    dc.onopen = () => {
+      const entry = state.players.get(playerId);
+      if(entry){ entry.connected = true; renderLobby(); }
+    };
+    dc.onmessage = (e) => {
+      try{
+        const msg = JSON.parse(e.data);
+        if(msg.type === 'name'){
+          const entry = state.players.get(playerId);
+          if(entry){ entry.name = msg.name; renderLobby(); toast(msg.name + ' joined the game.'); }
+        }
+      }catch(err){}
+    };
+    dc.onclose = () => {
+      const entry = state.players.get(playerId);
+      if(entry){ entry.connected = false; renderLobby(); }
+    };
+  }
+
+  /* ---------------- Role assignment ---------------- */
+  App.assignRoles = function(){
+    const ids = Array.from(state.players.keys());
+    shuffle(ids);
+    const mafiaSet = new Set(ids.slice(0, state.numMafia));
+    for(const [id, entry] of state.players.entries()){
+      entry.role = mafiaSet.has(id) ? 'mafia' : 'villager';
+      try{ entry.dc.send(JSON.stringify({ type: 'role', role: entry.role })); }catch(e){}
+    }
+    renderDossier();
+    showScreen('screen-host-summary');
+  };
+
+  function renderDossier(){
+    const table = $('dossier-table');
+    table.innerHTML = '';
+    for(const entry of state.players.values()){
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + escapeHtml(entry.name) + '</td>' +
+        '<td style="text-align:right;"><span class="tag ' + entry.role + '">' + (entry.role === 'mafia' ? 'Mafia' : 'Villager') + '</span></td>';
+      table.appendChild(tr);
+    }
+  }
+
+  App.newGame = function(){
+    for(const entry of state.players.values()){ try{ entry.pc && entry.pc.close(); }catch(e){} }
+    state.players = new Map();
+    state.room = null;
+    App.goLanding();
+  };
+
+  /* ---------------- Player flow ---------------- */
+  App.playerJoinByCode = function(){
+    const code = $('input-room-code').value.trim().toUpperCase();
+    if(code.length < 4){ toast('Enter the room code from your host.'); return; }
+    startPlayerJoin(code);
+  };
+
+  function startPlayerJoin(code){
+    showScreen('screen-player-connecting');
+    $('connecting-title').textContent = 'Joining room ' + code + '\u2026';
+    $('connecting-hint').textContent = 'Contacting the host.';
+    wsSend({ type: 'join-room', room: code });
+  }
+
+  function playerHandleSignal(payload){
+    if(payload.kind === 'offer'){
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      state.playerPC = pc;
+      pc.ondatachannel = (e) => setupPlayerDataChannel(e.channel);
+      pc.onicecandidate = (e) => {
+        if(e.candidate) wsSend({ type: 'signal', to: 'host', payload: { kind: 'candidate', candidate: e.candidate } });
+      };
+      pc.setRemoteDescription(payload.sdp)
+        .then(() => pc.createAnswer())
+        .then(answer => pc.setLocalDescription(answer))
+        .then(() => {
+          wsSend({ type: 'signal', to: 'host', payload: { kind: 'answer', sdp: pc.localDescription } });
+          $('connecting-title').textContent = 'Almost there\u2026';
+          $('connecting-hint').textContent = 'Finalizing a direct connection.';
+        });
+    } else if(payload.kind === 'candidate'){
+      if(state.playerPC) state.playerPC.addIceCandidate(payload.candidate).catch(()=>{});
+    }
+  }
+
+  function setupPlayerDataChannel(dc){
+    state.playerDC = dc;
+    dc.onopen = () => { showScreen('screen-player-name'); };
+    dc.onmessage = (e) => {
+      try{
+        const msg = JSON.parse(e.data);
+        if(msg.type === 'role'){ renderRole(msg.role); showScreen('screen-player-role'); }
+      }catch(err){}
+    };
+    dc.onclose = () => { toast('Connection to host lost.'); };
+  }
+
+  App.playerSubmitName = function(){
+    const val = $('input-player-name').value.trim();
+    if(!val){ toast('Enter a name first.'); return; }
+    try{ state.playerDC.send(JSON.stringify({ type: 'name', name: val })); }
+    catch(e){ toast('Lost connection to the host.'); return; }
+    $('wait-name').textContent = val;
+    showScreen('screen-player-waiting');
+  };
+
+  function renderRole(role){
+    const front = $('role-front');
+    front.classList.remove('is-mafia', 'is-villager');
+    front.classList.add(role === 'mafia' ? 'is-mafia' : 'is-villager');
+    $('role-title').textContent = role === 'mafia' ? 'MAFIA' : 'VILLAGER';
+    $('role-desc').textContent = role === 'mafia'
+      ? 'You know the other Mafia. Work in the dark, blend in by day.'
+      : 'You have no special knowledge. Watch closely, and vote wisely.';
+    $('role-card').classList.remove('flipped');
+  }
+  App.flipRole = function(){ $('role-card').classList.toggle('flipped'); };
+
+  /* ---------------- Init ---------------- */
+  renderSetupValues();
+  window.App = App;
+
+  const params = new URLSearchParams(location.search);
+  const joinCode = params.get('join');
+  connectWS(() => {
+    if(joinCode){
+      state.role = 'player';
+      startPlayerJoin(joinCode.toUpperCase());
+    }
+  });
+})();
+</script>
+</body>
+</html>
