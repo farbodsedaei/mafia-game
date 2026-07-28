@@ -160,10 +160,10 @@
     </div>
     <div class="field">
       <label>Roles in play</label>
-      <div class="hint" style="margin-bottom:10px;">Each checked special role goes to exactly one player. Everyone else on that side gets the default role.</div>
+      <div class="hint" dir="rtl" style="margin-bottom:10px; text-align:right;">هر نقش ویژه‌ای که تیک بزنید، دقیقاً به یک بازیکن اختصاص داده می‌شود. بقیهٔ آن گروه، نقش پیش‌فرض را می‌گیرند.</div>
       <div id="role-checklist" class="stack"></div>
-      <div id="role-summary" class="hint" style="margin-top:12px;"></div>
-      <div id="role-warning" class="banner warning" style="display:none; margin-top:12px;"></div>
+      <div id="role-summary" class="hint" dir="rtl" style="margin-top:12px; text-align:right;"></div>
+      <div id="role-warning" class="banner warning" dir="rtl" style="display:none; margin-top:12px; text-align:right;"></div>
     </div>
     <button class="link-btn" style="align-self:flex-start; padding-left:0;" onclick="App.openManageRoles('host-setup')">+ Manage custom roles</button>
     <div class="grow"></div>
@@ -410,9 +410,58 @@
   }
 
   /* ---------------- Role library ---------------- */
+  // The server keeps roles in a plain file, which free hosts (e.g. Render's
+  // free tier) wipe whenever the service spins down from inactivity. As a
+  // backup, the host's browser caches the library locally and re-creates
+  // any custom roles the server has lost the next time it loads.
+  const ROLE_CACHE_KEY = 'mafia-role-library-v1';
+  function cacheRoles(list){
+    try{ localStorage.setItem(ROLE_CACHE_KEY, JSON.stringify(list)); }catch(e){}
+  }
+  function readCachedRoles(){
+    try{
+      const raw = localStorage.getItem(ROLE_CACHE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(e){ return []; }
+  }
+  function restoreMissingRoles(){
+    const cached = readCachedRoles();
+    // Custom roles the server no longer has at all (e.g. its data file was reset).
+    const missingCustom = cached.filter(r => !r.builtin).filter(c =>
+      !state.roles.some(r => !r.builtin && r.team === c.team && r.name === c.name)
+    );
+    // Builtin roles (Mafia/Villager) whose saved rename/edit reverted back to the server's hardcoded default.
+    const driftedBuiltins = cached.filter(c => c.builtin).filter(c => {
+      const current = state.roles.find(r => r.id === c.id);
+      return current && (current.name !== c.name || current.description !== c.description || !!current.shield !== !!c.shield);
+    });
+    if(!missingCustom.length && !driftedBuiltins.length) return Promise.resolve();
+
+    const restoreCustom = missingCustom.reduce((chain, r) => chain.then(() =>
+      fetch('/api/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: r.name, description: r.description, team: r.team, shield: r.shield })
+      }).then(res => res.json()).then(list => { state.roles = list; })
+    ), Promise.resolve());
+
+    return restoreCustom.then(() => driftedBuiltins.reduce((chain, r) => chain.then(() =>
+      fetch('/api/roles/' + r.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: r.name, description: r.description, team: r.team, shield: r.shield })
+      }).then(res => res.json()).then(list => { state.roles = list; })
+    ), Promise.resolve())).then(() => {
+      toast('Restored ' + (missingCustom.length + driftedBuiltins.length) + ' saved role(s) after a server restart.');
+    });
+  }
   function loadRoles(){
     return fetch('/api/roles').then(r => r.json()).then(list => {
       state.roles = Array.isArray(list) ? list : [];
+      return restoreMissingRoles();
+    }).then(() => {
+      cacheRoles(state.roles);
       renderRoleChecklist();
       renderRoleList();
     }).catch(() => toast('Could not load the role library.'));
@@ -452,7 +501,7 @@
       customCount,
       defaultCount: Math.max(0, slotCount - customCount),
       overflow: Math.max(0, customCount - slotCount),
-      defaultName: defaultRole ? defaultRole.name : (team === 'mafia' ? 'Mafia' : 'Villager')
+      defaultName: defaultRole ? defaultRole.name : (team === 'mafia' ? 'مافیا' : 'شهروند')
     };
   }
 
@@ -465,17 +514,17 @@
     const village = roleSummaryForTeam('villager');
 
     const lines = [];
-    [['Mafia', mafia], ['Village', village]].forEach(([label, s]) => {
+    [['مافیا', mafia], ['شهروند', village]].forEach(([label, s]) => {
       if(s.customCount === 0) return;
       lines.push(s.defaultCount > 0
-        ? s.defaultCount + ' of ' + s.slotCount + ' ' + label + ' will get the default role (' + escapeHtml(s.defaultName) + ').'
-        : 'All ' + s.slotCount + ' ' + label + ' have a unique role selected — the default ' + label + ' role won’t be used.');
+        ? s.defaultCount + ' نفر از ' + s.slotCount + ' ' + label + '، نقش پیش‌فرض (' + s.defaultName + ') را می‌گیرند.'
+        : 'تمام ' + s.slotCount + ' ' + label + ' نقش اختصاصی دارند — نقش پیش‌فرض ' + label + ' استفاده نخواهد شد.');
     });
     summaryBox.textContent = lines.join(' ');
 
     const warnings = [];
-    if(mafia.overflow > 0) warnings.push('You’ve selected ' + mafia.customCount + ' Mafia roles for only ' + mafia.slotCount + ' Mafia ' + (mafia.slotCount === 1 ? 'slot' : 'slots') + ' — uncheck ' + mafia.overflow + '.');
-    if(village.overflow > 0) warnings.push('You’ve selected ' + village.customCount + ' Village roles for only ' + village.slotCount + ' Village ' + (village.slotCount === 1 ? 'slot' : 'slots') + ' — uncheck ' + village.overflow + '.');
+    if(mafia.overflow > 0) warnings.push('شما ' + mafia.customCount + ' نقش مافیا انتخاب کرده‌اید ولی فقط ' + mafia.slotCount + ' جایگاه مافیا وجود دارد — ' + mafia.overflow + ' مورد را بردارید.');
+    if(village.overflow > 0) warnings.push('شما ' + village.customCount + ' نقش شهروند انتخاب کرده‌اید ولی فقط ' + village.slotCount + ' جایگاه شهروند وجود دارد — ' + village.overflow + ' مورد را بردارید.');
     warnBox.style.display = warnings.length ? 'block' : 'none';
     warnBox.textContent = warnings.join(' ');
 
@@ -562,6 +611,7 @@
       body: JSON.stringify({ name, description, team, shield })
     }).then(r => r.json()).then(list => {
       state.roles = list;
+      cacheRoles(list);
       renderRoleList();
       $('new-role-name').value = '';
       $('new-role-desc').value = '';
@@ -572,6 +622,7 @@
   App.deleteRole = function(id){
     fetch('/api/roles/' + id, { method: 'DELETE' }).then(r => r.json()).then(list => {
       state.roles = list;
+      cacheRoles(list);
       state.selectedRoleIds.delete(id);
       renderRoleList();
     }).catch(() => toast('Could not delete the role.'));
@@ -596,6 +647,7 @@
       body: JSON.stringify({ name, description, team, shield })
     }).then(r => r.json()).then(list => {
       state.roles = list;
+      cacheRoles(list);
       state.editingRoleId = null;
       renderRoleList();
       toast('Role updated.');
