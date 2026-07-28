@@ -67,7 +67,12 @@
   .role-row .role-name{font-weight:700; font-size:15px;}
   .role-row .role-team-tag{margin-left:8px;}
   .role-row .role-desc-small{font-size:12px; color:var(--text-faint); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .role-row .del-btn{flex-shrink:0; background:none; border:1px solid var(--line-strong); color:var(--text-muted); border-radius:8px; width:34px; height:34px; cursor:pointer; font-size:14px;}
+  .role-row .del-btn, .role-row .edit-btn{flex-shrink:0; background:none; border:1px solid var(--line-strong); color:var(--text-muted); border-radius:8px; width:34px; height:34px; cursor:pointer; font-size:14px;}
+  .role-row.role-row-edit{align-items:stretch;}
+  .role-check-row{cursor:pointer;}
+  .role-check-row input[type="checkbox"]{width:20px; height:20px; flex-shrink:0; accent-color:var(--gold);}
+  label.shield-toggle{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-muted); font-weight:600; cursor:pointer;}
+  label.shield-toggle input{width:18px; height:18px; accent-color:var(--gold);}
   .stepper{display:flex; align-items:center; gap:14px;}
   .stepper button{width:46px; height:46px; border-radius:12px; border:1.5px solid var(--line-strong); background:var(--surface); color:var(--text); font-size:20px; font-weight:700; cursor:pointer;}
   .stepper .val{flex:1; text-align:center; font-family:'Playfair Display', serif; font-size:28px; font-weight:800;}
@@ -104,6 +109,7 @@
   .tag{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.08em; padding:5px 10px; border-radius:6px; text-transform:uppercase;}
   .tag.mafia{background:var(--red-dim); color:var(--red-bright);}
   .tag.villager{background:var(--slate-dim); color:var(--slate);}
+  .tag.shield{background:var(--gold-dim); color:var(--gold);}
   .spinner{width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,0.25); border-top-color:#fff; animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .pulse-dot{width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulse 1.4s ease-in-out infinite;}
@@ -152,12 +158,9 @@
       <div class="hint" id="mafia-hint"></div>
     </div>
     <div class="field">
-      <label>Mafia-team role</label>
-      <select id="select-mafia-role" class="role-select"></select>
-    </div>
-    <div class="field">
-      <label>Village-team role</label>
-      <select id="select-villager-role" class="role-select"></select>
+      <label>Roles in play</label>
+      <div class="hint" style="margin-bottom:10px;">Check the roles you want dealt this game. Each side is dealt randomly from its checked roles.</div>
+      <div id="role-checklist" class="stack"></div>
     </div>
     <button class="link-btn" style="align-self:flex-start; padding-left:0;" onclick="App.openManageRoles('host-setup')">+ Manage custom roles</button>
     <div class="grow"></div>
@@ -189,6 +192,9 @@
       <div class="field">
         <label>Description shown to the player</label>
         <input type="text" id="new-role-desc" placeholder="Shown on their role card" maxlength="200">
+      </div>
+      <div class="field">
+        <label class="shield-toggle"><input type="checkbox" id="new-role-shield"> Has a shield</label>
       </div>
       <button class="btn btn-gold" onclick="App.addRole()">Save Role</button>
     </div>
@@ -280,6 +286,7 @@
             <div class="eyebrow" id="role-eyebrow">Case File</div>
             <div class="role-title" id="role-title">???</div>
             <div class="role-desc" id="role-desc"></div>
+            <div class="tag shield" id="role-shield" style="display:none; margin-top:14px;">Shielded</div>
           </div>
         </div>
       </div>
@@ -311,8 +318,8 @@
     playerId: null,
     pendingJoinCode: null,
     roles: [],             // role library, loaded from /api/roles
-    selectedMafiaRoleId: 'builtin-mafia',
-    selectedVillagerRoleId: 'builtin-villager',
+    selectedRoleIds: new Set(['builtin-mafia', 'builtin-villager']), // roles in play this game
+    editingRoleId: null,
     manageRolesReturnTo: 'landing'
   };
 
@@ -403,23 +410,32 @@
   function loadRoles(){
     return fetch('/api/roles').then(r => r.json()).then(list => {
       state.roles = Array.isArray(list) ? list : [];
-      renderRoleSelects();
+      renderRoleChecklist();
       renderRoleList();
     }).catch(() => toast('Could not load the role library.'));
   }
 
-  function renderRoleSelects(){
-    const mafiaSel = $('select-mafia-role');
-    const villagerSel = $('select-villager-role');
-    if(!mafiaSel || !villagerSel) return;
-    const mafiaRoles = state.roles.filter(r => r.team === 'mafia');
-    const villagerRoles = state.roles.filter(r => r.team === 'villager');
-    mafiaSel.innerHTML = mafiaRoles.map(r => '<option value="'+r.id+'">'+escapeHtml(r.name)+'</option>').join('');
-    villagerSel.innerHTML = villagerRoles.map(r => '<option value="'+r.id+'">'+escapeHtml(r.name)+'</option>').join('');
-    if(mafiaRoles.some(r => r.id === state.selectedMafiaRoleId)) mafiaSel.value = state.selectedMafiaRoleId;
-    if(villagerRoles.some(r => r.id === state.selectedVillagerRoleId)) villagerSel.value = state.selectedVillagerRoleId;
-    mafiaSel.onchange = () => { state.selectedMafiaRoleId = mafiaSel.value; };
-    villagerSel.onchange = () => { state.selectedVillagerRoleId = villagerSel.value; };
+  function renderRoleChecklist(){
+    const box = $('role-checklist');
+    if(!box) return;
+    box.innerHTML = '';
+    state.roles.forEach(r => {
+      const row = document.createElement('label');
+      row.className = 'role-row role-check-row';
+      row.innerHTML =
+        '<input type="checkbox" ' + (state.selectedRoleIds.has(r.id) ? 'checked' : '') + '>' +
+        '<div class="role-info">' +
+          '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
+          '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>' +
+          (r.shield ? '<span class="tag shield role-team-tag">Shield</span>' : '') +
+          (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
+        '</div>';
+      row.querySelector('input').onchange = (e) => {
+        if(e.target.checked) state.selectedRoleIds.add(r.id);
+        else state.selectedRoleIds.delete(r.id);
+      };
+      box.appendChild(row);
+    });
   }
 
   function renderRoleList(){
@@ -429,13 +445,41 @@
     state.roles.forEach(r => {
       const row = document.createElement('div');
       row.className = 'role-row';
-      row.innerHTML =
-        '<div class="role-info">' +
-          '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
-          '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>' +
-          (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
-        '</div>' +
-        (r.builtin ? '' : '<button class="del-btn" onclick="App.deleteRole(\'' + r.id + '\')">&times;</button>');
+      if(state.editingRoleId === r.id){
+        row.classList.add('role-row-edit');
+        row.innerHTML =
+          '<div class="stack" style="width:100%;">' +
+            '<div class="field" style="margin-bottom:10px;">' +
+              '<select class="role-select" id="edit-team-' + r.id + '">' +
+                '<option value="mafia"' + (r.team === 'mafia' ? ' selected' : '') + '>Mafia-aligned</option>' +
+                '<option value="villager"' + (r.team === 'villager' ? ' selected' : '') + '>Village-aligned</option>' +
+              '</select>' +
+            '</div>' +
+            '<div class="field" style="margin-bottom:10px;">' +
+              '<input type="text" id="edit-name-' + r.id + '" value="' + escapeHtml(r.name) + '" maxlength="40">' +
+            '</div>' +
+            '<div class="field" style="margin-bottom:10px;">' +
+              '<input type="text" id="edit-desc-' + r.id + '" value="' + escapeHtml(r.description || '') + '" maxlength="200">' +
+            '</div>' +
+            '<div class="field">' +
+              '<label class="shield-toggle"><input type="checkbox" id="edit-shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> Has a shield</label>' +
+            '</div>' +
+            '<div class="stack" style="flex-direction:row;">' +
+              '<button class="btn btn-gold" style="padding:12px;" onclick="App.saveRoleEdit(\'' + r.id + '\')">Save</button>' +
+              '<button class="btn btn-ghost" style="padding:12px;" onclick="App.cancelRoleEdit()">Cancel</button>' +
+            '</div>' +
+          '</div>';
+      } else {
+        row.innerHTML =
+          '<div class="role-info">' +
+            '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
+            '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>' +
+            (r.shield ? '<span class="tag shield role-team-tag">Shield</span>' : '') +
+            (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
+          '</div>' +
+          '<button class="edit-btn" title="Edit" onclick="App.startRoleEdit(\'' + r.id + '\')">&#9998;</button>' +
+          (r.builtin ? '' : '<button class="del-btn" title="Delete" onclick="App.deleteRole(\'' + r.id + '\')">&times;</button>');
+      }
       list.appendChild(row);
     });
   }
@@ -444,18 +488,20 @@
   const App = {};
 
   App.goLanding = function(role){
-    if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); renderRoleSelects(); }
+    if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); renderRoleChecklist(); }
     else if(role === 'player'){ state.role = 'player'; showScreen('screen-player-join'); }
     else { state.role = null; showScreen('screen-landing'); }
   };
 
   App.openManageRoles = function(returnTo){
     state.manageRolesReturnTo = returnTo || 'landing';
+    state.editingRoleId = null;
     showScreen('screen-manage-roles');
     renderRoleList();
   };
   App.closeManageRoles = function(){
-    renderRoleSelects();
+    state.editingRoleId = null;
+    renderRoleChecklist();
     if(state.manageRolesReturnTo === 'host-setup') showScreen('screen-host-setup');
     else showScreen('screen-landing');
   };
@@ -463,24 +509,52 @@
     const name = $('new-role-name').value.trim();
     const description = $('new-role-desc').value.trim();
     const team = $('new-role-team').value;
+    const shield = $('new-role-shield').checked;
     if(!name){ toast('Enter a role name.'); return; }
     fetch('/api/roles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, team })
+      body: JSON.stringify({ name, description, team, shield })
     }).then(r => r.json()).then(list => {
       state.roles = list;
       renderRoleList();
       $('new-role-name').value = '';
       $('new-role-desc').value = '';
+      $('new-role-shield').checked = false;
       toast('Role saved.');
     }).catch(() => toast('Could not save the role.'));
   };
   App.deleteRole = function(id){
     fetch('/api/roles/' + id, { method: 'DELETE' }).then(r => r.json()).then(list => {
       state.roles = list;
+      state.selectedRoleIds.delete(id);
       renderRoleList();
     }).catch(() => toast('Could not delete the role.'));
+  };
+  App.startRoleEdit = function(id){
+    state.editingRoleId = id;
+    renderRoleList();
+  };
+  App.cancelRoleEdit = function(){
+    state.editingRoleId = null;
+    renderRoleList();
+  };
+  App.saveRoleEdit = function(id){
+    const name = $('edit-name-' + id).value.trim();
+    const description = $('edit-desc-' + id).value.trim();
+    const team = $('edit-team-' + id).value;
+    const shield = $('edit-shield-' + id).checked;
+    if(!name){ toast('Enter a role name.'); return; }
+    fetch('/api/roles/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, team, shield })
+    }).then(r => r.json()).then(list => {
+      state.roles = list;
+      state.editingRoleId = null;
+      renderRoleList();
+      toast('Role updated.');
+    }).catch(() => toast('Could not update the role.'));
   };
 
   App.stepPlayers = function(delta){
@@ -612,19 +686,23 @@
 
   /* ---------------- Role assignment ---------------- */
   App.assignRoles = function(){
-    const mafiaRole = state.roles.find(r => r.id === state.selectedMafiaRoleId) || { team:'mafia', name:'Mafia', description:'' };
-    const villagerRole = state.roles.find(r => r.id === state.selectedVillagerRoleId) || { team:'villager', name:'Villager', description:'' };
+    const mafiaPool = state.roles.filter(r => r.team === 'mafia' && state.selectedRoleIds.has(r.id));
+    const villagerPool = state.roles.filter(r => r.team === 'villager' && state.selectedRoleIds.has(r.id));
+    const effectiveMafiaPool = mafiaPool.length ? mafiaPool : [{ team: 'mafia', name: 'Mafia', description: '', shield: false }];
+    const effectiveVillagerPool = villagerPool.length ? villagerPool : [{ team: 'villager', name: 'Villager', description: '', shield: false }];
 
     const ids = Array.from(state.players.keys());
     shuffle(ids);
     const mafiaSet = new Set(ids.slice(0, state.numMafia));
     for(const [id, entry] of state.players.entries()){
-      const roleDef = mafiaSet.has(id) ? mafiaRole : villagerRole;
+      const pool = mafiaSet.has(id) ? effectiveMafiaPool : effectiveVillagerPool;
+      const roleDef = pool[Math.floor(Math.random() * pool.length)];
       entry.role = roleDef.team;
       entry.roleName = roleDef.name;
       entry.roleDesc = roleDef.description;
+      entry.roleShield = !!roleDef.shield;
       try{
-        entry.dc.send(JSON.stringify({ type: 'role', role: roleDef.team, name: roleDef.name, description: roleDef.description }));
+        entry.dc.send(JSON.stringify({ type: 'role', role: roleDef.team, name: roleDef.name, description: roleDef.description, shield: !!roleDef.shield }));
       }catch(e){}
     }
     renderDossier();
@@ -638,7 +716,8 @@
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td>' + escapeHtml(entry.name) + '</td>' +
-        '<td style="text-align:right;"><span class="tag ' + entry.role + '">' + escapeHtml(entry.roleName || entry.role) + '</span></td>';
+        '<td style="text-align:right;"><span class="tag ' + entry.role + '">' + escapeHtml(entry.roleName || entry.role) + '</span>' +
+        (entry.roleShield ? ' <span class="tag shield">Shield</span>' : '') + '</td>';
       table.appendChild(tr);
     }
   }
@@ -712,6 +791,7 @@
     front.classList.add(msg.role === 'mafia' ? 'is-mafia' : 'is-villager');
     $('role-title').textContent = (msg.name || (msg.role === 'mafia' ? 'Mafia' : 'Villager')).toUpperCase();
     $('role-desc').textContent = msg.description || '';
+    $('role-shield').style.display = msg.shield ? 'inline-flex' : 'none';
     $('role-card').classList.remove('flipped');
   }
   App.flipRole = function(){ $('role-card').classList.toggle('flipped'); };

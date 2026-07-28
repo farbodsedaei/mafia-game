@@ -22,8 +22,8 @@ const ROLES_FILE = path.join(DATA_DIR, 'roles.json');
 const ROOM_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
 
 const DEFAULT_ROLES = [
-  { id: 'builtin-mafia', team: 'mafia', name: 'Mafia', description: 'You know the other Mafia. Work in the dark, blend in by day.', builtin: true },
-  { id: 'builtin-villager', team: 'villager', name: 'Villager', description: 'You have no special knowledge. Watch closely, and vote wisely.', builtin: true }
+  { id: 'builtin-mafia', team: 'mafia', name: 'Mafia', description: 'You know the other Mafia. Work in the dark, blend in by day.', shield: false, builtin: true },
+  { id: 'builtin-villager', team: 'villager', name: 'Villager', description: 'You have no special knowledge. Watch closely, and vote wisely.', shield: false, builtin: true }
 ];
 
 /* ---------------- Role library (persisted to disk) ---------------- */
@@ -115,9 +115,36 @@ const httpServer = http.createServer(async (req, res) => {
     const team = body.team === 'mafia' ? 'mafia' : 'villager';
     if (!name) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Name is required' })); return; }
 
+    const shield = !!body.shield;
     const roles = readRoles();
-    const newRole = { id: 'r-' + crypto.randomBytes(4).toString('hex'), team, name, description, builtin: false };
+    const newRole = { id: 'r-' + crypto.randomBytes(4).toString('hex'), team, name, description, shield, builtin: false };
     roles.push(newRole);
+    writeRoles(roles);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(roles));
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/roles/') && req.method === 'PUT') {
+    const id = url.pathname.split('/').pop();
+    let body;
+    try { body = await readJsonBody(req); }
+    catch (e) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid JSON' })); return; }
+
+    const roles = readRoles();
+    const target = roles.find(r => r.id === id);
+    if (!target) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Role not found' })); return; }
+
+    const name = (body.name || '').toString().trim().slice(0, 40);
+    const description = (body.description || '').toString().trim().slice(0, 200);
+    const team = body.team === 'mafia' ? 'mafia' : 'villager';
+    const shield = !!body.shield;
+    if (!name) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Name is required' })); return; }
+
+    target.name = name;
+    target.description = description;
+    target.team = team;
+    target.shield = shield;
     writeRoles(roles);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(roles));
