@@ -60,6 +60,14 @@
   .field input{background:var(--surface); border:1.5px solid var(--line); color:var(--text); font-family:'Inter', sans-serif; font-size:17px; font-weight:600; padding:15px 16px; border-radius:12px; outline:none; width:100%;}
   .field input:focus{border-color:var(--red-bright);}
   .field input.code-input{text-align:center; letter-spacing:0.3em; text-transform:uppercase; font-family:'JetBrains Mono', monospace;}
+  select.role-select{background:var(--surface); border:1.5px solid var(--line); color:var(--text); font-family:'Inter', sans-serif; font-size:16px; font-weight:600; padding:14px 16px; border-radius:12px; outline:none; width:100%; appearance:none;}
+  select.role-select:focus{border-color:var(--red-bright);}
+  .role-row{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px;}
+  .role-row .role-info{flex:1; min-width:0;}
+  .role-row .role-name{font-weight:700; font-size:15px;}
+  .role-row .role-team-tag{margin-left:8px;}
+  .role-row .role-desc-small{font-size:12px; color:var(--text-faint); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .role-row .del-btn{flex-shrink:0; background:none; border:1px solid var(--line-strong); color:var(--text-muted); border-radius:8px; width:34px; height:34px; cursor:pointer; font-size:14px;}
   .stepper{display:flex; align-items:center; gap:14px;}
   .stepper button{width:46px; height:46px; border-radius:12px; border:1.5px solid var(--line-strong); background:var(--surface); color:var(--text); font-size:20px; font-weight:700; cursor:pointer;}
   .stepper .val{flex:1; text-align:center; font-family:'Playfair Display', serif; font-size:28px; font-weight:800;}
@@ -118,6 +126,7 @@
     <div class="stack" style="margin-top:24px;">
       <button class="btn btn-primary" onclick="App.goLanding('host')">I'm the Host <span style="opacity:.7">— God</span></button>
       <button class="btn btn-outline" onclick="App.goLanding('player')">I'm a Player</button>
+      <button class="link-btn" style="margin:0 auto;" onclick="App.openManageRoles('landing')">Manage custom roles</button>
     </div>
   </div>
 
@@ -142,11 +151,49 @@
       </div>
       <div class="hint" id="mafia-hint"></div>
     </div>
+    <div class="field">
+      <label>Mafia-team role</label>
+      <select id="select-mafia-role" class="role-select"></select>
+    </div>
+    <div class="field">
+      <label>Village-team role</label>
+      <select id="select-villager-role" class="role-select"></select>
+    </div>
+    <button class="link-btn" style="align-self:flex-start; padding-left:0;" onclick="App.openManageRoles('host-setup')">+ Manage custom roles</button>
     <div class="grow"></div>
     <div class="stack">
       <button class="btn btn-primary" onclick="App.createLobby()">Create Lobby</button>
       <button class="btn btn-ghost" onclick="App.goLanding()">Back</button>
     </div>
+  </div>
+
+  <!-- MANAGE ROLES -->
+  <div class="screen" id="screen-manage-roles">
+    <div class="eyebrow">Role Library</div>
+    <h2 style="font-size:26px; margin:10px 0 20px;">Manage roles</h2>
+    <p class="hint" style="margin-bottom:16px;">Add roles in any language. Saved roles are available for every future game on this server.</p>
+    <div id="role-list" class="stack" style="margin-bottom:22px;"></div>
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:14px;">Add a role</div>
+      <div class="field">
+        <label>Team</label>
+        <select id="new-role-team" class="role-select">
+          <option value="mafia">Mafia-aligned</option>
+          <option value="villager">Village-aligned</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Role name</label>
+        <input type="text" id="new-role-name" placeholder="e.g. Mafya, Detective, 探偵" maxlength="40">
+      </div>
+      <div class="field">
+        <label>Description shown to the player</label>
+        <input type="text" id="new-role-desc" placeholder="Shown on their role card" maxlength="200">
+      </div>
+      <button class="btn btn-gold" onclick="App.addRole()">Save Role</button>
+    </div>
+    <div class="grow"></div>
+    <button class="btn btn-ghost" onclick="App.closeManageRoles()">Done</button>
   </div>
 
   <!-- HOST LOBBY -->
@@ -262,7 +309,11 @@
     playerPC: null,
     playerDC: null,
     playerId: null,
-    pendingJoinCode: null
+    pendingJoinCode: null,
+    roles: [],             // role library, loaded from /api/roles
+    selectedMafiaRoleId: 'builtin-mafia',
+    selectedVillagerRoleId: 'builtin-villager',
+    manageRolesReturnTo: 'landing'
   };
 
   function $(id){ return document.getElementById(id); }
@@ -348,13 +399,88 @@
     }
   }
 
+  /* ---------------- Role library ---------------- */
+  function loadRoles(){
+    return fetch('/api/roles').then(r => r.json()).then(list => {
+      state.roles = Array.isArray(list) ? list : [];
+      renderRoleSelects();
+      renderRoleList();
+    }).catch(() => toast('Could not load the role library.'));
+  }
+
+  function renderRoleSelects(){
+    const mafiaSel = $('select-mafia-role');
+    const villagerSel = $('select-villager-role');
+    if(!mafiaSel || !villagerSel) return;
+    const mafiaRoles = state.roles.filter(r => r.team === 'mafia');
+    const villagerRoles = state.roles.filter(r => r.team === 'villager');
+    mafiaSel.innerHTML = mafiaRoles.map(r => '<option value="'+r.id+'">'+escapeHtml(r.name)+'</option>').join('');
+    villagerSel.innerHTML = villagerRoles.map(r => '<option value="'+r.id+'">'+escapeHtml(r.name)+'</option>').join('');
+    if(mafiaRoles.some(r => r.id === state.selectedMafiaRoleId)) mafiaSel.value = state.selectedMafiaRoleId;
+    if(villagerRoles.some(r => r.id === state.selectedVillagerRoleId)) villagerSel.value = state.selectedVillagerRoleId;
+    mafiaSel.onchange = () => { state.selectedMafiaRoleId = mafiaSel.value; };
+    villagerSel.onchange = () => { state.selectedVillagerRoleId = villagerSel.value; };
+  }
+
+  function renderRoleList(){
+    const list = $('role-list');
+    if(!list) return;
+    list.innerHTML = '';
+    state.roles.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'role-row';
+      row.innerHTML =
+        '<div class="role-info">' +
+          '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
+          '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>' +
+          (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
+        '</div>' +
+        (r.builtin ? '' : '<button class="del-btn" onclick="App.deleteRole(\'' + r.id + '\')">&times;</button>');
+      list.appendChild(row);
+    });
+  }
+
   /* ---------------- App / Landing ---------------- */
   const App = {};
 
   App.goLanding = function(role){
-    if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); }
+    if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); renderRoleSelects(); }
     else if(role === 'player'){ state.role = 'player'; showScreen('screen-player-join'); }
     else { state.role = null; showScreen('screen-landing'); }
+  };
+
+  App.openManageRoles = function(returnTo){
+    state.manageRolesReturnTo = returnTo || 'landing';
+    showScreen('screen-manage-roles');
+    renderRoleList();
+  };
+  App.closeManageRoles = function(){
+    renderRoleSelects();
+    if(state.manageRolesReturnTo === 'host-setup') showScreen('screen-host-setup');
+    else showScreen('screen-landing');
+  };
+  App.addRole = function(){
+    const name = $('new-role-name').value.trim();
+    const description = $('new-role-desc').value.trim();
+    const team = $('new-role-team').value;
+    if(!name){ toast('Enter a role name.'); return; }
+    fetch('/api/roles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, team })
+    }).then(r => r.json()).then(list => {
+      state.roles = list;
+      renderRoleList();
+      $('new-role-name').value = '';
+      $('new-role-desc').value = '';
+      toast('Role saved.');
+    }).catch(() => toast('Could not save the role.'));
+  };
+  App.deleteRole = function(id){
+    fetch('/api/roles/' + id, { method: 'DELETE' }).then(r => r.json()).then(list => {
+      state.roles = list;
+      renderRoleList();
+    }).catch(() => toast('Could not delete the role.'));
   };
 
   App.stepPlayers = function(delta){
@@ -486,12 +612,20 @@
 
   /* ---------------- Role assignment ---------------- */
   App.assignRoles = function(){
+    const mafiaRole = state.roles.find(r => r.id === state.selectedMafiaRoleId) || { team:'mafia', name:'Mafia', description:'' };
+    const villagerRole = state.roles.find(r => r.id === state.selectedVillagerRoleId) || { team:'villager', name:'Villager', description:'' };
+
     const ids = Array.from(state.players.keys());
     shuffle(ids);
     const mafiaSet = new Set(ids.slice(0, state.numMafia));
     for(const [id, entry] of state.players.entries()){
-      entry.role = mafiaSet.has(id) ? 'mafia' : 'villager';
-      try{ entry.dc.send(JSON.stringify({ type: 'role', role: entry.role })); }catch(e){}
+      const roleDef = mafiaSet.has(id) ? mafiaRole : villagerRole;
+      entry.role = roleDef.team;
+      entry.roleName = roleDef.name;
+      entry.roleDesc = roleDef.description;
+      try{
+        entry.dc.send(JSON.stringify({ type: 'role', role: roleDef.team, name: roleDef.name, description: roleDef.description }));
+      }catch(e){}
     }
     renderDossier();
     showScreen('screen-host-summary');
@@ -504,7 +638,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td>' + escapeHtml(entry.name) + '</td>' +
-        '<td style="text-align:right;"><span class="tag ' + entry.role + '">' + (entry.role === 'mafia' ? 'Mafia' : 'Villager') + '</span></td>';
+        '<td style="text-align:right;"><span class="tag ' + entry.role + '">' + escapeHtml(entry.roleName || entry.role) + '</span></td>';
       table.appendChild(tr);
     }
   }
@@ -557,7 +691,7 @@
     dc.onmessage = (e) => {
       try{
         const msg = JSON.parse(e.data);
-        if(msg.type === 'role'){ renderRole(msg.role); showScreen('screen-player-role'); }
+        if(msg.type === 'role'){ renderRole(msg); showScreen('screen-player-role'); }
       }catch(err){}
     };
     dc.onclose = () => { toast('Connection to host lost.'); };
@@ -572,14 +706,12 @@
     showScreen('screen-player-waiting');
   };
 
-  function renderRole(role){
+  function renderRole(msg){
     const front = $('role-front');
     front.classList.remove('is-mafia', 'is-villager');
-    front.classList.add(role === 'mafia' ? 'is-mafia' : 'is-villager');
-    $('role-title').textContent = role === 'mafia' ? 'MAFIA' : 'VILLAGER';
-    $('role-desc').textContent = role === 'mafia'
-      ? 'You know the other Mafia. Work in the dark, blend in by day.'
-      : 'You have no special knowledge. Watch closely, and vote wisely.';
+    front.classList.add(msg.role === 'mafia' ? 'is-mafia' : 'is-villager');
+    $('role-title').textContent = (msg.name || (msg.role === 'mafia' ? 'Mafia' : 'Villager')).toUpperCase();
+    $('role-desc').textContent = msg.description || '';
     $('role-card').classList.remove('flipped');
   }
   App.flipRole = function(){ $('role-card').classList.toggle('flipped'); };
@@ -587,6 +719,7 @@
   /* ---------------- Init ---------------- */
   renderSetupValues();
   window.App = App;
+  loadRoles();
 
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
