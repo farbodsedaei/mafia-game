@@ -36,7 +36,15 @@ function readRoles() {
   try {
     const raw = fs.readFileSync(ROLES_FILE, 'utf8');
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_ROLES.slice();
+    const roles = Array.isArray(parsed) ? parsed : DEFAULT_ROLES.slice();
+    // One-time migration: any custom role that predates the lock feature
+    // (no explicit `locked` field yet) is frozen so it can't be deleted.
+    let migrated = false;
+    for (const r of roles) {
+      if (!r.builtin && r.locked === undefined) { r.locked = true; migrated = true; }
+    }
+    if (migrated) writeRoles(roles);
+    return roles;
   } catch (e) {
     return DEFAULT_ROLES.slice();
   }
@@ -118,7 +126,7 @@ const httpServer = http.createServer(async (req, res) => {
 
     const shield = !!body.shield;
     const roles = readRoles();
-    const newRole = { id: 'r-' + crypto.randomBytes(4).toString('hex'), team, name, description, shield, independent, builtin: false };
+    const newRole = { id: 'r-' + crypto.randomBytes(4).toString('hex'), team, name, description, shield, independent, locked: false, builtin: false };
     roles.push(newRole);
     writeRoles(roles);
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -158,9 +166,9 @@ const httpServer = http.createServer(async (req, res) => {
     const id = url.pathname.split('/').pop();
     let roles = readRoles();
     const target = roles.find(r => r.id === id);
-    if (target && target.builtin) {
+    if (target && (target.builtin || target.locked)) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Built-in roles cannot be deleted' }));
+      res.end(JSON.stringify({ error: 'This role is locked and cannot be deleted' }));
       return;
     }
     roles = roles.filter(r => r.id !== id);

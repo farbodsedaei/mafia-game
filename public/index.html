@@ -111,6 +111,7 @@
   .tag.villager{background:var(--slate-dim); color:var(--slate);}
   .tag.shield{background:var(--gold-dim); color:var(--gold);}
   .tag.independent{background:rgba(237,239,244,0.08); color:var(--text-muted); border:1px solid var(--line-strong);}
+  .tag.locked{background:rgba(237,239,244,0.05); color:var(--text-faint); border:1px solid var(--line);}
   .spinner{width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,0.25); border-top-color:#fff; animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .pulse-dot{width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulse 1.4s ease-in-out infinite;}
@@ -321,6 +322,23 @@
     <button class="btn btn-primary" id="result-continue-btn" onclick="App.proceedAfterResult()">Continue &rarr;</button>
   </div>
 
+  <!-- HOST: NIGHT -->
+  <div class="screen" id="screen-host-night">
+    <div class="eyebrow">Night <span id="night-day"></span></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;">Night in progress</h2>
+    <p class="hint">Special roles are making their choices on their own phones. This screen won't show who they are &mdash; you're playing too.</p>
+    <div class="grow"></div>
+    <button class="btn btn-primary" onclick="App.forceContinueNight()">Force Continue</button>
+  </div>
+
+  <!-- HOST: NIGHT RESULT -->
+  <div class="screen" id="screen-host-night-result">
+    <div class="eyebrow">Night <span id="night-result-day"></span> &middot; Result</div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" id="night-result-title">&mdash;</h2>
+    <div class="grow"></div>
+    <button class="btn btn-primary" id="night-result-continue-btn" onclick="App.proceedAfterNight()">Continue &rarr;</button>
+  </div>
+
   <!-- HOST: GAME OVER -->
   <div class="screen" id="screen-host-game-over">
     <div class="eyebrow">Game Over</div>
@@ -474,6 +492,28 @@
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
   </div>
 
+  <!-- PLAYER: NIGHT WAITING -->
+  <div class="screen" id="screen-player-night-waiting">
+    <div class="eyebrow" id="night-waiting-day">Night 1</div>
+    <div class="grow center">
+      <h2 style="font-size:26px;" id="night-waiting-title">The town sleeps</h2>
+      <p class="hint" id="night-waiting-note" style="max-width:280px; margin-top:10px; display:none;"></p>
+    </div>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
+  </div>
+
+  <!-- PLAYER: NIGHT ACTION -->
+  <div class="screen" id="screen-player-night-action">
+    <div class="eyebrow" id="night-action-day">Night 1</div>
+    <h2 style="font-size:24px; margin:10px 0 18px;" id="night-action-title">Choose someone</h2>
+    <div id="night-action-candidate-list" class="stack"></div>
+    <div class="grow"></div>
+    <div class="stack">
+      <button class="btn btn-primary" onclick="App.submitNightAction()">Confirm</button>
+      <button class="btn btn-ghost" id="night-action-skip-btn" onclick="App.skipNightAction()">Do Nothing Tonight</button>
+    </div>
+  </div>
+
   <!-- PLAYER: ELIMINATED -->
   <div class="screen" id="screen-player-eliminated">
     <div class="grow center">
@@ -502,6 +542,12 @@
     { urls: 'stun:stun1.l.google.com:19302' }
   ];
 
+  // Night-action roles are identified by exact role name. Renaming one of
+  // these roles in the role library will break its night behavior.
+  const ROLE_NAME_GODFATHER = 'پدر خوانده';
+  const ROLE_NAME_MATADOR = 'ماتادور';
+  const ROLE_NAME_PROFESSIONAL = 'حرفه‌ای';
+
   const state = {
     role: null,
     numPlayers: 6,
@@ -528,11 +574,14 @@
     inquiriesRemaining: 0,  // (host) inquiries left to spend this game
     votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
+    night: { blockedId: null, professionalTargetId: null, mafiaTargetId: null }, // (host) this night's decisions
     myRole: null,           // (player) last role payload received, for the "View My Role" peek
     roleReturnScreen: null, // (player) screen to return to after peeking at role
     voteRound: null,        // (player) 1 or 2, which round the current vote screen is for
     voteCandidates: [],     // (player) candidates offered for the current vote
-    selectedCandidateIds: new Set() // (player) chosen candidates before submit; may be empty
+    selectedCandidateIds: new Set(), // (player) chosen candidates before submit; may be empty
+    nightActionRole: null,       // (player) which role this night-action prompt is for
+    selectedNightTargetId: null  // (player) chosen target before submit
   };
 
   function $(id){ return document.getElementById(id); }
@@ -788,10 +837,11 @@
             '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
             roleTeamTagHtml(r) +
             (r.shield ? '<span class="tag shield role-team-tag">Shield</span>' : '') +
+            (!r.builtin && r.locked ? '<span class="tag locked role-team-tag">Locked</span>' : '') +
             (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
           '</div>' +
           '<button class="edit-btn" title="Edit" onclick="App.startRoleEdit(\'' + r.id + '\')">&#9998;</button>' +
-          (r.builtin ? '' : '<button class="del-btn" title="Delete" onclick="App.deleteRole(\'' + r.id + '\')">&times;</button>');
+          ((r.builtin || r.locked) ? '' : '<button class="del-btn" title="Delete" onclick="App.deleteRole(\'' + r.id + '\')">&times;</button>');
       }
       list.appendChild(row);
     });
@@ -1005,6 +1055,8 @@
           handlePlayerVote(playerId, msg.round, msg.candidateIds);
         } else if(msg.type === 'inquiry-vote'){
           handlePlayerInquiryVote(playerId, msg.choice);
+        } else if(msg.type === 'night-action'){
+          handleNightAction(playerId, msg.role, msg.targetId);
         }
       }catch(err){}
     };
@@ -1342,13 +1394,13 @@
     }
     $('result-continue-btn').textContent = state.winner
       ? 'See Final Results →'
-      : 'Continue to Day ' + (state.day + 1) + ' →';
+      : 'Continue to Night →';
     showScreen('screen-host-result');
   }
 
   App.proceedAfterResult = function(){
     if(state.winner) App.showGameOver();
-    else App.continueToNextDay();
+    else startNight();
   };
 
   App.continueToNextDay = function(){
@@ -1377,6 +1429,128 @@
     showScreen('screen-host-game-over');
   };
 
+  /* ---------------- Night phase ---------------- */
+  function findAliveByRoleName(name){
+    return Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.roleName === name);
+  }
+
+  function startNight(){
+    state.night = { blockedId: null, professionalTargetId: null, mafiaTargetId: null };
+    aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
+    $('night-day').textContent = state.day;
+    showScreen('screen-host-night');
+    startMatadorStep();
+  }
+
+  function startMatadorStep(){
+    state.gamePhase = 'night-matador';
+    const matadors = findAliveByRoleName(ROLE_NAME_MATADOR);
+    if(!matadors.length){ startProfessionalStep(); return; }
+    const [matadorId, matadorEntry] = matadors[0];
+    const candidates = Array.from(state.players.entries())
+      .filter(([id, e]) => e.alive && e.role === 'villager' && id !== matadorId)
+      .map(([id, e]) => ({ id, name: e.name }));
+    sendToPlayer(matadorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: 'Choose someone to block', candidates, allowSkip: true });
+  }
+
+  function startProfessionalStep(){
+    state.gamePhase = 'night-professional';
+    const professionals = findAliveByRoleName(ROLE_NAME_PROFESSIONAL);
+    const blockedId = state.night.blockedId;
+    const active = professionals.find(([id]) => id !== blockedId);
+    const blockedProfessional = professionals.find(([id]) => id === blockedId);
+    if(blockedProfessional){
+      sendToPlayer(blockedProfessional[1], { type: 'phase', phase: 'night', day: state.day, note: 'You were blocked tonight — no action for you.' });
+    }
+    if(!active){ startMafiaStep(); return; }
+    const [proId, proEntry] = active;
+    const candidates = Array.from(state.players.entries())
+      .filter(([id, e]) => e.alive && id !== proId)
+      .map(([id, e]) => ({ id, name: e.name }));
+    sendToPlayer(proEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'professional', title: 'Choose someone to shoot', candidates, allowSkip: true });
+  }
+
+  function startMafiaStep(){
+    state.gamePhase = 'night-mafia';
+    const godfathers = findAliveByRoleName(ROLE_NAME_GODFATHER);
+    const deciders = godfathers.length ? godfathers : Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.role === 'mafia');
+    if(!deciders.length){ resolveNight(); return; }
+    const candidates = Array.from(state.players.entries())
+      .filter(([id, e]) => e.alive && e.role !== 'mafia')
+      .map(([id, e]) => ({ id, name: e.name }));
+    deciders.forEach(([id, entry]) => {
+      sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: 'Choose someone to shoot', candidates, allowSkip: false });
+    });
+  }
+
+  function handleNightAction(voterId, role, targetId){
+    const voter = state.players.get(voterId);
+    if(!voter || !voter.alive) return;
+    if(role === 'matador' && state.gamePhase === 'night-matador'){
+      state.night.blockedId = targetId || null;
+      startProfessionalStep();
+    } else if(role === 'professional' && state.gamePhase === 'night-professional'){
+      state.night.professionalTargetId = targetId || null;
+      startMafiaStep();
+    } else if(role === 'mafia' && state.gamePhase === 'night-mafia'){
+      if(state.night.mafiaTargetId) return;
+      state.night.mafiaTargetId = targetId;
+      resolveNight();
+    }
+  }
+
+  App.forceContinueNight = function(){
+    if(state.gamePhase === 'night-matador'){ state.night.blockedId = null; startProfessionalStep(); }
+    else if(state.gamePhase === 'night-professional'){ state.night.professionalTargetId = null; startMafiaStep(); }
+    else if(state.gamePhase === 'night-mafia'){ resolveNight(); }
+  };
+
+  function resolveNight(){
+    const deaths = new Set();
+    const professionalEntries = findAliveByRoleName(ROLE_NAME_PROFESSIONAL);
+    const professional = professionalEntries.find(([id]) => id !== state.night.blockedId);
+
+    if(state.night.professionalTargetId && professional){
+      const target = state.players.get(state.night.professionalTargetId);
+      if(target){
+        if(target.role === 'mafia') deaths.add(state.night.professionalTargetId);
+        else deaths.add(professional[0]);
+      }
+    }
+
+    if(state.night.mafiaTargetId) deaths.add(state.night.mafiaTargetId);
+
+    const previouslyAlive = aliveEntries();
+    const deadNames = [];
+    deaths.forEach(id => {
+      const entry = state.players.get(id);
+      if(entry && entry.alive){
+        entry.alive = false;
+        deadNames.push(entry.name);
+      }
+    });
+
+    state.winner = checkWinner();
+    state.gamePhase = 'night-result';
+
+    previouslyAlive.forEach(([id, entry]) => {
+      if(deaths.has(id)) sendToPlayer(entry, { type: 'eliminated' });
+      else sendToPlayer(entry, { type: 'night-result', deadNames });
+    });
+
+    $('night-result-day').textContent = state.day;
+    $('night-result-title').textContent = deadNames.length
+      ? deadNames.join(', ') + (deadNames.length === 1 ? ' was' : ' were') + ' found dead this morning.'
+      : 'Everyone made it through the night.';
+    $('night-result-continue-btn').textContent = state.winner ? 'See Final Results →' : 'Continue to Day ' + (state.day + 1) + ' →';
+    showScreen('screen-host-night-result');
+  }
+
+  App.proceedAfterNight = function(){
+    if(state.winner) App.showGameOver();
+    else App.continueToNextDay();
+  };
+
   App.newGame = function(){
     for(const entry of state.players.values()){ try{ entry.pc && entry.pc.close(); }catch(e){} }
     state.players = new Map();
@@ -1389,6 +1563,7 @@
     state.votesInquiry = new Map();
     state.inquiriesRemaining = 0;
     state.winner = null;
+    state.night = { blockedId: null, professionalTargetId: null, mafiaTargetId: null };
     App.goLanding();
   };
 
@@ -1439,6 +1614,7 @@
         else if(msg.type === 'eliminated'){ showScreen('screen-player-eliminated'); }
         else if(msg.type === 'inquiry-result'){ handleInquiryResult(msg); }
         else if(msg.type === 'game-over'){ handleGameOver(msg); }
+        else if(msg.type === 'night-result'){ handleNightResult(msg); }
       }catch(err){}
     };
     dc.onclose = () => { toast('Connection to host lost.'); };
@@ -1479,6 +1655,14 @@
       renderVoteScreen();
     } else if(msg.phase === 'defense'){
       renderDefenseScreen(msg);
+    } else if(msg.phase === 'night'){
+      $('night-waiting-day').textContent = 'Night ' + msg.day;
+      $('night-waiting-title').textContent = 'The town sleeps';
+      $('night-waiting-note').textContent = msg.note || '';
+      $('night-waiting-note').style.display = msg.note ? 'block' : 'none';
+      showScreen('screen-player-night-waiting');
+    } else if(msg.phase === 'night-action'){
+      renderNightActionScreen(msg);
     }
   }
 
@@ -1559,6 +1743,51 @@
       box.appendChild(row);
     });
     showScreen('screen-player-game-over');
+  }
+
+  function renderNightActionScreen(msg){
+    state.nightActionRole = msg.role;
+    state.selectedNightTargetId = null;
+    $('night-action-day').textContent = 'Night ' + msg.day;
+    $('night-action-title').textContent = msg.title || 'Choose someone';
+    const list = $('night-action-candidate-list');
+    list.innerHTML = '';
+    (msg.candidates || []).forEach(c => {
+      const row = document.createElement('label');
+      row.className = 'role-row role-check-row';
+      row.innerHTML =
+        '<input type="radio" name="night-target">' +
+        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
+      row.querySelector('input').onchange = () => { state.selectedNightTargetId = c.id; };
+      list.appendChild(row);
+    });
+    $('night-action-skip-btn').style.display = msg.allowSkip ? 'flex' : 'none';
+    showScreen('screen-player-night-action');
+  }
+
+  function sendNightAction(targetId){
+    try{ state.playerDC.send(JSON.stringify({ type: 'night-action', role: state.nightActionRole, targetId })); }
+    catch(e){ toast('Lost connection to the host.'); return; }
+    $('night-waiting-note').style.display = 'none';
+    showScreen('screen-player-night-waiting');
+  }
+
+  App.submitNightAction = function(){
+    if(!state.selectedNightTargetId){ toast('Pick someone first.'); return; }
+    sendNightAction(state.selectedNightTargetId);
+  };
+  App.skipNightAction = function(){
+    sendNightAction(null);
+  };
+
+  function handleNightResult(msg){
+    const deadNames = msg.deadNames || [];
+    $('night-waiting-title').textContent = 'Morning has come';
+    $('night-waiting-note').textContent = deadNames.length
+      ? deadNames.join(', ') + (deadNames.length === 1 ? ' was' : ' were') + ' found dead.'
+      : 'Everyone made it through the night.';
+    $('night-waiting-note').style.display = 'block';
+    showScreen('screen-player-night-waiting');
   }
 
   App.viewMyRole = function(){
