@@ -423,6 +423,14 @@
     <button class="btn btn-ghost" id="role-back-btn" style="display:none; margin-top:14px;" onclick="App.closeMyRole()">&larr; Back</button>
   </div>
 
+  <!-- PLAYER: MY ACTIVITY -->
+  <div class="screen" id="screen-player-activity-log">
+    <div class="eyebrow" style="margin-bottom:16px;">My Activity</div>
+    <div id="activity-log-list" class="stack"></div>
+    <div class="grow"></div>
+    <button class="btn btn-ghost" onclick="App.closeMyActivity()">&larr; Back</button>
+  </div>
+
   <!-- PLAYER: DAY -->
   <div class="screen" id="screen-player-day">
     <div class="eyebrow" id="day-title-player">Day 1</div>
@@ -431,6 +439,7 @@
       <p class="hint" style="max-width:280px; margin-top:10px;">Share what you've noticed. The God will start a vote when it's time.</p>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()">My Activity</button>
   </div>
 
   <!-- PLAYER: INQUIRY VOTE -->
@@ -490,6 +499,7 @@
       <p class="hint" style="max-width:280px; margin-top:12px;" id="defense-player-hint"></p>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()">My Activity</button>
   </div>
 
   <!-- PLAYER: DAY RESULT -->
@@ -499,6 +509,7 @@
       <h2 style="font-size:24px;" id="day-result-title">&mdash;</h2>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()">My Activity</button>
   </div>
 
   <!-- PLAYER: NIGHT WAITING -->
@@ -509,6 +520,7 @@
       <p class="hint" id="night-waiting-note" style="max-width:280px; margin-top:10px; display:none;"></p>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()">My Activity</button>
   </div>
 
   <!-- PLAYER: NIGHT ACTION -->
@@ -605,13 +617,17 @@
     night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null }, // (host) this night's decisions
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
+    mafiaActivityLog: [],   // (host) shared night-by-night log of mafia shots + blocks, sent to every mafia member
     myRole: null,           // (player) last role payload received, for the "View My Role" peek
     roleReturnScreen: null, // (player) screen to return to after peeking at role
     voteRound: null,        // (player) 1 or 2, which round the current vote screen is for
     voteCandidates: [],     // (player) candidates offered for the current vote
     selectedCandidateIds: new Set(), // (player) chosen candidates before submit; may be empty
     nightActionRole: null,       // (player) which role this night-action prompt is for
-    selectedNightTargetId: null  // (player) chosen target before submit
+    selectedNightTargetId: null, // (player) chosen target before submit
+    myActivityLog: [],           // (player) night-by-night history of this player's (or their mafia team's) actions
+    hasActivityLog: false,       // (player) whether to show the "My Activity" link at all
+    activityReturnScreen: null   // (player) screen to return to after viewing activity log
   };
 
   function $(id){ return document.getElementById(id); }
@@ -1600,30 +1616,57 @@
     showScreen('screen-host-night');
   }
 
+  // Personal history for one player (Doctor/Detective/Professional/Matador).
+  function logActivity(entry, text){
+    if(!entry.activityLog) entry.activityLog = [];
+    entry.activityLog.push(text);
+    sendToPlayer(entry, { type: 'activity-log', log: entry.activityLog });
+  }
+  // Shared history visible to every alive Mafia team member.
+  function logMafiaActivity(text){
+    state.mafiaActivityLog.push(text);
+    Array.from(state.players.values()).filter(e => e.alive && e.role === 'mafia').forEach(e => {
+      sendToPlayer(e, { type: 'activity-log', log: state.mafiaActivityLog });
+    });
+  }
+
   function handleNightAction(voterId, role, targetId){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
     if(state.gamePhase !== 'night-' + role) return;
+    const targetName = targetId && state.players.get(targetId) ? state.players.get(targetId).name : null;
 
     if(role === 'matador'){
       state.night.blockedId = targetId || null;
+      const text = 'Night ' + state.day + ': ' + (targetName ? ('Matador blocked ' + targetName + '.') : 'Matador did not block anyone.');
+      logActivity(voter, targetName ? ('Night ' + state.day + ': You blocked ' + targetName + '.') : ('Night ' + state.day + ': You chose not to block anyone.'));
+      logMafiaActivity(text);
       advanceNight();
     } else if(role === 'doctor'){
       state.night.savedId = targetId || null;
       if(targetId && targetId === voterId) state.doctorSelfSaveUsed = true;
+      logActivity(voter, targetName ? ('Night ' + state.day + ': You saved ' + targetName + '.') : ('Night ' + state.day + ': You chose not to save anyone.'));
       advanceNight();
     } else if(role === 'detective'){
       if(targetId){
         const target = state.players.get(targetId);
-        if(target) sendToPlayer(voter, { type: 'investigate-result', targetName: target.name, isMafia: target.role === 'mafia' });
+        if(target){
+          const isMafia = target.role === 'mafia';
+          sendToPlayer(voter, { type: 'investigate-result', targetName: target.name, isMafia });
+          logActivity(voter, 'Night ' + state.day + ': You investigated ' + target.name + ' — ' + (isMafia ? '' : 'not ') + 'Mafia.');
+        }
+      } else {
+        logActivity(voter, 'Night ' + state.day + ': You chose not to investigate anyone.');
       }
       advanceNight();
     } else if(role === 'professional'){
       state.night.professionalTargetId = targetId || null;
+      logActivity(voter, targetName ? ('Night ' + state.day + ': You shot ' + targetName + '.') : ('Night ' + state.day + ': You chose not to shoot anyone.'));
       advanceNight();
     } else if(role === 'mafia'){
       if(state.night.mafiaTargetId) return; // another mafia member already decided
       state.night.mafiaTargetId = targetId;
+      logMafiaActivity('Night ' + state.day + ': Mafia shot ' + (targetName || 'no one') + '.');
       advanceNight();
     }
   }
@@ -1697,6 +1740,7 @@
     state.winner = null;
     state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null };
     state.doctorSelfSaveUsed = false;
+    state.mafiaActivityLog = [];
     App.goLanding();
   };
 
@@ -1741,7 +1785,14 @@
     dc.onmessage = (e) => {
       try{
         const msg = JSON.parse(e.data);
-        if(msg.type === 'role'){ state.myRole = msg; renderRole(msg); showScreen('screen-player-role'); }
+        if(msg.type === 'role'){
+          state.myRole = msg;
+          state.hasActivityLog = msg.role === 'mafia' ||
+            [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL].includes(msg.name);
+          document.querySelectorAll('.activity-link').forEach(el => { el.style.display = state.hasActivityLog ? 'block' : 'none'; });
+          renderRole(msg);
+          showScreen('screen-player-role');
+        }
         else if(msg.type === 'phase'){ handlePhaseMessage(msg); }
         else if(msg.type === 'day-result'){ handleDayResult(msg); }
         else if(msg.type === 'eliminated'){ showScreen('screen-player-eliminated'); }
@@ -1749,6 +1800,7 @@
         else if(msg.type === 'game-over'){ handleGameOver(msg); }
         else if(msg.type === 'night-result'){ handleNightResult(msg); }
         else if(msg.type === 'investigate-result'){ handleInvestigateResult(msg); }
+        else if(msg.type === 'activity-log'){ state.myActivityLog = msg.log || []; }
       }catch(err){}
     };
     dc.onclose = () => { toast('Connection to host lost.'); };
@@ -1946,6 +1998,31 @@
     $('role-back-btn').style.display = 'none';
     showScreen(state.roleReturnScreen || 'screen-player-day');
   };
+
+  App.viewMyActivity = function(){
+    const current = document.querySelector('.screen.active');
+    state.activityReturnScreen = current ? current.id : 'screen-player-day';
+    renderActivityLog();
+    showScreen('screen-player-activity-log');
+  };
+  App.closeMyActivity = function(){
+    showScreen(state.activityReturnScreen || 'screen-player-day');
+  };
+  function renderActivityLog(){
+    const box = $('activity-log-list');
+    box.innerHTML = '';
+    const log = state.myActivityLog || [];
+    if(!log.length){
+      box.innerHTML = '<p class="hint">Nothing yet.</p>';
+      return;
+    }
+    log.forEach(text => {
+      const row = document.createElement('div');
+      row.className = 'slot';
+      row.innerHTML = '<div class="name" style="white-space:normal;">' + escapeHtml(text) + '</div>';
+      box.appendChild(row);
+    });
+  }
 
   /* ---------------- Init ---------------- */
   renderSetupValues();
