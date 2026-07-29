@@ -331,6 +331,15 @@
     <button class="btn btn-primary" onclick="App.forceContinueNight()">Force Continue</button>
   </div>
 
+  <!-- HOST: NIGHT EYES CLOSED -->
+  <div class="screen" id="screen-host-night-eyes-closed">
+    <div class="eyebrow">Night <span id="night-eyes-closed-day"></span></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;">Everyone's eyes are closed</h2>
+    <p class="hint">Give the Mafia a moment to talk quietly among themselves, then continue when they're ready.</p>
+    <div class="grow"></div>
+    <button class="btn btn-primary" onclick="App.continueAfterEyesClosed()">Continue &rarr;</button>
+  </div>
+
   <!-- HOST: NIGHT RESULT -->
   <div class="screen" id="screen-host-night-result">
     <div class="eyebrow">Night <span id="night-result-day"></span> &middot; Result</div>
@@ -514,6 +523,22 @@
     </div>
   </div>
 
+  <!-- PLAYER: NIGHT ANNOUNCEMENT -->
+  <div class="screen" id="screen-player-night-announcement">
+    <div class="eyebrow" id="night-announcement-day">Night 1</div>
+    <div class="grow center">
+      <h2 style="font-size:26px;" id="night-announcement-title">Close your eyes</h2>
+    </div>
+  </div>
+
+  <!-- PLAYER: INVESTIGATE RESULT -->
+  <div class="screen" id="screen-player-investigate-result">
+    <div class="grow center">
+      <div class="eyebrow" style="margin-bottom:10px;">Investigation Result</div>
+      <h2 style="font-size:24px;" id="investigate-result-title">&mdash;</h2>
+    </div>
+  </div>
+
   <!-- PLAYER: ELIMINATED -->
   <div class="screen" id="screen-player-eliminated">
     <div class="grow center">
@@ -547,6 +572,8 @@
   const ROLE_NAME_GODFATHER = 'پدر خوانده';
   const ROLE_NAME_MATADOR = 'ماتادور';
   const ROLE_NAME_PROFESSIONAL = 'حرفه‌ای';
+  const ROLE_NAME_DOCTOR = 'دکتر';
+  const ROLE_NAME_DETECTIVE = 'کاراگاه';
 
   const state = {
     role: null,
@@ -574,7 +601,9 @@
     inquiriesRemaining: 0,  // (host) inquiries left to spend this game
     votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
-    night: { blockedId: null, professionalTargetId: null, mafiaTargetId: null }, // (host) this night's decisions
+    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null }, // (host) this night's decisions
+    nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
+    doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
     myRole: null,           // (player) last role payload received, for the "View My Role" peek
     roleReturnScreen: null, // (player) screen to return to after peeking at role
     voteRound: null,        // (player) 1 or 2, which round the current vote screen is for
@@ -1430,22 +1459,60 @@
   };
 
   /* ---------------- Night phase ---------------- */
+  // Ordered list of night steps. To add a future role's night action, add a
+  // 'night-<key>' branch in handleNightAction/forceContinueNight, write a
+  // start<Key>Step() that either calls advanceNight() immediately (no eligible
+  // actor) or messages the actor and waits, then insert its key here.
+  const NIGHT_STEP_ORDER = ['matador', 'doctor', 'detective', 'professional', 'eyes-closed', 'mafia'];
+
   function findAliveByRoleName(name){
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.roleName === name);
   }
+  function isBlockedTonight(id){
+    return id === state.night.blockedId;
+  }
 
   function startNight(){
-    state.night = { blockedId: null, professionalTargetId: null, mafiaTargetId: null };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = state.day;
     showScreen('screen-host-night');
-    startMatadorStep();
+    runNightStep(0);
+  }
+
+  function runNightStep(index){
+    if(index >= NIGHT_STEP_ORDER.length){ resolveNight(); return; }
+    state.nightStepIndex = index;
+    const step = NIGHT_STEP_ORDER[index];
+    state.gamePhase = 'night-' + step;
+    if(step === 'matador') startMatadorStep();
+    else if(step === 'doctor') startDoctorStep();
+    else if(step === 'detective') startDetectiveStep();
+    else if(step === 'professional') startProfessionalStep();
+    else if(step === 'eyes-closed') startEyesClosedStep();
+    else if(step === 'mafia') startMafiaStep();
+  }
+
+  function advanceNight(){
+    runNightStep(state.nightStepIndex + 1);
+  }
+
+  function startBlockableRoleStep(roleName, buildCandidates, promptRole, title){
+    const holders = findAliveByRoleName(roleName);
+    if(!holders.length){ advanceNight(); return; }
+    const [actorId, actorEntry] = holders[0];
+    if(isBlockedTonight(actorId)){
+      sendToPlayer(actorEntry, { type: 'phase', phase: 'night', day: state.day, note: 'You were blocked tonight — no action for you.' });
+      advanceNight();
+      return;
+    }
+    const candidates = buildCandidates(actorId);
+    sendToPlayer(actorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: promptRole, title, candidates, allowSkip: true });
   }
 
   function startMatadorStep(){
-    state.gamePhase = 'night-matador';
     const matadors = findAliveByRoleName(ROLE_NAME_MATADOR);
-    if(!matadors.length){ startProfessionalStep(); return; }
+    if(!matadors.length){ advanceNight(); return; }
     const [matadorId, matadorEntry] = matadors[0];
     const candidates = Array.from(state.players.entries())
       .filter(([id, e]) => e.alive && e.role === 'villager' && id !== matadorId)
@@ -1453,56 +1520,90 @@
     sendToPlayer(matadorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: 'Choose someone to block', candidates, allowSkip: true });
   }
 
-  function startProfessionalStep(){
-    state.gamePhase = 'night-professional';
-    const professionals = findAliveByRoleName(ROLE_NAME_PROFESSIONAL);
-    const blockedId = state.night.blockedId;
-    const active = professionals.find(([id]) => id !== blockedId);
-    const blockedProfessional = professionals.find(([id]) => id === blockedId);
-    if(blockedProfessional){
-      sendToPlayer(blockedProfessional[1], { type: 'phase', phase: 'night', day: state.day, note: 'You were blocked tonight — no action for you.' });
-    }
-    if(!active){ startMafiaStep(); return; }
-    const [proId, proEntry] = active;
-    const candidates = Array.from(state.players.entries())
-      .filter(([id, e]) => e.alive && id !== proId)
-      .map(([id, e]) => ({ id, name: e.name }));
-    sendToPlayer(proEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'professional', title: 'Choose someone to shoot', candidates, allowSkip: true });
+  function startDoctorStep(){
+    startBlockableRoleStep(ROLE_NAME_DOCTOR, (doctorId) => {
+      return Array.from(state.players.entries())
+        .filter(([id, e]) => e.alive && (id !== doctorId || !state.doctorSelfSaveUsed))
+        .map(([id, e]) => ({ id, name: e.name }));
+    }, 'doctor', 'Choose someone to save');
   }
 
+  function startDetectiveStep(){
+    startBlockableRoleStep(ROLE_NAME_DETECTIVE, (detectiveId) => {
+      return Array.from(state.players.entries())
+        .filter(([id, e]) => e.alive && id !== detectiveId)
+        .map(([id, e]) => ({ id, name: e.name }));
+    }, 'detective', 'Choose someone to investigate');
+  }
+
+  function startProfessionalStep(){
+    startBlockableRoleStep(ROLE_NAME_PROFESSIONAL, (proId) => {
+      return Array.from(state.players.entries())
+        .filter(([id, e]) => e.alive && id !== proId)
+        .map(([id, e]) => ({ id, name: e.name }));
+    }, 'professional', 'Choose someone to shoot');
+  }
+
+  function startEyesClosedStep(){
+    aliveEntries().forEach(([id, entry]) => {
+      const text = entry.role === 'mafia'
+        ? 'Everyone else has closed their eyes. Talk quietly with your fellow Mafia now.'
+        : 'Close your eyes.';
+      sendToPlayer(entry, { type: 'phase', phase: 'night-announcement', day: state.day, text });
+    });
+    $('night-eyes-closed-day').textContent = state.day;
+    showScreen('screen-host-night-eyes-closed');
+  }
+  App.continueAfterEyesClosed = function(){
+    advanceNight();
+  };
+
   function startMafiaStep(){
-    state.gamePhase = 'night-mafia';
     const godfathers = findAliveByRoleName(ROLE_NAME_GODFATHER);
     const deciders = godfathers.length ? godfathers : Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.role === 'mafia');
-    if(!deciders.length){ resolveNight(); return; }
+    if(!deciders.length){ advanceNight(); return; }
     const candidates = Array.from(state.players.entries())
       .filter(([id, e]) => e.alive && e.role !== 'mafia')
       .map(([id, e]) => ({ id, name: e.name }));
     deciders.forEach(([id, entry]) => {
       sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: 'Choose someone to shoot', candidates, allowSkip: false });
     });
+    showScreen('screen-host-night');
   }
 
   function handleNightAction(voterId, role, targetId){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
-    if(role === 'matador' && state.gamePhase === 'night-matador'){
+    if(state.gamePhase !== 'night-' + role) return;
+
+    if(role === 'matador'){
       state.night.blockedId = targetId || null;
-      startProfessionalStep();
-    } else if(role === 'professional' && state.gamePhase === 'night-professional'){
+      advanceNight();
+    } else if(role === 'doctor'){
+      state.night.savedId = targetId || null;
+      if(targetId && targetId === voterId) state.doctorSelfSaveUsed = true;
+      advanceNight();
+    } else if(role === 'detective'){
+      if(targetId){
+        const target = state.players.get(targetId);
+        if(target) sendToPlayer(voter, { type: 'investigate-result', targetName: target.name, isMafia: target.role === 'mafia' });
+      }
+      advanceNight();
+    } else if(role === 'professional'){
       state.night.professionalTargetId = targetId || null;
-      startMafiaStep();
-    } else if(role === 'mafia' && state.gamePhase === 'night-mafia'){
-      if(state.night.mafiaTargetId) return;
+      advanceNight();
+    } else if(role === 'mafia'){
+      if(state.night.mafiaTargetId) return; // another mafia member already decided
       state.night.mafiaTargetId = targetId;
-      resolveNight();
+      advanceNight();
     }
   }
 
   App.forceContinueNight = function(){
-    if(state.gamePhase === 'night-matador'){ state.night.blockedId = null; startProfessionalStep(); }
-    else if(state.gamePhase === 'night-professional'){ state.night.professionalTargetId = null; startMafiaStep(); }
-    else if(state.gamePhase === 'night-mafia'){ resolveNight(); }
+    if(state.gamePhase === 'night-matador') state.night.blockedId = null;
+    else if(state.gamePhase === 'night-doctor') state.night.savedId = null;
+    else if(state.gamePhase === 'night-professional') state.night.professionalTargetId = null;
+    advanceNight();
   };
 
   function resolveNight(){
@@ -1519,6 +1620,8 @@
     }
 
     if(state.night.mafiaTargetId) deaths.add(state.night.mafiaTargetId);
+
+    if(state.night.savedId) deaths.delete(state.night.savedId);
 
     const previouslyAlive = aliveEntries();
     const deadNames = [];
@@ -1563,7 +1666,8 @@
     state.votesInquiry = new Map();
     state.inquiriesRemaining = 0;
     state.winner = null;
-    state.night = { blockedId: null, professionalTargetId: null, mafiaTargetId: null };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null };
+    state.doctorSelfSaveUsed = false;
     App.goLanding();
   };
 
@@ -1615,6 +1719,7 @@
         else if(msg.type === 'inquiry-result'){ handleInquiryResult(msg); }
         else if(msg.type === 'game-over'){ handleGameOver(msg); }
         else if(msg.type === 'night-result'){ handleNightResult(msg); }
+        else if(msg.type === 'investigate-result'){ handleInvestigateResult(msg); }
       }catch(err){}
     };
     dc.onclose = () => { toast('Connection to host lost.'); };
@@ -1663,6 +1768,10 @@
       showScreen('screen-player-night-waiting');
     } else if(msg.phase === 'night-action'){
       renderNightActionScreen(msg);
+    } else if(msg.phase === 'night-announcement'){
+      $('night-announcement-day').textContent = 'Night ' + msg.day;
+      $('night-announcement-title').textContent = msg.text;
+      showScreen('screen-player-night-announcement');
     }
   }
 
@@ -1788,6 +1897,11 @@
       : 'Everyone made it through the night.';
     $('night-waiting-note').style.display = 'block';
     showScreen('screen-player-night-waiting');
+  }
+
+  function handleInvestigateResult(msg){
+    $('investigate-result-title').textContent = msg.targetName + ' is ' + (msg.isMafia ? '' : 'not ') + 'Mafia.';
+    showScreen('screen-player-investigate-result');
   }
 
   App.viewMyRole = function(){
