@@ -557,6 +557,7 @@
 
 </div>
 <div id="toast-host"></div>
+<div id="debug-badge" style="display:none; position:fixed; top:6px; left:8px; z-index:1000; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.05em; color:#EDEFF4; background:rgba(0,0,0,0.55); padding:3px 9px; border-radius:6px; pointer-events:none;"></div>
 
 <script>
 (function(){
@@ -627,6 +628,15 @@
     host.innerHTML = '';
     host.appendChild(el);
     setTimeout(()=>{ if(el.parentNode) el.remove(); }, ms);
+  }
+  // Testing/troubleshooting aid: a persistent corner badge showing who this
+  // browser tab is, so multiple tabs open at once (host + several players)
+  // are easy to tell apart. Never shows role, only host/player + name.
+  function setDebugBadge(text){
+    const el = $('debug-badge');
+    if(!el) return;
+    el.textContent = text || '';
+    el.style.display = text ? 'block' : 'none';
   }
   function shuffle(arr){
     for(let i = arr.length - 1; i > 0; i--){
@@ -895,9 +905,9 @@
   const App = {};
 
   App.goLanding = function(role){
-    if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); renderRoleChecklist(); }
-    else if(role === 'player'){ state.role = 'player'; showScreen('screen-player-join'); }
-    else { state.role = null; showScreen('screen-landing'); }
+    if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); renderRoleChecklist(); setDebugBadge('HOST'); }
+    else if(role === 'player'){ state.role = 'player'; showScreen('screen-player-join'); setDebugBadge('PLAYER'); }
+    else { state.role = null; showScreen('screen-landing'); setDebugBadge(''); }
   };
 
   App.openManageRoles = function(returnTo){
@@ -1482,7 +1492,7 @@
   // 'night-<key>' branch in handleNightAction/forceContinueNight, write a
   // start<Key>Step() that either calls advanceNight() immediately (no eligible
   // actor) or messages the actor and waits, then insert its key here.
-  const NIGHT_STEP_ORDER = ['matador', 'doctor', 'detective', 'professional', 'eyes-closed', 'mafia'];
+  const NIGHT_STEP_ORDER = ['eyes-closed', 'mafia', 'matador', 'doctor', 'detective', 'professional'];
 
   function findAliveByRoleName(name){
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.roleName === name);
@@ -1750,6 +1760,7 @@
     try{ state.playerDC.send(JSON.stringify({ type: 'name', name: val })); }
     catch(e){ toast('Lost connection to the host.'); return; }
     $('wait-name').textContent = val;
+    setDebugBadge(val);
     showScreen('screen-player-waiting');
   };
 
@@ -1946,6 +1957,7 @@
   connectWS(() => {
     if(joinCode){
       state.role = 'player';
+      setDebugBadge('PLAYER');
       startPlayerJoin(joinCode.toUpperCase());
     }
   });
