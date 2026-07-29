@@ -67,8 +67,6 @@
   .role-row .role-name{font-weight:700; font-size:15px;}
   .role-row .role-team-tag{margin-left:8px;}
   .role-row .role-desc-small{font-size:12px; color:var(--text-faint); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .role-row .del-btn, .role-row .edit-btn{flex-shrink:0; background:none; border:1px solid var(--line-strong); color:var(--text-muted); border-radius:8px; width:34px; height:34px; cursor:pointer; font-size:14px;}
-  .role-row.role-row-edit{align-items:stretch;}
   .role-check-row{cursor:pointer;}
   .role-check-row input[type="checkbox"], .role-check-row input[type="radio"]{width:20px; height:20px; flex-shrink:0; accent-color:var(--gold);}
   label.shield-toggle{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-muted); font-weight:600; cursor:pointer;}
@@ -111,7 +109,6 @@
   .tag.villager{background:var(--slate-dim); color:var(--slate);}
   .tag.shield{background:var(--gold-dim); color:var(--gold);}
   .tag.independent{background:rgba(237,239,244,0.08); color:var(--text-muted); border:1px solid var(--line-strong);}
-  .tag.locked{background:rgba(237,239,244,0.05); color:var(--text-faint); border:1px solid var(--line);}
   .spinner{width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,0.25); border-top-color:#fff; animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .pulse-dot{width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulse 1.4s ease-in-out infinite;}
@@ -136,7 +133,7 @@
     <div class="stack" style="margin-top:24px;">
       <button class="btn btn-primary" onclick="App.goLanding('host')">I'm the Host <span style="opacity:.7">— God</span></button>
       <button class="btn btn-outline" onclick="App.goLanding('player')">I'm a Player</button>
-      <button class="link-btn" style="margin:0 auto;" onclick="App.openManageRoles('landing')">Manage custom roles</button>
+      <button class="link-btn" style="margin:0 auto;" onclick="App.openManageRoles('landing')">Roles &amp; Shields</button>
     </div>
   </div>
 
@@ -177,7 +174,7 @@
       <div id="role-summary" class="hint" dir="rtl" style="margin-top:12px; text-align:right;"></div>
       <div id="role-warning" class="banner warning" dir="rtl" style="display:none; margin-top:12px; text-align:right;"></div>
     </div>
-    <button class="link-btn" style="align-self:flex-start; padding-left:0;" onclick="App.openManageRoles('host-setup')">+ Manage custom roles</button>
+    <button class="link-btn" style="align-self:flex-start; padding-left:0;" onclick="App.openManageRoles('host-setup')">Adjust shields</button>
     <div class="grow"></div>
     <div class="stack">
       <button class="btn btn-primary" id="btn-create-lobby" onclick="App.createLobby()">Create Lobby</button>
@@ -188,35 +185,9 @@
   <!-- MANAGE ROLES -->
   <div class="screen" id="screen-manage-roles">
     <div class="eyebrow">Role Library</div>
-    <h2 style="font-size:26px; margin:10px 0 20px;">Manage roles</h2>
-    <p class="hint" style="margin-bottom:16px;">Add roles in any language. Saved roles are available for every future game on this server.</p>
+    <h2 style="font-size:26px; margin:10px 0 20px;">Roles &amp; Shields</h2>
+    <p class="hint" style="margin-bottom:16px;">These roles are fixed. The only thing you can adjust here is whether each one starts with a shield — and that only lasts for this browser session.</p>
     <div id="role-list" class="stack" style="margin-bottom:22px;"></div>
-    <div class="card">
-      <div class="eyebrow" style="margin-bottom:14px;">Add a role</div>
-      <div class="field">
-        <label>Team</label>
-        <select id="new-role-team" class="role-select">
-          <option value="mafia">Mafia-aligned</option>
-          <option value="villager">Village-aligned</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Role name</label>
-        <input type="text" id="new-role-name" placeholder="e.g. Mafya, Detective, 探偵" maxlength="40">
-      </div>
-      <div class="field">
-        <label>Description shown to the player</label>
-        <input type="text" id="new-role-desc" placeholder="Shown on their role card" maxlength="200">
-      </div>
-      <div class="field">
-        <label class="shield-toggle"><input type="checkbox" id="new-role-shield"> Has a shield</label>
-      </div>
-      <div class="field">
-        <label class="shield-toggle"><input type="checkbox" id="new-role-independent"> Independent</label>
-        <div class="hint">Independent roles are always counted as civilians, no matter what Team is selected above.</div>
-      </div>
-      <button class="btn btn-gold" onclick="App.addRole()">Save Role</button>
-    </div>
     <div class="grow"></div>
     <button class="btn btn-ghost" onclick="App.closeManageRoles()">Done</button>
   </div>
@@ -580,13 +551,28 @@
     { urls: 'stun:stun1.l.google.com:19302' }
   ];
 
-  // Night-action roles are identified by exact role name. Renaming one of
-  // these roles in the role library will break its night behavior.
+  // Night-action roles are identified by exact role name. Because the role
+  // list below is hardcoded (not editable), these names can never drift out
+  // of sync with the night engine the way a renamable role could.
   const ROLE_NAME_GODFATHER = 'پدر خوانده';
   const ROLE_NAME_MATADOR = 'ماتادور';
   const ROLE_NAME_PROFESSIONAL = 'حرفه‌ای';
   const ROLE_NAME_DOCTOR = 'دکتر';
   const ROLE_NAME_DETECTIVE = 'کاراگاه';
+
+  // The full role list is fixed in code so it can never be lost to a server
+  // restart. The only thing about a role that's still adjustable in the app
+  // is its shield — and that adjustment lives only in this browser tab's
+  // memory for the current session, never persisted anywhere.
+  const HARDCODED_ROLES = [
+    { id: 'builtin-mafia', team: 'mafia', name: 'مافیا ساده', description: 'شما سایر اعضای مافیا را می‌شناسید. در تاریکی کار کنید، در روز خودتان را پنهان کنید.', shield: false, independent: false, builtin: true },
+    { id: 'builtin-villager', team: 'villager', name: 'شهروند ساده', description: 'شما اطلاعات خاصی ندارید. با دقت تماشا کنید و هوشمندانه رأی دهید.', shield: false, independent: false, builtin: true },
+    { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد.', shield: true, independent: false, builtin: false },
+    { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند.', shield: false, independent: false, builtin: false },
+    { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
+    { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و می‌فهمید که او مافیاست یا نه.', shield: false, independent: false, builtin: false },
+    { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید. اگر مافیا را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید.', shield: false, independent: false, builtin: false }
+  ];
 
   const state = {
     role: null,
@@ -600,9 +586,8 @@
     playerDC: null,
     playerId: null,
     pendingJoinCode: null,
-    roles: [],             // role library, loaded from /api/roles
+    roles: HARDCODED_ROLES.map(r => Object.assign({}, r)), // per-session copy; only .shield is ever mutated
     selectedRoleIds: new Set(['builtin-mafia', 'builtin-villager']), // roles in play this game
-    editingRoleId: null,
     manageRolesReturnTo: 'landing',
 
     // Phase 2: running the game after roles are assigned
@@ -723,63 +708,6 @@
   }
 
   /* ---------------- Role library ---------------- */
-  // The server keeps roles in a plain file, which free hosts (e.g. Render's
-  // free tier) wipe whenever the service spins down from inactivity. As a
-  // backup, the host's browser caches the library locally and re-creates
-  // any custom roles the server has lost the next time it loads.
-  const ROLE_CACHE_KEY = 'mafia-role-library-v1';
-  function cacheRoles(list){
-    try{ localStorage.setItem(ROLE_CACHE_KEY, JSON.stringify(list)); }catch(e){}
-  }
-  function readCachedRoles(){
-    try{
-      const raw = localStorage.getItem(ROLE_CACHE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    }catch(e){ return []; }
-  }
-  function restoreMissingRoles(){
-    const cached = readCachedRoles();
-    // Custom roles the server no longer has at all (e.g. its data file was reset).
-    const missingCustom = cached.filter(r => !r.builtin).filter(c =>
-      !state.roles.some(r => !r.builtin && r.team === c.team && r.name === c.name)
-    );
-    // Builtin roles (Mafia/Villager) whose saved rename/edit reverted back to the server's hardcoded default.
-    const driftedBuiltins = cached.filter(c => c.builtin).filter(c => {
-      const current = state.roles.find(r => r.id === c.id);
-      return current && (current.name !== c.name || current.description !== c.description || !!current.shield !== !!c.shield);
-    });
-    if(!missingCustom.length && !driftedBuiltins.length) return Promise.resolve();
-
-    const restoreCustom = missingCustom.reduce((chain, r) => chain.then(() =>
-      fetch('/api/roles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: r.name, description: r.description, team: r.team, shield: r.shield })
-      }).then(res => res.json()).then(list => { state.roles = list; })
-    ), Promise.resolve());
-
-    return restoreCustom.then(() => driftedBuiltins.reduce((chain, r) => chain.then(() =>
-      fetch('/api/roles/' + r.id, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: r.name, description: r.description, team: r.team, shield: r.shield })
-      }).then(res => res.json()).then(list => { state.roles = list; })
-    ), Promise.resolve())).then(() => {
-      toast('Restored ' + (missingCustom.length + driftedBuiltins.length) + ' saved role(s) after a server restart.');
-    });
-  }
-  function loadRoles(){
-    return fetch('/api/roles').then(r => r.json()).then(list => {
-      state.roles = Array.isArray(list) ? list : [];
-      return restoreMissingRoles();
-    }).then(() => {
-      cacheRoles(state.roles);
-      renderRoleChecklist();
-      renderRoleList();
-    }).catch(() => toast('Could not load the role library.'));
-  }
-
   function roleTeamTagHtml(r){
     if(r.independent) return '<span class="tag independent role-team-tag">Independent</span>';
     return '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>';
@@ -865,54 +793,14 @@
     state.roles.forEach(r => {
       const row = document.createElement('div');
       row.className = 'role-row';
-      if(state.editingRoleId === r.id){
-        row.classList.add('role-row-edit');
-        if(r.builtin){
-          row.innerHTML =
-            '<div class="stack" style="width:100%;">' +
-              '<div class="field" style="margin-bottom:10px;">' +
-                '<input type="text" id="edit-name-' + r.id + '" value="' + escapeHtml(r.name) + '" maxlength="40">' +
-              '</div>' +
-              '<div class="field" style="margin-bottom:10px;">' +
-                '<input type="text" id="edit-desc-' + r.id + '" value="' + escapeHtml(r.description || '') + '" maxlength="200">' +
-              '</div>' +
-              '<div class="field">' +
-                '<label class="shield-toggle"><input type="checkbox" id="edit-shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> Has a shield</label>' +
-              '</div>' +
-              '<div class="stack" style="flex-direction:row;">' +
-                '<button class="btn btn-gold" style="padding:12px;" onclick="App.saveRoleEdit(\'' + r.id + '\')">Save</button>' +
-                '<button class="btn btn-ghost" style="padding:12px;" onclick="App.cancelRoleEdit()">Cancel</button>' +
-              '</div>' +
-            '</div>';
-        } else {
-          row.innerHTML =
-            '<div class="stack" style="width:100%;">' +
-              '<div class="role-info" style="margin-bottom:2px;">' +
-                '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
-                roleTeamTagHtml(r) +
-              '</div>' +
-              '<div class="hint" style="margin-bottom:10px;">This role is locked — only the shield can be changed.</div>' +
-              '<div class="field">' +
-                '<label class="shield-toggle"><input type="checkbox" id="edit-shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> Has a shield</label>' +
-              '</div>' +
-              '<div class="stack" style="flex-direction:row;">' +
-                '<button class="btn btn-gold" style="padding:12px;" onclick="App.saveRoleEdit(\'' + r.id + '\')">Save</button>' +
-                '<button class="btn btn-ghost" style="padding:12px;" onclick="App.cancelRoleEdit()">Cancel</button>' +
-              '</div>' +
-            '</div>';
-        }
-      } else {
-        row.innerHTML =
-          '<div class="role-info">' +
-            '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
-            roleTeamTagHtml(r) +
-            (r.shield ? '<span class="tag shield role-team-tag">Shield</span>' : '') +
-            (!r.builtin && r.locked ? '<span class="tag locked role-team-tag">Locked</span>' : '') +
-            (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
-          '</div>' +
-          '<button class="edit-btn" title="Edit" onclick="App.startRoleEdit(\'' + r.id + '\')">&#9998;</button>' +
-          ((r.builtin || r.locked) ? '' : '<button class="del-btn" title="Delete" onclick="App.deleteRole(\'' + r.id + '\')">&times;</button>');
-      }
+      row.innerHTML =
+        '<div class="role-info">' +
+          '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
+          roleTeamTagHtml(r) +
+          (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
+        '</div>' +
+        '<label class="shield-toggle" style="flex-shrink:0;"><input type="checkbox" id="shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> Shield</label>';
+      row.querySelector('#shield-' + r.id).onchange = (e) => { App.toggleShield(r.id, e.target.checked); };
       list.appendChild(row);
     });
   }
@@ -928,77 +816,19 @@
 
   App.openManageRoles = function(returnTo){
     state.manageRolesReturnTo = returnTo || 'landing';
-    state.editingRoleId = null;
     showScreen('screen-manage-roles');
     renderRoleList();
   };
   App.closeManageRoles = function(){
-    state.editingRoleId = null;
     renderRoleChecklist();
     if(state.manageRolesReturnTo === 'host-setup') showScreen('screen-host-setup');
     else showScreen('screen-landing');
   };
-  App.addRole = function(){
-    const name = $('new-role-name').value.trim();
-    const description = $('new-role-desc').value.trim();
-    const independent = $('new-role-independent').checked;
-    const team = independent ? 'villager' : $('new-role-team').value;
-    const shield = $('new-role-shield').checked;
-    if(!name){ toast('Enter a role name.'); return; }
-    fetch('/api/roles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, team, shield, independent })
-    }).then(r => r.json()).then(list => {
-      state.roles = list;
-      cacheRoles(list);
-      renderRoleList();
-      $('new-role-name').value = '';
-      $('new-role-desc').value = '';
-      $('new-role-shield').checked = false;
-      $('new-role-independent').checked = false;
-      toast('Role saved.');
-    }).catch(() => toast('Could not save the role.'));
-  };
-  App.deleteRole = function(id){
-    fetch('/api/roles/' + id, { method: 'DELETE' }).then(r => r.json()).then(list => {
-      state.roles = list;
-      cacheRoles(list);
-      state.selectedRoleIds.delete(id);
-      renderRoleList();
-    }).catch(() => toast('Could not delete the role.'));
-  };
-  App.startRoleEdit = function(id){
-    state.editingRoleId = id;
-    renderRoleList();
-  };
-  App.cancelRoleEdit = function(){
-    state.editingRoleId = null;
-    renderRoleList();
-  };
-  App.saveRoleEdit = function(id){
+  App.toggleShield = function(id, checked){
     const role = state.roles.find(r => r.id === id);
-    const shield = $('edit-shield-' + id).checked;
-    let payload;
-    if(role && role.builtin){
-      const name = $('edit-name-' + id).value.trim();
-      const description = $('edit-desc-' + id).value.trim();
-      if(!name){ toast('Enter a role name.'); return; }
-      payload = { name, description, shield };
-    } else {
-      payload = { shield };
-    }
-    fetch('/api/roles/' + id, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).then(r => r.json()).then(list => {
-      state.roles = list;
-      cacheRoles(list);
-      state.editingRoleId = null;
-      renderRoleList();
-      toast('Role updated.');
-    }).catch(() => toast('Could not update the role.'));
+    if(!role) return;
+    role.shield = checked;
+    renderRoleChecklist();
   };
 
   App.stepPlayers = function(delta){
@@ -2027,7 +1857,7 @@
   /* ---------------- Init ---------------- */
   renderSetupValues();
   window.App = App;
-  loadRoles();
+  renderRoleChecklist();
 
   const params = new URLSearchParams(location.search);
   const joinCode = params.get('join');
