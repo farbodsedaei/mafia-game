@@ -112,12 +112,13 @@ const httpServer = http.createServer(async (req, res) => {
 
     const name = (body.name || '').toString().trim().slice(0, 40);
     const description = (body.description || '').toString().trim().slice(0, 200);
-    const team = body.team === 'mafia' ? 'mafia' : 'villager';
+    const independent = !!body.independent;
+    const team = independent ? 'villager' : (body.team === 'mafia' ? 'mafia' : 'villager');
     if (!name) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Name is required' })); return; }
 
     const shield = !!body.shield;
     const roles = readRoles();
-    const newRole = { id: 'r-' + crypto.randomBytes(4).toString('hex'), team, name, description, shield, builtin: false };
+    const newRole = { id: 'r-' + crypto.randomBytes(4).toString('hex'), team, name, description, shield, independent, builtin: false };
     roles.push(newRole);
     writeRoles(roles);
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -137,7 +138,8 @@ const httpServer = http.createServer(async (req, res) => {
 
     const name = (body.name || '').toString().trim().slice(0, 40);
     const description = (body.description || '').toString().trim().slice(0, 200);
-    const team = body.team === 'mafia' ? 'mafia' : 'villager';
+    const independent = target.builtin ? false : !!body.independent;
+    const team = independent ? 'villager' : (body.team === 'mafia' ? 'mafia' : 'villager');
     const shield = !!body.shield;
     if (!name) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Name is required' })); return; }
 
@@ -145,6 +147,7 @@ const httpServer = http.createServer(async (req, res) => {
     target.description = description;
     target.team = team;
     target.shield = shield;
+    target.independent = independent;
     writeRoles(roles);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(roles));

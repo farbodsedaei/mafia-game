@@ -110,6 +110,7 @@
   .tag.mafia{background:var(--red-dim); color:var(--red-bright);}
   .tag.villager{background:var(--slate-dim); color:var(--slate);}
   .tag.shield{background:var(--gold-dim); color:var(--gold);}
+  .tag.independent{background:rgba(237,239,244,0.08); color:var(--text-muted); border:1px solid var(--line-strong);}
   .spinner{width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,0.25); border-top-color:#fff; animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .pulse-dot{width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulse 1.4s ease-in-out infinite;}
@@ -208,6 +209,10 @@
       </div>
       <div class="field">
         <label class="shield-toggle"><input type="checkbox" id="new-role-shield"> Has a shield</label>
+      </div>
+      <div class="field">
+        <label class="shield-toggle"><input type="checkbox" id="new-role-independent"> Independent</label>
+        <div class="hint">Independent roles are always counted as civilians, no matter what Team is selected above.</div>
       </div>
       <button class="btn btn-gold" onclick="App.addRole()">Save Role</button>
     </div>
@@ -671,6 +676,11 @@
     }).catch(() => toast('Could not load the role library.'));
   }
 
+  function roleTeamTagHtml(r){
+    if(r.independent) return '<span class="tag independent role-team-tag">Independent</span>';
+    return '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>';
+  }
+
   function renderRoleChecklist(){
     const box = $('role-checklist');
     if(!box) return;
@@ -682,7 +692,7 @@
         '<input type="checkbox" ' + (state.selectedRoleIds.has(r.id) ? 'checked' : '') + '>' +
         '<div class="role-info">' +
           '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
-          '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>' +
+          roleTeamTagHtml(r) +
           (r.shield ? '<span class="tag shield role-team-tag">Shield</span>' : '') +
           (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
         '</div>';
@@ -762,6 +772,11 @@
             '<div class="field">' +
               '<label class="shield-toggle"><input type="checkbox" id="edit-shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> Has a shield</label>' +
             '</div>' +
+            (r.builtin ? '' :
+            '<div class="field">' +
+              '<label class="shield-toggle"><input type="checkbox" id="edit-independent-' + r.id + '"' + (r.independent ? ' checked' : '') + '> Independent</label>' +
+              '<div class="hint">Independent roles are always counted as civilians, no matter what Team is selected above.</div>' +
+            '</div>') +
             '<div class="stack" style="flex-direction:row;">' +
               '<button class="btn btn-gold" style="padding:12px;" onclick="App.saveRoleEdit(\'' + r.id + '\')">Save</button>' +
               '<button class="btn btn-ghost" style="padding:12px;" onclick="App.cancelRoleEdit()">Cancel</button>' +
@@ -771,7 +786,7 @@
         row.innerHTML =
           '<div class="role-info">' +
             '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
-            '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>' +
+            roleTeamTagHtml(r) +
             (r.shield ? '<span class="tag shield role-team-tag">Shield</span>' : '') +
             (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
           '</div>' +
@@ -806,13 +821,14 @@
   App.addRole = function(){
     const name = $('new-role-name').value.trim();
     const description = $('new-role-desc').value.trim();
-    const team = $('new-role-team').value;
+    const independent = $('new-role-independent').checked;
+    const team = independent ? 'villager' : $('new-role-team').value;
     const shield = $('new-role-shield').checked;
     if(!name){ toast('Enter a role name.'); return; }
     fetch('/api/roles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, team, shield })
+      body: JSON.stringify({ name, description, team, shield, independent })
     }).then(r => r.json()).then(list => {
       state.roles = list;
       cacheRoles(list);
@@ -820,6 +836,7 @@
       $('new-role-name').value = '';
       $('new-role-desc').value = '';
       $('new-role-shield').checked = false;
+      $('new-role-independent').checked = false;
       toast('Role saved.');
     }).catch(() => toast('Could not save the role.'));
   };
@@ -842,13 +859,15 @@
   App.saveRoleEdit = function(id){
     const name = $('edit-name-' + id).value.trim();
     const description = $('edit-desc-' + id).value.trim();
-    const team = $('edit-team-' + id).value;
+    const independentEl = $('edit-independent-' + id);
+    const independent = independentEl ? independentEl.checked : false;
+    const team = independent ? 'villager' : $('edit-team-' + id).value;
     const shield = $('edit-shield-' + id).checked;
     if(!name){ toast('Enter a role name.'); return; }
     fetch('/api/roles/' + id, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, team, shield })
+      body: JSON.stringify({ name, description, team, shield, independent })
     }).then(r => r.json()).then(list => {
       state.roles = list;
       cacheRoles(list);
@@ -1053,7 +1072,8 @@
   };
 
   function startDayOrInquiry(){
-    if(state.inquiriesRemaining > 0) startInquiryVote();
+    const anyoneEliminatedYet = Array.from(state.players.values()).some(e => !e.alive);
+    if(state.inquiriesRemaining > 0 && anyoneEliminatedYet) startInquiryVote();
     else goToDayScreen();
   }
 
