@@ -187,17 +187,21 @@ const httpServer = http.createServer(async (req, res) => {
   let filePath = path.join(PUBLIC_DIR, url.pathname === '/' ? 'index.html' : url.pathname);
   if (!filePath.startsWith(PUBLIC_DIR)) { res.writeHead(403); res.end('Forbidden'); return; }
 
+  // No caching: this app changes often during development, and stale HTML/JS
+  // in a player's browser silently breaks the game (they'd be running old
+  // code with no way to tell). Freshness matters far more than the marginal
+  // performance cost of always revalidating for an app this small.
   fs.readFile(filePath, (err, data) => {
     if (err) {
       fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (err2, data2) => {
         if (err2) { res.writeHead(404); res.end('Not found'); return; }
-        res.writeHead(200, { 'Content-Type': MIME['.html'] });
+        res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' });
         res.end(data2);
       });
       return;
     }
     const ext = path.extname(filePath);
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(data);
   });
 });
