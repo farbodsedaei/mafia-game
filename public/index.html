@@ -313,7 +313,17 @@
     <h2 style="font-size:26px; margin:10px 0 16px;" id="result-title">&mdash;</h2>
     <div class="card"><p class="hint" id="result-detail" style="margin:0;"></p></div>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.continueToNextDay()">Continue to Day <span id="next-day-num"></span> &rarr;</button>
+    <button class="btn btn-primary" id="result-continue-btn" onclick="App.proceedAfterResult()">Continue &rarr;</button>
+  </div>
+
+  <!-- HOST: GAME OVER -->
+  <div class="screen" id="screen-host-game-over">
+    <div class="eyebrow">Game Over</div>
+    <h2 style="font-size:30px; margin:10px 0 16px;" id="game-over-title">&mdash;</h2>
+    <div class="card"><div id="game-over-roster" class="stack"></div></div>
+    <p class="hint" style="margin-top:14px;">Roles are revealed to everyone now that the game has ended.</p>
+    <div class="grow"></div>
+    <button class="btn btn-primary" onclick="App.newGame()">Start a New Game</button>
   </div>
 
   <!-- PLAYER JOIN -->
@@ -468,6 +478,13 @@
     </div>
   </div>
 
+  <!-- PLAYER: GAME OVER -->
+  <div class="screen" id="screen-player-game-over">
+    <div class="eyebrow" style="text-align:center; margin-bottom:16px;">Game Over</div>
+    <h2 style="font-size:28px; text-align:center; margin-bottom:20px;" id="game-over-title-player">&mdash;</h2>
+    <div class="card"><div id="game-over-roster-player" class="stack"></div></div>
+  </div>
+
 </div>
 <div id="toast-host"></div>
 
@@ -499,12 +516,13 @@
 
     // Phase 2: running the game after roles are assigned
     day: 1,
-    gamePhase: null,        // 'day' | 'inquiry-vote' | 'voting1' | 'defense' | 'voting2' | 'result'
+    gamePhase: null,        // 'day' | 'inquiry-vote' | 'voting1' | 'defense' | 'voting2' | 'result' | 'game-over'
     votesRound1: new Map(), // (host) voterId -> candidateId[] (empty array = abstained)
     votesRound2: new Map(), // (host) voterId -> candidateId[] (empty array = abstained)
     defendingIds: [],       // (host) player ids on trial this round
     inquiriesRemaining: 0,  // (host) inquiries left to spend this game
     votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
+    winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
     myRole: null,           // (player) last role payload received, for the "View My Role" peek
     roleReturnScreen: null, // (player) screen to return to after peeking at role
     voteRound: null,        // (player) 1 or 2, which round the current vote screen is for
@@ -1029,6 +1047,8 @@
     state.day = 1;
     state.inquiriesRemaining = state.numInquiries;
     for(const entry of state.players.values()){ entry.alive = true; }
+    state.winner = checkWinner();
+    if(state.winner){ App.showGameOver(); return; }
     startDayOrInquiry();
   };
 
@@ -1262,6 +1282,7 @@
 
     if(eliminatedId){
       eliminatePlayer(eliminatedId);
+      state.winner = checkWinner();
       showRoundResult(eliminatedId, note);
     } else {
       showRoundResult(null, 'No majority was reached. No one leaves today.');
@@ -1274,6 +1295,15 @@
     sendToPlayer(entry, { type: 'eliminated' });
   }
 
+  function checkWinner(){
+    const alive = Array.from(state.players.values()).filter(e => e.alive);
+    const aliveMafia = alive.filter(e => e.role === 'mafia').length;
+    const aliveVillagers = alive.filter(e => e.role === 'villager').length;
+    if(aliveMafia === 0) return 'village';
+    if(aliveVillagers <= aliveMafia) return 'mafia';
+    return null;
+  }
+
   function showRoundResult(eliminatedId, note){
     state.gamePhase = 'result';
     const eliminatedEntry = eliminatedId ? state.players.get(eliminatedId) : null;
@@ -1283,7 +1313,6 @@
     });
 
     $('result-day').textContent = state.day;
-    $('next-day-num').textContent = state.day + 1;
     if(eliminatedEntry){
       $('result-title').textContent = eliminatedEntry.name + ' was voted out';
       $('result-detail').textContent = note || 'Their role stays private — even from you.';
@@ -1291,12 +1320,41 @@
       $('result-title').textContent = 'No one was eliminated';
       $('result-detail').textContent = note || 'The vote didn’t reach a majority.';
     }
+    $('result-continue-btn').textContent = state.winner
+      ? 'See Final Results →'
+      : 'Continue to Day ' + (state.day + 1) + ' →';
     showScreen('screen-host-result');
   }
+
+  App.proceedAfterResult = function(){
+    if(state.winner) App.showGameOver();
+    else App.continueToNextDay();
+  };
 
   App.continueToNextDay = function(){
     state.day += 1;
     startDayOrInquiry();
+  };
+
+  App.showGameOver = function(){
+    state.gamePhase = 'game-over';
+    const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role }));
+    for(const entry of state.players.values()){
+      sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster });
+    }
+
+    $('game-over-title').textContent = state.winner === 'village' ? 'Civilians Win!' : 'Mafia Wins!';
+    const box = $('game-over-roster');
+    box.innerHTML = '';
+    Array.from(state.players.values()).forEach(entry => {
+      const row = document.createElement('div');
+      row.className = 'slot' + (entry.alive ? ' connected' : '');
+      row.innerHTML =
+        '<div class="name">' + escapeHtml(entry.name) + (entry.alive ? '' : ' <span class="hint" style="font-size:11px;">(out)</span>') + '</div>' +
+        '<span class="tag ' + entry.role + '" style="flex-shrink:0;">' + escapeHtml(entry.roleName || entry.role) + '</span>';
+      box.appendChild(row);
+    });
+    showScreen('screen-host-game-over');
   };
 
   App.newGame = function(){
@@ -1310,6 +1368,7 @@
     state.defendingIds = [];
     state.votesInquiry = new Map();
     state.inquiriesRemaining = 0;
+    state.winner = null;
     App.goLanding();
   };
 
@@ -1359,6 +1418,7 @@
         else if(msg.type === 'day-result'){ handleDayResult(msg); }
         else if(msg.type === 'eliminated'){ showScreen('screen-player-eliminated'); }
         else if(msg.type === 'inquiry-result'){ handleInquiryResult(msg); }
+        else if(msg.type === 'game-over'){ handleGameOver(msg); }
       }catch(err){}
     };
     dc.onclose = () => { toast('Connection to host lost.'); };
@@ -1464,6 +1524,21 @@
       $('inquiry-result-detail-player').textContent = 'Not enough votes were in favor.';
     }
     showScreen('screen-player-inquiry-result');
+  }
+
+  function handleGameOver(msg){
+    $('game-over-title-player').textContent = msg.winner === 'village' ? 'Civilians Win!' : 'Mafia Wins!';
+    const box = $('game-over-roster-player');
+    box.innerHTML = '';
+    (msg.roster || []).forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'slot';
+      row.innerHTML =
+        '<div class="name">' + escapeHtml(p.name) + '</div>' +
+        '<span class="tag ' + p.team + '" style="flex-shrink:0;">' + escapeHtml(p.roleName || p.team) + '</span>';
+      box.appendChild(row);
+    });
+    showScreen('screen-player-game-over');
   }
 
   App.viewMyRole = function(){
