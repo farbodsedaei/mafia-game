@@ -160,6 +160,15 @@
       <div class="hint" id="mafia-hint"></div>
     </div>
     <div class="field">
+      <label>Number of Inquiries</label>
+      <div class="stepper">
+        <button onclick="App.stepInquiries(-1)">&minus;</button>
+        <div class="val" id="val-inquiries">1</div>
+        <button onclick="App.stepInquiries(1)">&plus;</button>
+      </div>
+      <div class="hint">Each morning, the group can spend one to learn how many Mafia and civilians have been eliminated so far.</div>
+    </div>
+    <div class="field">
       <label>Roles in play</label>
       <div class="hint" dir="rtl" style="margin-bottom:10px; text-align:right;">هر نقش ویژه‌ای که تیک بزنید، دقیقاً به یک بازیکن اختصاص داده می‌شود. بقیهٔ آن گروه، نقش پیش‌فرض را می‌گیرند.</div>
       <div id="role-checklist" class="stack"></div>
@@ -252,6 +261,30 @@
     </div>
     <div class="grow"></div>
     <button class="btn btn-primary" onclick="App.startVoting()">Start Voting</button>
+  </div>
+
+  <!-- HOST: INQUIRY VOTE -->
+  <div class="screen" id="screen-host-inquiry-vote">
+    <div class="eyebrow">Day <span id="inquiry-vote-day"></span> &middot; Morning Inquiry</div>
+    <h2 style="font-size:26px; margin:10px 0 16px;">Vote: use an inquiry?</h2>
+    <div class="card">
+      <div class="stack">
+        <div class="slot"><div class="name">Yes</div><div class="status" id="inquiry-yes-count" style="flex:0;">0</div></div>
+        <div class="slot"><div class="name">No</div><div class="status" id="inquiry-no-count" style="flex:0;">0</div></div>
+      </div>
+    </div>
+    <p class="hint" id="inquiry-vote-progress" style="margin-top:12px;"></p>
+    <div class="grow"></div>
+    <button class="btn btn-primary" onclick="App.closeInquiryVote()">Close Inquiry Vote</button>
+  </div>
+
+  <!-- HOST: INQUIRY RESULT -->
+  <div class="screen" id="screen-host-inquiry-result">
+    <div class="eyebrow">Day <span id="inquiry-result-day"></span> &middot; Inquiry Result</div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" id="inquiry-result-title">&mdash;</h2>
+    <div class="card"><p class="hint" id="inquiry-result-detail" style="margin:0;"></p></div>
+    <div class="grow"></div>
+    <button class="btn btn-primary" onclick="App.continueAfterInquiry()">Continue &rarr;</button>
   </div>
 
   <!-- HOST: VOTING (round 1 or 2) -->
@@ -358,6 +391,36 @@
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
   </div>
 
+  <!-- PLAYER: INQUIRY VOTE -->
+  <div class="screen" id="screen-player-inquiry-vote">
+    <div class="eyebrow" id="inquiry-vote-day-player">Day 1 &middot; Morning Inquiry</div>
+    <div class="grow center">
+      <h2 style="font-size:24px;">Use an inquiry today?</h2>
+      <p class="hint" style="max-width:280px; margin-top:12px;">If enough of you say yes, everyone learns how many Mafia and civilians have been eliminated so far.</p>
+    </div>
+    <div class="stack">
+      <button class="btn btn-primary" onclick="App.submitInquiryVote('yes')">Yes</button>
+      <button class="btn btn-outline" onclick="App.submitInquiryVote('no')">No</button>
+    </div>
+  </div>
+
+  <!-- PLAYER: INQUIRY WAITING -->
+  <div class="screen" id="screen-player-inquiry-waiting">
+    <div class="grow center">
+      <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
+      <h3 style="font-size:20px; margin-bottom:8px;">Vote submitted &mdash; waiting for the others&hellip;</h3>
+    </div>
+  </div>
+
+  <!-- PLAYER: INQUIRY RESULT -->
+  <div class="screen" id="screen-player-inquiry-result">
+    <div class="grow center">
+      <div class="eyebrow" style="margin-bottom:10px;">Inquiry Result</div>
+      <h2 style="font-size:24px;" id="inquiry-result-title-player">&mdash;</h2>
+      <p class="hint" style="max-width:280px; margin-top:12px;" id="inquiry-result-detail-player"></p>
+    </div>
+  </div>
+
   <!-- PLAYER: VOTE -->
   <div class="screen" id="screen-player-vote">
     <div class="eyebrow" id="vote-title">Who do you suspect?</div>
@@ -421,6 +484,7 @@
     role: null,
     numPlayers: 6,
     numMafia: 2,
+    numInquiries: 1,
     room: null,
     players: new Map(),   // playerId -> {name, connected, pc, dc, role}
     ws: null,
@@ -435,10 +499,12 @@
 
     // Phase 2: running the game after roles are assigned
     day: 1,
-    gamePhase: null,        // 'day' | 'voting1' | 'defense' | 'voting2' | 'result'
+    gamePhase: null,        // 'day' | 'inquiry-vote' | 'voting1' | 'defense' | 'voting2' | 'result'
     votesRound1: new Map(), // (host) voterId -> candidateId[] (empty array = abstained)
     votesRound2: new Map(), // (host) voterId -> candidateId[] (empty array = abstained)
     defendingIds: [],       // (host) player ids on trial this round
+    inquiriesRemaining: 0,  // (host) inquiries left to spend this game
+    votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
     myRole: null,           // (player) last role payload received, for the "View My Role" peek
     roleReturnScreen: null, // (player) screen to return to after peeking at role
     voteRound: null,        // (player) 1 or 2, which round the current vote screen is for
@@ -783,10 +849,15 @@
     state.numMafia = Math.max(1, Math.min(state.numPlayers - 1, state.numMafia + delta));
     renderSetupValues();
   };
+  App.stepInquiries = function(delta){
+    state.numInquiries = Math.max(0, Math.min(10, state.numInquiries + delta));
+    renderSetupValues();
+  };
   function renderSetupValues(){
     $('val-players').textContent = state.numPlayers;
     $('val-mafia').textContent = state.numMafia;
     $('mafia-hint').textContent = (state.numPlayers - state.numMafia) + ' will be Villagers.';
+    $('val-inquiries').textContent = state.numInquiries;
     renderRoleSummary();
   }
 
@@ -895,6 +966,8 @@
           if(entry){ entry.name = msg.name; renderLobby(); toast(msg.name + ' joined the game.'); }
         } else if(msg.type === 'vote'){
           handlePlayerVote(playerId, msg.round, msg.candidateIds);
+        } else if(msg.type === 'inquiry-vote'){
+          handlePlayerInquiryVote(playerId, msg.choice);
         }
       }catch(err){}
     };
@@ -954,16 +1027,77 @@
 
   App.beginGame = function(){
     state.day = 1;
-    state.gamePhase = 'day';
+    state.inquiriesRemaining = state.numInquiries;
     for(const entry of state.players.values()){ entry.alive = true; }
+    startDayOrInquiry();
+  };
+
+  function startDayOrInquiry(){
+    if(state.inquiriesRemaining > 0) startInquiryVote();
+    else goToDayScreen();
+  }
+
+  function goToDayScreen(){
+    state.gamePhase = 'day';
     broadcastDayPhase();
     renderDayScreen();
     showScreen('screen-host-day');
-  };
+  }
 
   function broadcastDayPhase(){
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'day', day: state.day }));
   }
+
+  function startInquiryVote(){
+    state.gamePhase = 'inquiry-vote';
+    state.votesInquiry = new Map();
+    aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'inquiry-vote', day: state.day }));
+    renderInquiryTally();
+    showScreen('screen-host-inquiry-vote');
+  }
+
+  function renderInquiryTally(){
+    $('inquiry-vote-day').textContent = state.day;
+    let yes = 0, no = 0;
+    state.votesInquiry.forEach(choice => { if(choice === 'yes') yes++; else no++; });
+    $('inquiry-yes-count').textContent = yes;
+    $('inquiry-no-count').textContent = no;
+    $('inquiry-vote-progress').textContent = state.votesInquiry.size + ' of ' + aliveEntries().length + ' have voted.';
+  }
+
+  function handlePlayerInquiryVote(voterId, choice){
+    const voter = state.players.get(voterId);
+    if(!voter || !voter.alive || state.gamePhase !== 'inquiry-vote') return;
+    state.votesInquiry.set(voterId, choice === 'yes' ? 'yes' : 'no');
+    renderInquiryTally();
+  }
+
+  App.closeInquiryVote = function(){
+    const threshold = Math.floor(aliveEntries().length / 2);
+    let yes = 0;
+    state.votesInquiry.forEach(choice => { if(choice === 'yes') yes++; });
+    const granted = yes > 0 && yes >= threshold;
+
+    $('inquiry-result-day').textContent = state.day;
+    if(granted){
+      state.inquiriesRemaining -= 1;
+      const eliminated = Array.from(state.players.values()).filter(e => !e.alive);
+      const mafiaOut = eliminated.filter(e => e.role === 'mafia').length;
+      const villagerOut = eliminated.filter(e => e.role === 'villager').length;
+      aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: true, mafiaOut, villagerOut }));
+      $('inquiry-result-title').textContent = 'Inquiry granted';
+      $('inquiry-result-detail').textContent = mafiaOut + ' Mafia and ' + villagerOut + ' civilian' + (villagerOut === 1 ? '' : 's') + ' eliminated so far. (' + state.inquiriesRemaining + ' inquir' + (state.inquiriesRemaining === 1 ? 'y' : 'ies') + ' left.)';
+    } else {
+      aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: false }));
+      $('inquiry-result-title').textContent = 'No inquiry today';
+      $('inquiry-result-detail').textContent = 'Not enough votes were in favor.';
+    }
+    showScreen('screen-host-inquiry-result');
+  };
+
+  App.continueAfterInquiry = function(){
+    goToDayScreen();
+  };
 
   function renderDayScreen(){
     $('day-eyebrow').textContent = 'Day ' + state.day;
@@ -1162,10 +1296,7 @@
 
   App.continueToNextDay = function(){
     state.day += 1;
-    state.gamePhase = 'day';
-    broadcastDayPhase();
-    renderDayScreen();
-    showScreen('screen-host-day');
+    startDayOrInquiry();
   };
 
   App.newGame = function(){
@@ -1177,6 +1308,8 @@
     state.votesRound1 = new Map();
     state.votesRound2 = new Map();
     state.defendingIds = [];
+    state.votesInquiry = new Map();
+    state.inquiriesRemaining = 0;
     App.goLanding();
   };
 
@@ -1225,6 +1358,7 @@
         else if(msg.type === 'phase'){ handlePhaseMessage(msg); }
         else if(msg.type === 'day-result'){ handleDayResult(msg); }
         else if(msg.type === 'eliminated'){ showScreen('screen-player-eliminated'); }
+        else if(msg.type === 'inquiry-result'){ handleInquiryResult(msg); }
       }catch(err){}
     };
     dc.onclose = () => { toast('Connection to host lost.'); };
@@ -1255,6 +1389,9 @@
     if(msg.phase === 'day'){
       $('day-title-player').textContent = 'Day ' + msg.day;
       showScreen('screen-player-day');
+    } else if(msg.phase === 'inquiry-vote'){
+      $('inquiry-vote-day-player').textContent = 'Day ' + msg.day + ' · Morning Inquiry';
+      showScreen('screen-player-inquiry-vote');
     } else if(msg.phase === 'voting1' || msg.phase === 'voting2'){
       state.voteRound = msg.phase === 'voting1' ? 1 : 2;
       state.voteCandidates = msg.candidates || [];
@@ -1310,6 +1447,23 @@
   function handleDayResult(msg){
     $('day-result-title').textContent = msg.eliminatedName ? (msg.eliminatedName + ' was voted out.') : 'No one was eliminated.';
     showScreen('screen-player-day-result');
+  }
+
+  App.submitInquiryVote = function(choice){
+    try{ state.playerDC.send(JSON.stringify({ type: 'inquiry-vote', choice })); }
+    catch(e){ toast('Lost connection to the host.'); return; }
+    showScreen('screen-player-inquiry-waiting');
+  };
+
+  function handleInquiryResult(msg){
+    if(msg.granted){
+      $('inquiry-result-title-player').textContent = 'Inquiry granted';
+      $('inquiry-result-detail-player').textContent = msg.mafiaOut + ' Mafia and ' + msg.villagerOut + ' civilian' + (msg.villagerOut === 1 ? '' : 's') + ' eliminated so far.';
+    } else {
+      $('inquiry-result-title-player').textContent = 'No inquiry today';
+      $('inquiry-result-detail-player').textContent = 'Not enough votes were in favor.';
+    }
+    showScreen('screen-player-inquiry-result');
   }
 
   App.viewMyRole = function(){
