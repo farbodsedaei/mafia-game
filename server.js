@@ -126,7 +126,10 @@ const httpServer = http.createServer(async (req, res) => {
 
     const shield = !!body.shield;
     const roles = readRoles();
-    const newRole = { id: 'r-' + crypto.randomBytes(4).toString('hex'), team, name, description, shield, independent, locked: false, builtin: false };
+    // Custom roles are locked the moment they're created: from then on only
+    // the shield can change (see the PUT handler below), and they can never
+    // be deleted (see the DELETE handler).
+    const newRole = { id: 'r-' + crypto.randomBytes(4).toString('hex'), team, name, description, shield, independent, locked: true, builtin: false };
     roles.push(newRole);
     writeRoles(roles);
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -144,18 +147,19 @@ const httpServer = http.createServer(async (req, res) => {
     const target = roles.find(r => r.id === id);
     if (!target) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Role not found' })); return; }
 
-    const name = (body.name || '').toString().trim().slice(0, 40);
-    const description = (body.description || '').toString().trim().slice(0, 200);
-    const independent = target.builtin ? false : !!body.independent;
-    const team = independent ? 'villager' : (body.team === 'mafia' ? 'mafia' : 'villager');
     const shield = !!body.shield;
-    if (!name) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Name is required' })); return; }
 
-    target.name = name;
-    target.description = description;
-    target.team = team;
+    if (target.builtin) {
+      // Builtin roles aren't locked — name/description stay editable (e.g. translating them).
+      const name = (body.name || '').toString().trim().slice(0, 40);
+      const description = (body.description || '').toString().trim().slice(0, 200);
+      if (!name) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Name is required' })); return; }
+      target.name = name;
+      target.description = description;
+    }
+    // Custom roles are locked at creation: name/description/team/independent
+    // never change after that — only the shield can be toggled.
     target.shield = shield;
-    target.independent = independent;
     writeRoles(roles);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(roles));

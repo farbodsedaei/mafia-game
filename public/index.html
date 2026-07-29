@@ -759,11 +759,19 @@
     return '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>';
   }
 
+  // Mafia first, then Independent, then regular civilians — for the God's role checklist.
+  function roleGroupRank(r){
+    if(r.team === 'mafia') return 0;
+    if(r.independent) return 1;
+    return 2;
+  }
+
   function renderRoleChecklist(){
     const box = $('role-checklist');
     if(!box) return;
     box.innerHTML = '';
-    state.roles.forEach(r => {
+    const sortedRoles = state.roles.slice().sort((a, b) => roleGroupRank(a) - roleGroupRank(b));
+    sortedRoles.forEach(r => {
       const row = document.createElement('label');
       row.className = 'role-row role-check-row';
       row.innerHTML =
@@ -833,33 +841,40 @@
       row.className = 'role-row';
       if(state.editingRoleId === r.id){
         row.classList.add('role-row-edit');
-        row.innerHTML =
-          '<div class="stack" style="width:100%;">' +
-            '<div class="field" style="margin-bottom:10px;">' +
-              '<select class="role-select" id="edit-team-' + r.id + '">' +
-                '<option value="mafia"' + (r.team === 'mafia' ? ' selected' : '') + '>Mafia-aligned</option>' +
-                '<option value="villager"' + (r.team === 'villager' ? ' selected' : '') + '>Village-aligned</option>' +
-              '</select>' +
-            '</div>' +
-            '<div class="field" style="margin-bottom:10px;">' +
-              '<input type="text" id="edit-name-' + r.id + '" value="' + escapeHtml(r.name) + '" maxlength="40">' +
-            '</div>' +
-            '<div class="field" style="margin-bottom:10px;">' +
-              '<input type="text" id="edit-desc-' + r.id + '" value="' + escapeHtml(r.description || '') + '" maxlength="200">' +
-            '</div>' +
-            '<div class="field">' +
-              '<label class="shield-toggle"><input type="checkbox" id="edit-shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> Has a shield</label>' +
-            '</div>' +
-            (r.builtin ? '' :
-            '<div class="field">' +
-              '<label class="shield-toggle"><input type="checkbox" id="edit-independent-' + r.id + '"' + (r.independent ? ' checked' : '') + '> Independent</label>' +
-              '<div class="hint">Independent roles are always counted as civilians, no matter what Team is selected above.</div>' +
-            '</div>') +
-            '<div class="stack" style="flex-direction:row;">' +
-              '<button class="btn btn-gold" style="padding:12px;" onclick="App.saveRoleEdit(\'' + r.id + '\')">Save</button>' +
-              '<button class="btn btn-ghost" style="padding:12px;" onclick="App.cancelRoleEdit()">Cancel</button>' +
-            '</div>' +
-          '</div>';
+        if(r.builtin){
+          row.innerHTML =
+            '<div class="stack" style="width:100%;">' +
+              '<div class="field" style="margin-bottom:10px;">' +
+                '<input type="text" id="edit-name-' + r.id + '" value="' + escapeHtml(r.name) + '" maxlength="40">' +
+              '</div>' +
+              '<div class="field" style="margin-bottom:10px;">' +
+                '<input type="text" id="edit-desc-' + r.id + '" value="' + escapeHtml(r.description || '') + '" maxlength="200">' +
+              '</div>' +
+              '<div class="field">' +
+                '<label class="shield-toggle"><input type="checkbox" id="edit-shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> Has a shield</label>' +
+              '</div>' +
+              '<div class="stack" style="flex-direction:row;">' +
+                '<button class="btn btn-gold" style="padding:12px;" onclick="App.saveRoleEdit(\'' + r.id + '\')">Save</button>' +
+                '<button class="btn btn-ghost" style="padding:12px;" onclick="App.cancelRoleEdit()">Cancel</button>' +
+              '</div>' +
+            '</div>';
+        } else {
+          row.innerHTML =
+            '<div class="stack" style="width:100%;">' +
+              '<div class="role-info" style="margin-bottom:2px;">' +
+                '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
+                roleTeamTagHtml(r) +
+              '</div>' +
+              '<div class="hint" style="margin-bottom:10px;">This role is locked — only the shield can be changed.</div>' +
+              '<div class="field">' +
+                '<label class="shield-toggle"><input type="checkbox" id="edit-shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> Has a shield</label>' +
+              '</div>' +
+              '<div class="stack" style="flex-direction:row;">' +
+                '<button class="btn btn-gold" style="padding:12px;" onclick="App.saveRoleEdit(\'' + r.id + '\')">Save</button>' +
+                '<button class="btn btn-ghost" style="padding:12px;" onclick="App.cancelRoleEdit()">Cancel</button>' +
+              '</div>' +
+            '</div>';
+        }
       } else {
         row.innerHTML =
           '<div class="role-info">' +
@@ -936,17 +951,21 @@
     renderRoleList();
   };
   App.saveRoleEdit = function(id){
-    const name = $('edit-name-' + id).value.trim();
-    const description = $('edit-desc-' + id).value.trim();
-    const independentEl = $('edit-independent-' + id);
-    const independent = independentEl ? independentEl.checked : false;
-    const team = independent ? 'villager' : $('edit-team-' + id).value;
+    const role = state.roles.find(r => r.id === id);
     const shield = $('edit-shield-' + id).checked;
-    if(!name){ toast('Enter a role name.'); return; }
+    let payload;
+    if(role && role.builtin){
+      const name = $('edit-name-' + id).value.trim();
+      const description = $('edit-desc-' + id).value.trim();
+      if(!name){ toast('Enter a role name.'); return; }
+      payload = { name, description, shield };
+    } else {
+      payload = { shield };
+    }
     fetch('/api/roles/' + id, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, team, shield, independent })
+      body: JSON.stringify(payload)
     }).then(r => r.json()).then(list => {
       state.roles = list;
       cacheRoles(list);
