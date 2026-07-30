@@ -1569,7 +1569,9 @@
       if(targetId){
         state.oceanTeam.add(targetId);
         const target = state.players.get(targetId);
-        sendToPlayer(target, { type: 'ocean-recruited' });
+        // Notified the same way whether they're civilian or Mafia — the target never
+        // learns which one triggered اوشن's own risk of being announced dead by morning.
+        if(target) sendToPlayer(target, { type: 'phase', phase: 'night-announcement', day: state.day, text: 'You’ve been invited into a secret group. Watch for a chance to talk quietly with them at night.' });
         if(target && target.role === 'mafia') state.night.extraDeathIds.push(voterId);
         logActivity(voter, 'Night ' + state.day + ': You added ' + targetName + ' to your group.');
       } else {
@@ -1593,16 +1595,19 @@
   };
 
   function resolveNight(){
-    const rawDeaths = new Set();
+    const rawDeaths = new Set();       // may be blocked by the target's own shield, then by a Doctor's save
+    const guaranteedDeaths = new Set(); // bypasses shields (still save-able by a Doctor)
 
-    // حرفه‌ای's shot: kills a Mafia target (subject to shield below) or backfires on the shooter.
+    // حرفه‌ای's shot: kills a Mafia target (their shield can still absorb it) or backfires on
+    // the shooter — the backfire is a guaranteed consequence, so the shooter's own shield
+    // (even though they carry one by default) cannot save them from their own mistake.
     const professionalEntries = findAliveByRoleName(ROLE_NAME_PROFESSIONAL);
     const professional = professionalEntries.find(([id]) => id !== state.night.blockedId);
     if(state.night.professionalTargetId && professional){
       const target = state.players.get(state.night.professionalTargetId);
       if(target){
         if(target.role === 'mafia') rawDeaths.add(state.night.professionalTargetId);
-        else rawDeaths.add(professional[0]);
+        else guaranteedDeaths.add(professional[0]);
       }
     }
 
@@ -1635,6 +1640,13 @@
       const entry = state.players.get(id);
       if(!entry) return;
       if(entry.roleShield){ entry.roleShield = false; return; }
+      if(id === state.night.savedId) return;
+      finalDeaths.add(id);
+    });
+    // Guaranteed deaths skip the shield check entirely, but a Doctor can still save them.
+    guaranteedDeaths.forEach(id => {
+      const entry = state.players.get(id);
+      if(!entry) return;
       if(id === state.night.savedId) return;
       finalDeaths.add(id);
     });
@@ -1764,7 +1776,6 @@
         else if(msg.type === 'night-result'){ handleNightResult(msg); }
         else if(msg.type === 'investigate-result'){ handleInvestigateResult(msg); }
         else if(msg.type === 'activity-log'){ state.myActivityLog = msg.log || []; }
-        else if(msg.type === 'ocean-recruited'){ toast('You’ve been invited into a secret group — watch for a chance to talk quietly at night.'); }
         else if(msg.type === 'revived'){ handleRevived(msg); }
       }catch(err){}
     };
