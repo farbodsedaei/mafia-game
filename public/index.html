@@ -698,7 +698,7 @@
       statusConnecting: 'در حال اتصال…', statusWaitingForPlayer: 'منتظر پیوستن بازیکن با لینک…',
       toastPlayerJoined: '{name} به بازی پیوست.',
       rolesAssignedEyebrow: 'نقش‌ها تخصیص یافت', rolesDealtTitle: 'نقش‌ها پخش شدند',
-      rolesDealtHint: 'نقش‌ها به‌صورت خصوصی به هر گوشی ارسال شد — از جمله گوشی شما اگر شما هم بازی می‌کنید. این صفحه آن‌ها را نشان نمی‌دهد، حتی به شما.',
+      rolesDealtHint: 'نقش‌ها به‌صورت خصوصی به هر گوشی ارسال شد — از جمله گوشی شما اگر شما هم بازی می‌کنید. در حال حاضر، تا وقتی بازی در حال ساخته‌شدن است، این نقش‌ها پایین همین صفحه هم به شما نشان داده می‌شوند.',
       roleSentPrivately: 'نقش به‌صورت خصوصی ارسال شد',
       btnBeginGame: 'شروع بازی ←', btnStartOverInstead: 'در عوض از نو شروع کن',
       dayLabel: 'روز {n}', dayTitle: 'گفتگوی روز',
@@ -765,7 +765,7 @@
       defenseOthersHint: 'به دفاع آن‌ها گوش دهید. گاد به‌زودی رأی‌گیری نهایی را شروع می‌کند.',
       votedOutPlayer: '{name} با رأی حذف شد.', noOneEliminatedPlayer: 'هیچ‌کس حذف نشد.',
       theTownSleeps: 'شهر خواب است', morningHasCome: 'صبح شد',
-      foundDead: '{names} پیدا شد.', backAmongLiving: '{name} دوباره زنده شد.',
+      foundDead: '{names} دیشب کشته شد.', backAmongLiving: '{name} دوباره زنده شد.',
       everyoneMadeIt: 'همه از شب جان سالم به در بردند.',
       chooseSomeone: 'کسی را انتخاب کنید',
       recruitInsteadOfShoot: 'به‌جای شلیک، آن‌ها را به مافیا اضافه کن',
@@ -858,7 +858,7 @@
       statusConnecting: 'Connecting…', statusWaitingForPlayer: 'Waiting for player to join with the link…',
       toastPlayerJoined: '{name} joined the game.',
       rolesAssignedEyebrow: 'Roles Assigned', rolesDealtTitle: 'Roles have been dealt',
-      rolesDealtHint: "Roles were sent privately to each phone — including yours if you're playing too. This screen doesn't show them, even to you.",
+      rolesDealtHint: "Roles were sent privately to each phone — including yours if you're playing too. For now, while the game is still being built, they're also listed below on this screen.",
       roleSentPrivately: 'Role sent privately',
       btnBeginGame: 'Begin the Game →', btnStartOverInstead: 'Start Over Instead',
       dayLabel: 'Day {n}', dayTitle: 'Daytime discussion',
@@ -925,7 +925,7 @@
       defenseOthersHint: 'Listen to their defense. The God will start the final vote soon.',
       votedOutPlayer: '{name} was voted out.', noOneEliminatedPlayer: 'No one was eliminated.',
       theTownSleeps: 'The town sleeps', morningHasCome: 'Morning has come',
-      foundDead: '{names} found dead.', backAmongLiving: '{name} is back among the living.',
+      foundDead: '{names} found dead this morning.', backAmongLiving: '{name} is back among the living.',
       everyoneMadeIt: 'Everyone made it through the night.',
       chooseSomeone: 'Choose someone',
       recruitInsteadOfShoot: 'Recruit them into Mafia instead of shooting',
@@ -1008,7 +1008,7 @@
     'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish.',
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
-    'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. That player must decide, the next morning before voting starts, whether to shoot someone. A shielded target only loses their shield; anyone else dies. If the gun is fired at a civilian by mistake, any remaining guns are cancelled and won't be handed over again."
+    'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If the gun is fired at a civilian by mistake, any remaining guns are cancelled and won't be handed over again."
   };
 
   function t(key, vars){
@@ -1039,7 +1039,7 @@
     { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
-    { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن باید صبح روز بعد، پیش از شروع رأی‌گیری، تصمیم بگیرد که به کسی شلیک کند یا نه. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد.', shield: false, independent: false, builtin: false }
+    { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد.', shield: false, independent: false, builtin: false }
   ];
 
   const state = {
@@ -1071,7 +1071,7 @@
     inquiriesRemaining: 0,  // (host) inquiries left to spend this game
     votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
-    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [] }, // (host) this night's decisions
+    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set(), civilianPending: new Set() }, // (host) this night's decisions
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
     mafiaActivityLog: [],   // (host) shared night-by-night log of mafia shots + blocks, sent to every mafia member
@@ -1529,6 +1529,9 @@
     showScreen('screen-host-summary');
   };
 
+  // While we're still building/testing the game, the God's own screen shows
+  // real roles too instead of hiding them — see renderDossier below and the
+  // full debug panel (App.toggleDebugPanel) for the same reasoning.
   function renderDossier(){
     const table = $('dossier-table');
     table.innerHTML = '';
@@ -1536,7 +1539,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td>' + escapeHtml(entry.name) + '</td>' +
-        '<td style="text-align:right;" class="hint">' + escapeHtml(t('roleSentPrivately')) + '</td>';
+        '<td style="text-align:right;" class="hint">' + escapeHtml(entry.roleName || entry.role) + '</td>';
       table.appendChild(tr);
     }
   }
@@ -1966,15 +1969,17 @@
   };
 
   /* ---------------- Night phase ---------------- */
-  // Ordered list of night steps. To add a future role's night action, add a
-  // 'night-<key>' branch in handleNightAction/forceContinueNight, write a
-  // start<Key>Step() that either calls advanceNight() immediately (no eligible
-  // actor) or messages the actor and waits, then insert its key here.
-  // Mafia-aligned roles (the kill decision and ماتادور's block) act together, in
-  // parallel, during one shared 'mafia-phase' step — nobody has to wait for
-  // پدر خوانده to decide before ماتادور can decide. Civilian roles stay strictly
-  // one-at-a-time, each getting their own sequential step.
-  const NIGHT_STEP_ORDER = ['eyes-closed', 'mafia-phase', 'doctor', 'constantine', 'detective', 'professional', 'gunner', 'ocean-recruit', 'ocean-talk'];
+  // Ordered list of night phases. Mafia-aligned roles (the kill decision and
+  // ماتادور's block) act together in one shared 'mafia-phase' step. Once that's
+  // fully resolved — so ماتادور's block target is already known — every civilian
+  // action role (دکتر, کنستانتین, کاراگاه, حرفه‌ای, تفنگدار, اوشن's recruit choice)
+  // is prompted at the same time too, in one shared 'civilian-phase' step.
+  // Nobody waits on anyone else to decide before making their own choice; this
+  // is what actually saves real time at the table, not sequential one-at-a-time
+  // turns. اوشن's talk stays its own step afterward, since it needs everyone's
+  // civilian-phase decisions (including who اوشن just recruited) finalized first.
+  const NIGHT_STEP_ORDER = ['eyes-closed', 'mafia-phase', 'civilian-phase', 'ocean-talk'];
+  const CIVILIAN_PHASE_ROLES = ['doctor', 'constantine', 'detective', 'professional', 'gunner', 'ocean-recruit'];
 
   function findAliveByRoleName(name){
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.roleName === name);
@@ -1984,7 +1989,7 @@
   }
 
   function startNight(){
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set() };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set(), civilianPending: new Set() };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night');
@@ -1997,12 +2002,7 @@
     const step = NIGHT_STEP_ORDER[index];
     state.gamePhase = 'night-' + step;
     if(step === 'mafia-phase') startMafiaPhaseStep();
-    else if(step === 'doctor') startDoctorStep();
-    else if(step === 'constantine') startConstantineStep();
-    else if(step === 'detective') startDetectiveStep();
-    else if(step === 'professional') startProfessionalStep();
-    else if(step === 'gunner') startGunnerStep();
-    else if(step === 'ocean-recruit') startOceanRecruitStep();
+    else if(step === 'civilian-phase') startCivilianPhaseStep();
     else if(step === 'ocean-talk') startOceanTalkStep();
     else if(step === 'eyes-closed') startEyesClosedStep();
   }
@@ -2011,69 +2011,70 @@
     runNightStep(state.nightStepIndex + 1);
   }
 
-  function startBlockableRoleStep(roleName, buildCandidates, promptRole, title){
+  // Sends one civilian role's prompt — but only if they're alive, eligible (per
+  // an optional extra check like تفنگدار's remaining-guns count), and actually
+  // have someone to act on. Adds them to civilianPending so the phase knows to
+  // wait for their answer; a blocked actor gets a "you were blocked" notice
+  // instead and is never added, since there's nothing left to wait for from them.
+  function promptCivilianRole(key, roleName, buildCandidates, title, eligible){
     const holders = findAliveByRoleName(roleName);
-    if(!holders.length){ advanceNight(); return; }
+    if(!holders.length) return;
     const [actorId, actorEntry] = holders[0];
+    if(eligible && !eligible(actorId)) return;
     if(isBlockedTonight(actorId)){
       sendToPlayer(actorEntry, { type: 'phase', phase: 'night', day: state.day, note: t('youWereBlocked') });
-      advanceNight();
       return;
     }
     const candidates = buildCandidates(actorId);
-    if(!candidates.length){ advanceNight(); return; }
-    sendToPlayer(actorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: promptRole, title, candidates, allowSkip: true });
+    if(!candidates.length) return;
+    state.night.civilianPending.add(key);
+    sendToPlayer(actorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: key, title, candidates, allowSkip: true });
   }
 
+  function startCivilianPhaseStep(){
+    state.night.civilianPending = new Set();
 
-  function startDoctorStep(){
-    startBlockableRoleStep(ROLE_NAME_DOCTOR, (doctorId) => {
+    promptCivilianRole('doctor', ROLE_NAME_DOCTOR, (doctorId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && (id !== doctorId || !state.doctorSelfSaveUsed))
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'doctor', t('chooseToSave'));
-  }
+    }, t('chooseToSave'));
 
-  function startConstantineStep(){
-    startBlockableRoleStep(ROLE_NAME_CONSTANTINE, () => {
+    promptCivilianRole('constantine', ROLE_NAME_CONSTANTINE, () => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => !e.alive)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'constantine', t('chooseToRevive'));
-  }
+    }, t('chooseToRevive'));
 
-  function startDetectiveStep(){
-    startBlockableRoleStep(ROLE_NAME_DETECTIVE, (detectiveId) => {
+    promptCivilianRole('detective', ROLE_NAME_DETECTIVE, (detectiveId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== detectiveId)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'detective', t('chooseToInvestigate'));
-  }
+    }, t('chooseToInvestigate'));
 
-  function startProfessionalStep(){
-    startBlockableRoleStep(ROLE_NAME_PROFESSIONAL, (proId) => {
+    promptCivilianRole('professional', ROLE_NAME_PROFESSIONAL, (proId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== proId)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'professional', t('chooseToShoot'));
-  }
+    }, t('chooseToShoot'));
 
-  function startGunnerStep(){
-    if(state.gunsRemaining <= 0 || state.gunsCancelled || state.pendingGun){ advanceNight(); return; }
-    startBlockableRoleStep(ROLE_NAME_GUNNER, (gunnerId) => {
+    promptCivilianRole('gunner', ROLE_NAME_GUNNER, (gunnerId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== gunnerId)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'gunner', t('chooseToHandGun'));
-  }
+    }, t('chooseToHandGun'), () => state.gunsRemaining > 0 && !state.gunsCancelled && !state.pendingGun);
 
-  function startOceanRecruitStep(){
-    if(state.oceanTeam.size >= state.numOceanSlots){ advanceNight(); return; }
-    startBlockableRoleStep(ROLE_NAME_OCEAN, (oceanId) => {
+    promptCivilianRole('ocean-recruit', ROLE_NAME_OCEAN, (oceanId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== oceanId && !state.oceanTeam.has(id))
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'ocean-recruit', t('chooseToAddGroup'));
+    }, t('chooseToAddGroup'), () => state.oceanTeam.size < state.numOceanSlots);
+
+    if(!state.night.civilianPending.size){ advanceNight(); return; }
+    showScreen('screen-host-night');
+  }
+  function checkCivilianPhaseComplete(){
+    if(state.night.civilianPending.size === 0) advanceNight();
   }
 
   function startOceanTalkStep(){
@@ -2183,7 +2184,9 @@
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
     const isMafiaPhaseRole = (role === 'mafia' || role === 'matador');
-    if(state.gamePhase !== (isMafiaPhaseRole ? 'night-mafia-phase' : ('night-' + role))) return;
+    const isCivilianPhaseRole = CIVILIAN_PHASE_ROLES.indexOf(role) !== -1;
+    const expectedPhase = isMafiaPhaseRole ? 'night-mafia-phase' : (isCivilianPhaseRole ? 'night-civilian-phase' : ('night-' + role));
+    if(state.gamePhase !== expectedPhase) return;
     const targetName = targetId && state.players.get(targetId) ? state.players.get(targetId).name : null;
 
     const prefix = t('nightLogPrefix', { day: state.day });
@@ -2199,11 +2202,13 @@
       state.night.savedId = targetId || null;
       if(targetId && targetId === voterId) state.doctorSelfSaveUsed = true;
       logActivity(voter, prefix + (targetName ? t('actYouSaved', { name: targetName }) : t('actYouNoSave')));
-      advanceNight();
+      state.night.civilianPending.delete('doctor');
+      checkCivilianPhaseComplete();
     } else if(role === 'constantine'){
       state.night.revivedId = targetId || null;
       logActivity(voter, prefix + (targetName ? t('actYouRevived', { name: targetName }) : t('actYouNoRevive')));
-      advanceNight();
+      state.night.civilianPending.delete('constantine');
+      checkCivilianPhaseComplete();
     } else if(role === 'detective'){
       if(targetId){
         const target = state.players.get(targetId);
@@ -2215,11 +2220,13 @@
       } else {
         logActivity(voter, prefix + t('actYouNoInvestigate'));
       }
-      advanceNight();
+      state.night.civilianPending.delete('detective');
+      checkCivilianPhaseComplete();
     } else if(role === 'professional'){
       state.night.professionalTargetId = targetId || null;
       logActivity(voter, prefix + (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
-      advanceNight();
+      state.night.civilianPending.delete('professional');
+      checkCivilianPhaseComplete();
     } else if(role === 'gunner'){
       if(targetId){
         state.gunsRemaining -= 1;
@@ -2228,7 +2235,8 @@
       } else {
         logActivity(voter, prefix + t('actYouNoHandGun'));
       }
-      advanceNight();
+      state.night.civilianPending.delete('gunner');
+      checkCivilianPhaseComplete();
     } else if(role === 'ocean-recruit'){
       if(targetId){
         state.oceanTeam.add(targetId);
@@ -2243,7 +2251,8 @@
       } else {
         logActivity(voter, prefix + t('actYouNoAdd'));
       }
-      advanceNight();
+      state.night.civilianPending.delete('ocean-recruit');
+      checkCivilianPhaseComplete();
     } else if(role === 'mafia'){
       if(state.night.mafiaTargetId || state.night.mafiaRecruitId) return; // another mafia member already decided
       if(recruit) state.night.mafiaRecruitId = targetId;
@@ -2255,9 +2264,7 @@
 
   App.forceContinueNight = function(){
     if(state.gamePhase === 'night-mafia-phase') state.night.mafiaPending.clear();
-    else if(state.gamePhase === 'night-doctor') state.night.savedId = null;
-    else if(state.gamePhase === 'night-constantine') state.night.revivedId = null;
-    else if(state.gamePhase === 'night-professional') state.night.professionalTargetId = null;
+    else if(state.gamePhase === 'night-civilian-phase') state.night.civilianPending.clear();
     advanceNight();
   };
 
@@ -2391,7 +2398,7 @@
     state.votesInquiry = new Map();
     state.inquiriesRemaining = 0;
     state.winner = null;
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set() };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set(), civilianPending: new Set() };
     state.doctorSelfSaveUsed = false;
     state.mafiaActivityLog = [];
     state.oceanTeam = new Set();
