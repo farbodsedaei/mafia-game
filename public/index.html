@@ -820,7 +820,7 @@
       gunResultEyebrow: 'نتیجه اسلحه',
       gunHitDiedMafia: '{name} با شلیک اسلحه کشته شد — او مافیا بود.',
       gunHitDiedCivilian: '{name} با شلیک اسلحه کشته شد — او یک شهروند بود.',
-      gunHitShielded: '{name} هدف شلیک قرار گرفت، اما اتفاقی برایش نیفتاد — شیلدش او را نجات داد.',
+      gunHitNoEffect: '{name} هدف شلیک قرار گرفت، اما هیچ اتفاقی نیفتاد.',
       gunNotFired: 'امروز اسلحه‌ای شلیک نشد.',
       btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
       debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
@@ -980,7 +980,7 @@
       gunResultEyebrow: 'Gun Result',
       gunHitDiedMafia: '{name} was shot dead — they were Mafia.',
       gunHitDiedCivilian: '{name} was shot dead — they were a civilian.',
-      gunHitShielded: "{name} was shot at, but nothing happened to them — their shield saved them.",
+      gunHitNoEffect: "{name} was shot at, but nothing happened.",
       gunNotFired: 'No shot was fired today.',
       btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
       debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
@@ -1620,18 +1620,24 @@
     resolveDayGunAction(state.pendingGun.holderId, null);
   };
 
+  // If ماتادور blocked the gun's holder on the night تفنگدار handed it to them
+  // (state.pendingGun.neutralized), the shot fires but never does anything —
+  // no shield drop, no death, no civilian-miss cancellation — and the public
+  // reveal doesn't distinguish this from any other "nothing happened" case
+  // (see gunHitNoEffect). A returned gun (تفنگدار shooting it themselves) is
+  // never neutralized this way — only the original blocked handover is.
   function resolveDayGunAction(shooterId, targetId){
     const shooter = state.players.get(shooterId);
     const target = targetId ? state.players.get(targetId) : null;
+    const neutralized = !!(state.pendingGun && state.pendingGun.neutralized);
     const prefix = t('dayLogPrefix', { day: state.day });
     if(shooter) logActivity(shooter, prefix + (target ? t('actYouFiredGun', { name: target.name }) : t('actYouDidNotFireGun')));
 
-    let outcome = 'none';
-    if(target){
+    let outcome = target ? 'no-effect' : 'not-fired';
+    if(target && !neutralized){
       if(target.role !== 'mafia') state.gunsCancelled = true; // wrong target — no more handovers, ever
       if(target.roleShield){
         target.roleShield = false;
-        outcome = 'shielded';
       } else if(target.alive){
         target.alive = false;
         outcome = 'died';
@@ -1643,7 +1649,7 @@
     state.winner = checkWinner();
 
     const text = outcome === 'died' ? t(target.role === 'mafia' ? 'gunHitDiedMafia' : 'gunHitDiedCivilian', { name: target.name })
-      : outcome === 'shielded' ? t('gunHitShielded', { name: target.name })
+      : outcome === 'no-effect' ? t('gunHitNoEffect', { name: target.name })
       : t('gunNotFired');
     announceDayGunOutcome(text);
   }
@@ -2230,7 +2236,9 @@
     } else if(role === 'gunner'){
       if(targetId){
         state.gunsRemaining -= 1;
-        state.pendingGun = { holderId: targetId };
+        // If ماتادور's block landed on the recipient this same night, the gun
+        // still changes hands, but it's quietly a dud — see resolveDayGunAction.
+        state.pendingGun = { holderId: targetId, neutralized: targetId === state.night.blockedId };
         logActivity(voter, prefix + t('actYouHandedGun', { name: targetName }));
       } else {
         logActivity(voter, prefix + t('actYouNoHandGun'));
