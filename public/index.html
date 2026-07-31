@@ -120,6 +120,15 @@
   .lang-switch{position:fixed; top:6px; right:8px; z-index:1000; display:flex; gap:2px; background:rgba(0,0,0,0.55); border-radius:8px; padding:3px;}
   .lang-switch button{appearance:none; background:none; border:none; color:var(--text-faint); font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;}
   .lang-switch button.active{background:var(--gold-dim); color:var(--gold);}
+
+  /* Dev/troubleshooting only — lets the God see every role and the full
+     activity log at a glance. Never shown to players. */
+  .debug-toggle-btn{display:none; position:fixed; top:34px; left:8px; z-index:1000; appearance:none; border:none; background:rgba(0,0,0,0.55); color:#EDEFF4; font-size:13px; line-height:1; padding:5px 8px; border-radius:6px; cursor:pointer;}
+  .debug-panel{display:none; position:fixed; inset:0; z-index:2000; background:rgba(6,7,10,0.97); overflow-y:auto; padding:18px 18px 40px;}
+  .debug-panel.open{display:block;}
+  .debug-panel h3{font-size:15px; margin:18px 0 8px; color:var(--gold);}
+  .debug-panel .debug-row{padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.04); margin-bottom:6px; font-size:13px; line-height:1.5;}
+  .debug-panel .debug-log-entry{padding:4px 0 4px 10px; border-left:2px solid rgba(255,255,255,0.12); font-size:12px; color:var(--text-faint);}
 </style>
 </head>
 <body>
@@ -623,6 +632,19 @@
   <button id="lang-btn-en" onclick="App.setLanguage('en')">EN</button>
 </div>
 
+<!-- Dev/troubleshooting only: full roles + activity log, God's console only -->
+<button id="debug-toggle-btn" class="debug-toggle-btn" onclick="App.toggleDebugPanel()">&#128295;</button>
+<div id="debug-panel" class="debug-panel">
+  <div class="eyebrow" data-i18n="debugPanelTitle"></div>
+  <button class="btn btn-ghost" style="margin-top:14px;" onclick="App.toggleDebugPanel()" data-i18n="btnCloseDebug"></button>
+  <h3 data-i18n="debugStateHeading"></h3>
+  <div id="debug-state" class="debug-row"></div>
+  <h3 data-i18n="debugRolesHeading"></h3>
+  <div id="debug-roles"></div>
+  <h3 data-i18n="debugActivityHeading"></h3>
+  <div id="debug-activity"></div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -796,9 +818,17 @@
       dayGunWaitTitle: 'در انتظار تصمیم اسلحه', dayGunWaitHint: 'یک بازیکن باید تصمیم بگیرد که امروز شلیک کند یا نه.',
       btnForceSkipGun: 'رد شدن اجباری',
       gunResultEyebrow: 'نتیجه اسلحه',
-      gunHitDied: '{name} با شلیک اسلحه کشته شد.', gunHitShielded: '{name} هدف شلیک قرار گرفت، اما شیلدش او را نجات داد.',
+      gunHitDiedMafia: '{name} با شلیک اسلحه کشته شد — او مافیا بود.',
+      gunHitDiedCivilian: '{name} با شلیک اسلحه کشته شد — او یک شهروند بود.',
+      gunHitShielded: '{name} هدف شلیک قرار گرفت، اما اتفاقی برایش نیفتاد — شیلدش او را نجات داد.',
       gunNotFired: 'امروز اسلحه‌ای شلیک نشد.',
       btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
+      debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
+      debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
+      debugNoActivity: 'هنوز فعالیتی ثبت نشده.', debugAlive: 'زنده', debugDead: 'مرده',
+      debugShieldOn: 'دارای شیلد', debugShieldOff: 'بدون شیلد', debugMafiaSharedLog: 'گزارش مشترک مافیا',
+      debugPhaseLabel: 'فاز', debugWinnerLabel: 'برنده', debugGunsRemainingLabel: 'اسلحه‌های باقی‌مانده',
+      debugGunsCancelledLabel: 'اسلحه‌ها لغو شده', debugPendingGunLabel: 'اسلحه در دست', debugNone: 'هیچ‌کدام',
       dayGunReturnedWaitHint: '{name} که اسلحه دستش بود، شب گذشته جان خود را از دست داد. اسلحه به تفنگدار برگشته و او باید تصمیم بگیرد.',
       gunDecisionReturnedHint: '{name}، کسی که اسلحه را به او داده بودید، شب گذشته جان خود را از دست داد. اسلحه به شما برگشته — می‌توانید به کسی شلیک کنید، یا کاری نکنید.',
       actGunReturned: '{name}، کسی که اسلحه را به او داده بودید، جان باخت و اسلحه به شما برگشت.',
@@ -948,9 +978,17 @@
       dayGunWaitTitle: 'Waiting on the gun decision', dayGunWaitHint: 'A player needs to decide whether to shoot today.',
       btnForceSkipGun: 'Force Skip',
       gunResultEyebrow: 'Gun Result',
-      gunHitDied: '{name} was shot dead.', gunHitShielded: "{name} was shot, but their shield saved them.",
+      gunHitDiedMafia: '{name} was shot dead — they were Mafia.',
+      gunHitDiedCivilian: '{name} was shot dead — they were a civilian.',
+      gunHitShielded: "{name} was shot at, but nothing happened to them — their shield saved them.",
       gunNotFired: 'No shot was fired today.',
       btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
+      debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
+      debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
+      debugNoActivity: 'No activity logged yet.', debugAlive: 'Alive', debugDead: 'Dead',
+      debugShieldOn: 'Shielded', debugShieldOff: 'No shield', debugMafiaSharedLog: "Mafia's Shared Log",
+      debugPhaseLabel: 'Phase', debugWinnerLabel: 'Winner', debugGunsRemainingLabel: 'Guns remaining',
+      debugGunsCancelledLabel: 'Guns cancelled', debugPendingGunLabel: 'Gun currently held by', debugNone: 'None',
       dayGunReturnedWaitHint: "{name}, who was holding the gun, didn't survive the night. The gun has returned to تفنگدار, who must now decide.",
       gunDecisionReturnedHint: "{name}, who you handed the gun to, didn't survive the night. It's back with you — you may shoot someone, or do nothing.",
       actGunReturned: "{name}, who you gave the gun to, died and the gun came back to you.",
@@ -1294,6 +1332,10 @@
     if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); renderRoleChecklist(); setDebugBadge('HOST'); }
     else if(role === 'player'){ state.role = 'player'; showScreen('screen-player-join'); setDebugBadge('PLAYER'); }
     else { state.role = null; showScreen('screen-landing'); setDebugBadge(''); }
+    // The full-roles/activity debug panel is a dev/troubleshooting aid — only
+    // ever shown on the God's own device, never a player's.
+    const debugToggle = $('debug-toggle-btn');
+    if(debugToggle) debugToggle.style.display = role === 'host' ? 'block' : 'none';
   };
 
   App.openManageRoles = function(returnTo){
@@ -1517,18 +1559,17 @@
   };
 
   function startDayOrInquiry(){
-    if(state.pendingGun){ startDayGunStep(); return; }
     const anyoneEliminatedYet = Array.from(state.players.values()).some(e => !e.alive);
     if(state.inquiriesRemaining > 0 && anyoneEliminatedYet) startInquiryVote();
     else goToDayScreen();
   }
 
-  // تفنگدار handed the gun over last night — the recipient must decide, before
-  // anything else happens this morning (including an inquiry vote), whether to
-  // fire it. Resolved via App.forceSkipGunDecision (host) or a 'day-gun-action'
-  // message (player), both of which call resolveDayGunAction. If the recipient
-  // didn't survive the night, the gun returns to تفنگدار instead — see
-  // startGunReturnedStep.
+  // تفنگدار handed the gun over last night — the recipient must decide whether
+  // to fire it after the day's conversation, once the host taps "Start Voting"
+  // (see App.startVoting), and before voting actually opens. Resolved via
+  // App.forceSkipGunDecision (host) or a 'day-gun-action' message (player),
+  // both of which call resolveDayGunAction. If the recipient didn't survive
+  // the night, the gun returns to تفنگدار instead — see startGunReturnedStep.
   function startDayGunStep(){
     const holder = state.players.get(state.pendingGun.holderId);
     if(!holder || !holder.alive){
@@ -1598,7 +1639,7 @@
     state.pendingGun = null;
     state.winner = checkWinner();
 
-    const text = outcome === 'died' ? t('gunHitDied', { name: target.name })
+    const text = outcome === 'died' ? t(target.role === 'mafia' ? 'gunHitDiedMafia' : 'gunHitDiedCivilian', { name: target.name })
       : outcome === 'shielded' ? t('gunHitShielded', { name: target.name })
       : t('gunNotFired');
     announceDayGunOutcome(text);
@@ -1614,7 +1655,7 @@
 
   App.continueAfterDayGunResult = function(){
     if(state.winner) App.showGameOver();
-    else startDayOrInquiry();
+    else beginVotingRound1();
   };
 
   function goToDayScreen(){
@@ -1708,7 +1749,14 @@
     }
   }
 
+  // If تفنگدار's gun is still pending, it fires (or is declined) right here —
+  // after the day's conversation, before voting opens — not before either.
   App.startVoting = function(){
+    if(state.pendingGun){ startDayGunStep(); return; }
+    beginVotingRound1();
+  };
+
+  function beginVotingRound1(){
     state.gamePhase = 'voting1';
     state.votesRound1 = new Map();
     const alive = aliveEntries();
@@ -1718,7 +1766,7 @@
     });
     renderVotingTally(1);
     showScreen('screen-host-voting');
-  };
+  }
 
   App.startFinalVote = function(){
     state.gamePhase = 'voting2';
@@ -2699,6 +2747,78 @@
       row.innerHTML = '<div class="name" style="white-space:normal;">' + escapeHtml(text) + '</div>';
       box.appendChild(row);
     });
+  }
+
+  /* ---------------- Dev/troubleshooting: God's debug console ---------------- */
+  // Shows every player's real role + shield status and the complete activity
+  // log (every night/day action, not just each player's own). Host-only,
+  // never sent to or visible from a player's device — this reads state.players
+  // directly, which only exists on the host's own browser tab.
+  App.toggleDebugPanel = function(){
+    const panel = $('debug-panel');
+    if(!panel) return;
+    if(panel.classList.contains('open')){ panel.classList.remove('open'); return; }
+    renderDebugPanel();
+    panel.classList.add('open');
+  };
+
+  function renderDebugPanel(){
+    const stateBox = $('debug-state');
+    if(stateBox){
+      const winnerText = state.winner ? (state.winner === 'village' ? t('civiliansWin') : t('mafiaWins')) : t('debugNone');
+      const pendingHolder = state.pendingGun ? state.players.get(state.pendingGun.holderId) : null;
+      stateBox.innerHTML =
+        escapeHtml(t('dayLabel', { n: state.day })) + ' · ' + escapeHtml(t('debugPhaseLabel')) + ': ' + escapeHtml(state.gamePhase || '—') + '<br>' +
+        escapeHtml(t('debugWinnerLabel')) + ': ' + escapeHtml(winnerText) + '<br>' +
+        escapeHtml(t('debugGunsRemainingLabel')) + ': ' + state.gunsRemaining + ' · ' +
+        escapeHtml(t('debugGunsCancelledLabel')) + ': ' + escapeHtml(state.gunsCancelled ? t('yes') : t('no')) + '<br>' +
+        escapeHtml(t('debugPendingGunLabel')) + ': ' + (pendingHolder ? escapeHtml(pendingHolder.name) : escapeHtml(t('debugNone')));
+    }
+
+    const rolesBox = $('debug-roles');
+    if(rolesBox){
+      rolesBox.innerHTML = '';
+      Array.from(state.players.values()).forEach(entry => {
+        const row = document.createElement('div');
+        row.className = 'debug-row';
+        row.innerHTML =
+          '<strong>' + escapeHtml(entry.name || '—') + '</strong> — ' + escapeHtml(entry.roleName || entry.role || '—') +
+          ' (' + escapeHtml(entry.role === 'mafia' ? t('tagMafia') : t('tagVillage')) + ') · ' +
+          (entry.alive ? escapeHtml(t('debugAlive')) : escapeHtml(t('debugDead'))) + ' · ' +
+          (entry.roleShield ? escapeHtml(t('debugShieldOn')) : escapeHtml(t('debugShieldOff')));
+        rolesBox.appendChild(row);
+      });
+    }
+
+    const activityBox = $('debug-activity');
+    if(activityBox){
+      activityBox.innerHTML = '';
+      let anyLog = false;
+      Array.from(state.players.values()).forEach(entry => {
+        if(entry.activityLog && entry.activityLog.length){
+          anyLog = true;
+          activityBox.appendChild(buildDebugLogSection(entry.name + ' (' + (entry.roleName || entry.role) + ')', entry.activityLog));
+        }
+      });
+      if(state.mafiaActivityLog && state.mafiaActivityLog.length){
+        anyLog = true;
+        activityBox.appendChild(buildDebugLogSection(t('debugMafiaSharedLog'), state.mafiaActivityLog));
+      }
+      if(!anyLog) activityBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
+    }
+  }
+
+  function buildDebugLogSection(heading, lines){
+    const section = document.createElement('div');
+    section.className = 'debug-row';
+    section.innerHTML = '<strong>' + escapeHtml(heading) + '</strong>';
+    lines.forEach(line => {
+      const p = document.createElement('div');
+      p.className = 'debug-log-entry';
+      p.textContent = line;
+      section.appendChild(p);
+    });
+    return section;
   }
 
   /* ---------------- Init ---------------- */
