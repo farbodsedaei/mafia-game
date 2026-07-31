@@ -252,6 +252,23 @@
     <button class="btn btn-primary" onclick="App.startVoting()" data-i18n="btnStartVoting"></button>
   </div>
 
+  <!-- HOST: DAY GUN WAIT -->
+  <div class="screen" id="screen-host-day-gun-wait">
+    <div class="eyebrow" id="day-gun-wait-day"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="dayGunWaitTitle"></h2>
+    <p class="hint" id="day-gun-wait-hint"></p>
+    <div class="grow"></div>
+    <button class="btn btn-primary" onclick="App.forceSkipGunDecision()" data-i18n="btnForceSkipGun"></button>
+  </div>
+
+  <!-- HOST: DAY GUN RESULT -->
+  <div class="screen" id="screen-host-day-gun-result">
+    <div class="eyebrow" id="day-gun-result-day"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" id="day-gun-result-title">&mdash;</h2>
+    <div class="grow"></div>
+    <button class="btn btn-primary" onclick="App.continueAfterDayGunResult()" data-i18n="btnContinue"></button>
+  </div>
+
   <!-- HOST: INQUIRY VOTE -->
   <div class="screen" id="screen-host-inquiry-vote">
     <div class="eyebrow" id="inquiry-vote-day"></div>
@@ -330,6 +347,15 @@
     <p class="hint" data-i18n="oceanTalkHint"></p>
     <div class="grow"></div>
     <button class="btn btn-primary" id="ocean-talk-continue-btn" onclick="App.continueAfterOceanTalk()" data-i18n="btnContinue"></button>
+  </div>
+
+  <!-- HOST: NIGHT MORNING READY -->
+  <div class="screen" id="screen-host-night-morning">
+    <div class="eyebrow" id="night-morning-day"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="morningReadyTitle"></h2>
+    <p class="hint" data-i18n="morningReadyHint"></p>
+    <div class="grow"></div>
+    <button class="btn btn-primary" onclick="App.announceMorning()" data-i18n="btnAnnounceMorning"></button>
   </div>
 
   <!-- HOST: NIGHT RESULT -->
@@ -421,6 +447,35 @@
     <div id="activity-log-list" class="stack"></div>
     <div class="grow"></div>
     <button class="btn btn-ghost" onclick="App.closeMyActivity()" data-i18n="back"></button>
+  </div>
+
+  <!-- PLAYER: DAY GUN ACTION -->
+  <div class="screen" id="screen-player-day-gun-action">
+    <div class="eyebrow" id="day-gun-action-day"></div>
+    <h2 style="font-size:24px; margin:10px 0 6px;" data-i18n="gunDecisionEyebrow"></h2>
+    <p class="hint" id="day-gun-action-hint" style="margin-bottom:14px;"></p>
+    <div id="day-gun-action-candidate-list" class="stack"></div>
+    <div class="grow"></div>
+    <div class="stack">
+      <button class="btn btn-primary" onclick="App.submitDayGunAction()" data-i18n="btnFireGun"></button>
+      <button class="btn btn-ghost" onclick="App.skipDayGunAction()" data-i18n="btnDoNothingToday"></button>
+    </div>
+  </div>
+
+  <!-- PLAYER: DAY GUN WAITING -->
+  <div class="screen" id="screen-player-day-gun-waiting">
+    <div class="grow center">
+      <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
+      <h3 style="font-size:20px; margin-bottom:8px;" data-i18n="decisionSubmittedWaiting"></h3>
+    </div>
+  </div>
+
+  <!-- PLAYER: DAY GUN RESULT -->
+  <div class="screen" id="screen-player-day-gun-result">
+    <div class="grow center">
+      <div class="eyebrow" style="margin-bottom:10px;" data-i18n="gunResultEyebrow"></div>
+      <h2 style="font-size:24px;" id="day-gun-result-title-player">&mdash;</h2>
+    </div>
   </div>
 
   <!-- PLAYER: DAY -->
@@ -588,7 +643,9 @@
   const ROLE_NAME_CONSTANTINE = 'کنستانتین';
   const ROLE_NAME_SAUL = 'ساول گودمن';
   const ROLE_NAME_OCEAN = 'اوشن';
+  const ROLE_NAME_GUNNER = 'تفنگدار';
   const ROLE_NAME_PLAIN_VILLAGER = 'شهروند ساده';
+  const GUNNER_MAX_GUNS = 2; // whole-game limit on how many times تفنگدار may hand over the gun
 
   /* ---------------- Language / i18n ---------------- */
   // Role names themselves (پدر خوانده, اوشن, etc.) are proper nouns chosen by
@@ -653,6 +710,8 @@
       oceanTalkTitle: 'گروه اوشن در حال صحبت است',
       oceanTalkHint: 'به آن‌ها زمان بدهید تا آرام صحبت کنند، سپس وقتی آماده بودند ادامه دهید.',
       nightLabel: 'شب {n}', nightResultLabel: 'شب {n} · نتیجه',
+      morningReadyTitle: 'همه تصمیم خود را گرفتند', morningReadyHint: 'وقتی آماده بودید، نتیجه شب را برای همه اعلام کنید.',
+      btnAnnounceMorning: 'اعلام صبح ←',
       gameOver: 'پایان بازی', civiliansWin: 'شهروندان بردند!', mafiaWins: 'مافیا برد!',
       rolesRevealed: 'حالا که بازی تمام شد، نقش‌ها برای همه نمایش داده می‌شود.',
       btnStartNewGame: 'شروع بازی جدید', outLabel: '(خارج)',
@@ -727,7 +786,23 @@
       actYouNoAdd: 'شما تصمیم گرفتید کسی را به گروه خود اضافه نکنید.',
       actRecruited: '{name} به مافیا اضافه شد.',
       actRecruitFailed: 'تلاش برای اضافه‌کردن {name} ناموفق بود — شلیکی انجام نشد.',
-      actMafiaShot: 'مافیا به {name} شلیک کرد.', actMafiaShotNoOne: 'مافیا به کسی شلیک نکرد.'
+      actMafiaShot: 'مافیا به {name} شلیک کرد.', actMafiaShotNoOne: 'مافیا به کسی شلیک نکرد.',
+      chooseToHandGun: 'کسی را برای دادن اسلحه انتخاب کنید',
+      actYouHandedGun: 'شما اسلحه را به {name} دادید.', actYouNoHandGun: 'شما تصمیم گرفتید اسلحه را ندهید.',
+      chooseToFireGun: 'می‌توانید به کسی شلیک کنید، یا کاری نکنید',
+      actYouFiredGun: 'شما به {name} شلیک کردید.', actYouDidNotFireGun: 'شما تصمیم گرفتید شلیک نکنید.',
+      btnDoNothingToday: 'امروز کاری نکن',
+      gunDecisionEyebrow: 'اسلحه دست شماست', gunDecisionHint: 'می‌توانید امروز به یکی از بازیکنان شلیک کنید، یا کاری نکنید. این تصمیم پیش از شروع رأی‌گیری گرفته می‌شود.',
+      dayGunWaitTitle: 'در انتظار تصمیم اسلحه', dayGunWaitHint: 'یک بازیکن باید تصمیم بگیرد که امروز شلیک کند یا نه.',
+      btnForceSkipGun: 'رد شدن اجباری',
+      gunResultEyebrow: 'نتیجه اسلحه',
+      gunHitDied: '{name} با شلیک اسلحه کشته شد.', gunHitShielded: '{name} هدف شلیک قرار گرفت، اما شیلدش او را نجات داد.',
+      gunNotFired: 'امروز اسلحه‌ای شلیک نشد.',
+      btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
+      dayGunReturnedWaitHint: '{name} که اسلحه دستش بود، شب گذشته جان خود را از دست داد. اسلحه به تفنگدار برگشته و او باید تصمیم بگیرد.',
+      gunDecisionReturnedHint: '{name}، کسی که اسلحه را به او داده بودید، شب گذشته جان خود را از دست داد. اسلحه به شما برگشته — می‌توانید به کسی شلیک کنید، یا کاری نکنید.',
+      actGunReturned: '{name}، کسی که اسلحه را به او داده بودید، جان باخت و اسلحه به شما برگشت.',
+      gunLost: 'اسلحه در طول شب گم شد — کسی زنده نماند تا از آن استفاده کند.'
     },
     en: {
       connConnecting: 'Connecting…', connConnected: 'Connected', connDisconnected: 'Disconnected', connError: 'Connection error',
@@ -787,6 +862,8 @@
       oceanTalkTitle: "اوشن's group is talking",
       oceanTalkHint: 'Give them a moment to talk quietly, then continue when they’re ready.',
       nightLabel: 'Night {n}', nightResultLabel: 'Night {n} · Result',
+      morningReadyTitle: 'Everyone has decided', morningReadyHint: "When you're ready, announce the night's results to everyone.",
+      btnAnnounceMorning: 'Announce Morning →',
       gameOver: 'Game Over', civiliansWin: 'Civilians Win!', mafiaWins: 'Mafia Wins!',
       rolesRevealed: 'Roles are revealed to everyone now that the game has ended.',
       btnStartNewGame: 'Start a New Game', outLabel: '(out)',
@@ -861,7 +938,23 @@
       actYouNoAdd: 'You chose not to add anyone to your group.',
       actRecruited: '{name} was recruited into Mafia.',
       actRecruitFailed: 'The attempt to recruit {name} failed — no shot was taken.',
-      actMafiaShot: 'Mafia shot {name}.', actMafiaShotNoOne: 'Mafia shot no one.'
+      actMafiaShot: 'Mafia shot {name}.', actMafiaShotNoOne: 'Mafia shot no one.',
+      chooseToHandGun: 'Choose someone to hand the gun to',
+      actYouHandedGun: 'You handed the gun to {name}.', actYouNoHandGun: 'You chose not to hand over the gun.',
+      chooseToFireGun: 'You may shoot someone, or do nothing',
+      actYouFiredGun: 'You fired the gun at {name}.', actYouDidNotFireGun: 'You chose not to fire the gun.',
+      btnDoNothingToday: 'Do Nothing Today',
+      gunDecisionEyebrow: 'You have the gun', gunDecisionHint: 'You may shoot one player today, or do nothing. This is decided before voting starts.',
+      dayGunWaitTitle: 'Waiting on the gun decision', dayGunWaitHint: 'A player needs to decide whether to shoot today.',
+      btnForceSkipGun: 'Force Skip',
+      gunResultEyebrow: 'Gun Result',
+      gunHitDied: '{name} was shot dead.', gunHitShielded: "{name} was shot, but their shield saved them.",
+      gunNotFired: 'No shot was fired today.',
+      btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
+      dayGunReturnedWaitHint: "{name}, who was holding the gun, didn't survive the night. The gun has returned to تفنگدار, who must now decide.",
+      gunDecisionReturnedHint: "{name}, who you handed the gun to, didn't survive the night. It's back with you — you may shoot someone, or do nothing.",
+      actGunReturned: "{name}, who you gave the gun to, died and the gun came back to you.",
+      gunLost: 'The gun was lost overnight — no one survived to use it.'
     }
   };
 
@@ -876,7 +969,8 @@
     'role-professional': "Each night you may target someone. Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead.",
     'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish.',
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
-    'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning."
+    'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
+    'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. That player must decide, the next morning before voting starts, whether to shoot someone. A shielded target only loses their shield; anyone else dies. If the gun is fired at a civilian by mistake, any remaining guns are cancelled and won't be handed over again."
   };
 
   function t(key, vars){
@@ -906,7 +1000,8 @@
     { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید. اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید.', shield: true, independent: false, builtin: false },
     { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
-    { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false }
+    { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
+    { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن باید صبح روز بعد، پیش از شروع رأی‌گیری، تصمیم بگیرد که به کسی شلیک کند یا نه. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد.', shield: false, independent: false, builtin: false }
   ];
 
   const state = {
@@ -943,6 +1038,9 @@
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
     mafiaActivityLog: [],   // (host) shared night-by-night log of mafia shots + blocks, sent to every mafia member
     oceanTeam: new Set(),   // (host) player ids اوشن has recruited so far (not including اوشن themselves)
+    gunsRemaining: GUNNER_MAX_GUNS, // (host) how many more times تفنگدار may hand over the gun this game
+    gunsCancelled: false,   // (host) true once the gun has been fired at a civilian — no more handovers
+    pendingGun: null,       // (host) { holderId } once تفنگدار hands the gun over, until it's fired/declined the next day
     myRole: null,           // (player) last role payload received, for the "View My Role" peek
     roleReturnScreen: null, // (player) screen to return to after peeking at role
     voteRound: null,        // (player) 1 or 2, which round the current vote screen is for
@@ -950,6 +1048,7 @@
     selectedCandidateIds: new Set(), // (player) chosen candidates before submit; may be empty
     nightActionRole: null,       // (player) which role this night-action prompt is for
     selectedNightTargetId: null, // (player) chosen target before submit
+    selectedDayGunTargetId: null, // (player) chosen target for the day-gun decision before submit
     myActivityLog: [],           // (player) night-by-night history of this player's (or their mafia team's) actions
     hasActivityLog: false,       // (player) whether to show the "My Activity" link at all
     activityReturnScreen: null,  // (player) screen to return to after viewing activity log
@@ -1349,6 +1448,8 @@
           handlePlayerInquiryVote(playerId, msg.choice);
         } else if(msg.type === 'night-action'){
           handleNightAction(playerId, msg.role, msg.targetId, msg.recruit);
+        } else if(msg.type === 'day-gun-action'){
+          handleDayGunAction(playerId, msg.targetId);
         }
       }catch(err){}
     };
@@ -1416,10 +1517,105 @@
   };
 
   function startDayOrInquiry(){
+    if(state.pendingGun){ startDayGunStep(); return; }
     const anyoneEliminatedYet = Array.from(state.players.values()).some(e => !e.alive);
     if(state.inquiriesRemaining > 0 && anyoneEliminatedYet) startInquiryVote();
     else goToDayScreen();
   }
+
+  // تفنگدار handed the gun over last night — the recipient must decide, before
+  // anything else happens this morning (including an inquiry vote), whether to
+  // fire it. Resolved via App.forceSkipGunDecision (host) or a 'day-gun-action'
+  // message (player), both of which call resolveDayGunAction. If the recipient
+  // didn't survive the night, the gun returns to تفنگدار instead — see
+  // startGunReturnedStep.
+  function startDayGunStep(){
+    const holder = state.players.get(state.pendingGun.holderId);
+    if(!holder || !holder.alive){
+      startGunReturnedStep(holder ? holder.name : null);
+      return;
+    }
+    promptGunHolder(state.pendingGun.holderId, holder, false, null);
+  }
+
+  // The gun's original recipient died overnight before they could use it — it
+  // comes back to تفنگدار (if they're still alive) to decide instead.
+  function startGunReturnedStep(diedName){
+    const gunnerEntries = findAliveByRoleName(ROLE_NAME_GUNNER);
+    if(!gunnerEntries.length){
+      state.pendingGun = null;
+      announceDayGunOutcome(t('gunLost'));
+      return;
+    }
+    const [gunnerId, gunnerEntry] = gunnerEntries[0];
+    state.pendingGun = { holderId: gunnerId };
+    if(diedName) logActivity(gunnerEntry, t('dayLogPrefix', { day: state.day }) + t('actGunReturned', { name: diedName }));
+    promptGunHolder(gunnerId, gunnerEntry, true, diedName);
+  }
+
+  function promptGunHolder(holderId, holderEntry, returned, diedName){
+    const candidates = aliveEntries().filter(([id]) => id !== holderId).map(([id, e]) => ({ id, name: e.name }));
+    if(!candidates.length){
+      resolveDayGunAction(holderId, null);
+      return;
+    }
+    state.gamePhase = 'day-gun';
+    sendToPlayer(holderEntry, { type: 'phase', phase: 'day-gun-action', day: state.day, candidates, returned, diedName });
+    $('day-gun-wait-day').textContent = t('dayLabel', { n: state.day });
+    $('day-gun-wait-hint').textContent = returned ? t('dayGunReturnedWaitHint', { name: diedName }) : t('dayGunWaitHint');
+    showScreen('screen-host-day-gun-wait');
+  }
+
+  function handleDayGunAction(voterId, targetId){
+    if(state.gamePhase !== 'day-gun' || !state.pendingGun || state.pendingGun.holderId !== voterId) return;
+    resolveDayGunAction(voterId, targetId);
+  }
+
+  App.forceSkipGunDecision = function(){
+    if(state.gamePhase !== 'day-gun' || !state.pendingGun) return;
+    resolveDayGunAction(state.pendingGun.holderId, null);
+  };
+
+  function resolveDayGunAction(shooterId, targetId){
+    const shooter = state.players.get(shooterId);
+    const target = targetId ? state.players.get(targetId) : null;
+    const prefix = t('dayLogPrefix', { day: state.day });
+    if(shooter) logActivity(shooter, prefix + (target ? t('actYouFiredGun', { name: target.name }) : t('actYouDidNotFireGun')));
+
+    let outcome = 'none';
+    if(target){
+      if(target.role !== 'mafia') state.gunsCancelled = true; // wrong target — no more handovers, ever
+      if(target.roleShield){
+        target.roleShield = false;
+        outcome = 'shielded';
+      } else if(target.alive){
+        target.alive = false;
+        outcome = 'died';
+        sendToPlayer(target, { type: 'eliminated' });
+      }
+    }
+
+    state.pendingGun = null;
+    state.winner = checkWinner();
+
+    const text = outcome === 'died' ? t('gunHitDied', { name: target.name })
+      : outcome === 'shielded' ? t('gunHitShielded', { name: target.name })
+      : t('gunNotFired');
+    announceDayGunOutcome(text);
+  }
+
+  function announceDayGunOutcome(text){
+    aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'day-gun-result', text }));
+
+    $('day-gun-result-day').textContent = t('dayLabel', { n: state.day });
+    $('day-gun-result-title').textContent = text;
+    showScreen('screen-host-day-gun-result');
+  }
+
+  App.continueAfterDayGunResult = function(){
+    if(state.winner) App.showGameOver();
+    else startDayOrInquiry();
+  };
 
   function goToDayScreen(){
     state.gamePhase = 'day';
@@ -1730,7 +1926,7 @@
   // parallel, during one shared 'mafia-phase' step — nobody has to wait for
   // پدر خوانده to decide before ماتادور can decide. Civilian roles stay strictly
   // one-at-a-time, each getting their own sequential step.
-  const NIGHT_STEP_ORDER = ['eyes-closed', 'mafia-phase', 'doctor', 'constantine', 'detective', 'professional', 'ocean-recruit', 'ocean-talk'];
+  const NIGHT_STEP_ORDER = ['eyes-closed', 'mafia-phase', 'doctor', 'constantine', 'detective', 'professional', 'gunner', 'ocean-recruit', 'ocean-talk'];
 
   function findAliveByRoleName(name){
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.roleName === name);
@@ -1748,7 +1944,7 @@
   }
 
   function runNightStep(index){
-    if(index >= NIGHT_STEP_ORDER.length){ resolveNight(); return; }
+    if(index >= NIGHT_STEP_ORDER.length){ showMorningReadyScreen(); return; }
     state.nightStepIndex = index;
     const step = NIGHT_STEP_ORDER[index];
     state.gamePhase = 'night-' + step;
@@ -1757,6 +1953,7 @@
     else if(step === 'constantine') startConstantineStep();
     else if(step === 'detective') startDetectiveStep();
     else if(step === 'professional') startProfessionalStep();
+    else if(step === 'gunner') startGunnerStep();
     else if(step === 'ocean-recruit') startOceanRecruitStep();
     else if(step === 'ocean-talk') startOceanTalkStep();
     else if(step === 'eyes-closed') startEyesClosedStep();
@@ -1811,6 +2008,15 @@
         .filter(([id, e]) => e.alive && id !== proId)
         .map(([id, e]) => ({ id, name: e.name }));
     }, 'professional', t('chooseToShoot'));
+  }
+
+  function startGunnerStep(){
+    if(state.gunsRemaining <= 0 || state.gunsCancelled || state.pendingGun){ advanceNight(); return; }
+    startBlockableRoleStep(ROLE_NAME_GUNNER, (gunnerId) => {
+      return Array.from(state.players.entries())
+        .filter(([id, e]) => e.alive && id !== gunnerId)
+        .map(([id, e]) => ({ id, name: e.name }));
+    }, 'gunner', t('chooseToHandGun'));
   }
 
   function startOceanRecruitStep(){
@@ -1966,6 +2172,15 @@
       state.night.professionalTargetId = targetId || null;
       logActivity(voter, prefix + (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
       advanceNight();
+    } else if(role === 'gunner'){
+      if(targetId){
+        state.gunsRemaining -= 1;
+        state.pendingGun = { holderId: targetId };
+        logActivity(voter, prefix + t('actYouHandedGun', { name: targetName }));
+      } else {
+        logActivity(voter, prefix + t('actYouNoHandGun'));
+      }
+      advanceNight();
     } else if(role === 'ocean-recruit'){
       if(targetId){
         state.oceanTeam.add(targetId);
@@ -1996,6 +2211,19 @@
     else if(state.gamePhase === 'night-constantine') state.night.revivedId = null;
     else if(state.gamePhase === 'night-professional') state.night.professionalTargetId = null;
     advanceNight();
+  };
+
+  // Every role has decided (or been skipped) for the night, but nobody's fate is
+  // computed or sent to any player yet — that only happens once the host taps
+  // "Announce Morning" below, so a night with no remaining roles to prompt (e.g.
+  // no اوشن in play) can't silently resolve and eliminate someone instantly.
+  function showMorningReadyScreen(){
+    state.gamePhase = 'night-morning';
+    $('night-morning-day').textContent = t('nightLabel', { n: state.day });
+    showScreen('screen-host-night-morning');
+  }
+  App.announceMorning = function(){
+    resolveNight();
   };
 
   function resolveNight(){
@@ -2119,6 +2347,9 @@
     state.doctorSelfSaveUsed = false;
     state.mafiaActivityLog = [];
     state.oceanTeam = new Set();
+    state.gunsRemaining = GUNNER_MAX_GUNS;
+    state.gunsCancelled = false;
+    state.pendingGun = null;
     App.goLanding();
   };
 
@@ -2166,7 +2397,7 @@
         if(msg.type === 'role'){
           state.myRole = msg;
           state.hasActivityLog = msg.role === 'mafia' ||
-            [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN].includes(msg.name);
+            [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN, ROLE_NAME_GUNNER].includes(msg.name);
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = state.hasActivityLog ? 'block' : 'none'; });
           renderRole(msg);
           showScreen('screen-player-role');
@@ -2187,6 +2418,7 @@
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = 'block'; });
         }
         else if(msg.type === 'revived'){ handleRevived(msg); }
+        else if(msg.type === 'day-gun-result'){ handleDayGunResult(msg); }
       }catch(err){}
     };
     dc.onclose = () => { toast(t('connectionToHostLost')); };
@@ -2222,6 +2454,8 @@
     } else if(msg.phase === 'inquiry-vote'){
       $('inquiry-vote-day-player').textContent = t('dayLabel', { n: msg.day }) + ' · ' + t('morningInquiry');
       showScreen('screen-player-inquiry-vote');
+    } else if(msg.phase === 'day-gun-action'){
+      renderDayGunActionScreen(msg);
     } else if(msg.phase === 'voting1' || msg.phase === 'voting2'){
       state.voteRound = msg.phase === 'voting1' ? 1 : 2;
       state.voteCandidates = msg.candidates || [];
@@ -2364,6 +2598,43 @@
   App.skipNightAction = function(){
     sendNightAction(null);
   };
+
+  function renderDayGunActionScreen(msg){
+    state.selectedDayGunTargetId = null;
+    $('day-gun-action-day').textContent = t('dayLabel', { n: msg.day });
+    $('day-gun-action-hint').textContent = msg.returned ? t('gunDecisionReturnedHint', { name: msg.diedName }) : t('gunDecisionHint');
+    const list = $('day-gun-action-candidate-list');
+    list.innerHTML = '';
+    (msg.candidates || []).forEach(c => {
+      const row = document.createElement('label');
+      row.className = 'role-row role-check-row';
+      row.innerHTML =
+        '<input type="radio" name="day-gun-target">' +
+        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
+      row.querySelector('input').onchange = () => { state.selectedDayGunTargetId = c.id; };
+      list.appendChild(row);
+    });
+    showScreen('screen-player-day-gun-action');
+  }
+
+  function sendDayGunAction(targetId){
+    try{ state.playerDC.send(JSON.stringify({ type: 'day-gun-action', targetId })); }
+    catch(e){ toast(t('lostHostConnection')); return; }
+    showScreen('screen-player-day-gun-waiting');
+  }
+
+  App.submitDayGunAction = function(){
+    if(!state.selectedDayGunTargetId){ toast(t('pickSomeoneFirst')); return; }
+    sendDayGunAction(state.selectedDayGunTargetId);
+  };
+  App.skipDayGunAction = function(){
+    sendDayGunAction(null);
+  };
+
+  function handleDayGunResult(msg){
+    $('day-gun-result-title-player').textContent = msg.text;
+    showScreen('screen-player-day-gun-result');
+  }
 
   function nightResultText(deadNames, revivedName){
     const parts = [];
