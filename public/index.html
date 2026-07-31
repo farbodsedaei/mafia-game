@@ -117,6 +117,9 @@
   .banner{background:var(--gold-dim); border:1px solid rgba(212,168,87,0.3); color:var(--gold); font-size:13px; padding:12px 14px; border-radius:12px; margin-bottom:16px; line-height:1.5;}
   .banner.warning{background:var(--red-dim); border-color:rgba(196,54,75,0.35); color:var(--red-bright); margin-bottom:0;}
   .link-btn{appearance:none; background:none; border:none; color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:13px; cursor:pointer; padding:8px 0;}
+  .lang-switch{position:fixed; top:6px; right:8px; z-index:1000; display:flex; gap:2px; background:rgba(0,0,0,0.55); border-radius:8px; padding:3px;}
+  .lang-switch button{appearance:none; background:none; border:none; color:var(--text-faint); font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;}
+  .lang-switch button.active{background:var(--gold-dim); color:var(--gold);}
 </style>
 </head>
 <body>
@@ -124,25 +127,25 @@
 
   <!-- LANDING -->
   <div class="screen active" id="screen-landing">
-    <div class="brandmark"><div class="dot"></div><span id="conn-indicator">Connecting&hellip;</span></div>
+    <div class="brandmark"><div class="dot"></div><span id="conn-indicator" data-i18n="connConnecting"></span></div>
     <div class="grow center">
-      <div class="eyebrow" style="margin-bottom:14px;">A Game of Suspicion</div>
-      <h1 style="font-size:56px; line-height:0.95;">MAFIA</h1>
-      <p class="hint" style="max-width:280px; margin-top:16px;">Play together from anywhere. Roles are dealt in secret, straight to each phone.</p>
+      <div class="eyebrow" style="margin-bottom:14px;" data-i18n="landingEyebrow"></div>
+      <h1 style="font-size:56px; line-height:0.95;" data-i18n="landingTitle"></h1>
+      <p class="hint" style="max-width:280px; margin-top:16px;" data-i18n="landingTagline"></p>
     </div>
     <div class="stack" style="margin-top:24px;">
-      <button class="btn btn-primary" onclick="App.goLanding('host')">I'm the Host <span style="opacity:.7">— God</span></button>
-      <button class="btn btn-outline" onclick="App.goLanding('player')">I'm a Player</button>
-      <button class="link-btn" style="margin:0 auto;" onclick="App.openManageRoles('landing')">Roles &amp; Shields</button>
+      <button class="btn btn-primary" onclick="App.goLanding('host')"><span data-i18n="btnHost"></span> <span style="opacity:.7" data-i18n="btnHostGod"></span></button>
+      <button class="btn btn-outline" onclick="App.goLanding('player')" data-i18n="btnPlayer"></button>
+      <button class="link-btn" style="margin:0 auto;" onclick="App.openManageRoles('landing')" data-i18n="btnRolesShields"></button>
     </div>
   </div>
 
   <!-- HOST SETUP -->
   <div class="screen" id="screen-host-setup">
-    <div class="eyebrow">Host &middot; New Session</div>
-    <h2 style="font-size:28px; margin:10px 0 26px;">Set up the game</h2>
+    <div class="eyebrow" data-i18n="hostSetupEyebrow"></div>
+    <h2 style="font-size:28px; margin:10px 0 26px;" data-i18n="hostSetupTitle"></h2>
     <div class="field">
-      <label>Number of players</label>
+      <label data-i18n="labelNumPlayers"></label>
       <div class="stepper">
         <button onclick="App.stepPlayers(-1)">&minus;</button>
         <div class="val" id="val-players">6</div>
@@ -150,7 +153,7 @@
       </div>
     </div>
     <div class="field">
-      <label>Number of Mafia</label>
+      <label data-i18n="labelNumMafia"></label>
       <div class="stepper">
         <button onclick="App.stepMafia(-1)">&minus;</button>
         <div class="val" id="val-mafia">2</div>
@@ -159,288 +162,288 @@
       <div class="hint" id="mafia-hint"></div>
     </div>
     <div class="field">
-      <label>Number of Inquiries</label>
+      <label data-i18n="labelNumInquiries"></label>
       <div class="stepper">
         <button onclick="App.stepInquiries(-1)">&minus;</button>
         <div class="val" id="val-inquiries">1</div>
         <button onclick="App.stepInquiries(1)">&plus;</button>
       </div>
-      <div class="hint">Each morning, the group can spend one to learn how many Mafia and civilians have been eliminated so far.</div>
+      <div class="hint" data-i18n="hintInquiries"></div>
     </div>
     <div class="field">
-      <label>اوشن's group size</label>
+      <label data-i18n="labelOceanSlots"></label>
       <div class="stepper">
         <button onclick="App.stepOceanSlots(-1)">&minus;</button>
         <div class="val" id="val-ocean-slots">2</div>
         <button onclick="App.stepOceanSlots(1)">&plus;</button>
       </div>
-      <div class="hint">How many members اوشن can recruit into their group, if that role is in play.</div>
+      <div class="hint" data-i18n="hintOceanSlots"></div>
     </div>
     <div class="field">
-      <label>Roles in play</label>
-      <div class="hint" dir="rtl" style="margin-bottom:10px; text-align:right;">هر نقش ویژه‌ای که تیک بزنید، دقیقاً به یک بازیکن اختصاص داده می‌شود. بقیهٔ آن گروه، نقش پیش‌فرض را می‌گیرند.</div>
+      <label data-i18n="labelRolesInPlay"></label>
+      <div class="hint" dir="rtl" style="margin-bottom:10px; text-align:right;" data-i18n="hintRolesInPlay"></div>
       <div id="role-checklist" class="stack"></div>
       <div id="role-summary" class="hint" dir="rtl" style="margin-top:12px; text-align:right;"></div>
       <div id="role-warning" class="banner warning" dir="rtl" style="display:none; margin-top:12px; text-align:right;"></div>
     </div>
-    <button class="link-btn" style="align-self:flex-start; padding-left:0;" onclick="App.openManageRoles('host-setup')">Adjust shields</button>
+    <button class="link-btn" style="align-self:flex-start; padding-left:0;" onclick="App.openManageRoles('host-setup')" data-i18n="linkAdjustShields"></button>
     <div class="grow"></div>
     <div class="stack">
-      <button class="btn btn-primary" id="btn-create-lobby" onclick="App.createLobby()">Create Lobby</button>
-      <button class="btn btn-ghost" onclick="App.goLanding()">Back</button>
+      <button class="btn btn-primary" id="btn-create-lobby" onclick="App.createLobby()" data-i18n="btnCreateLobby"></button>
+      <button class="btn btn-ghost" onclick="App.goLanding()" data-i18n="btnBack"></button>
     </div>
   </div>
 
   <!-- MANAGE ROLES -->
   <div class="screen" id="screen-manage-roles">
-    <div class="eyebrow">Role Library</div>
-    <h2 style="font-size:26px; margin:10px 0 20px;">Roles &amp; Shields</h2>
-    <p class="hint" style="margin-bottom:16px;">These roles are fixed. The only thing you can adjust here is whether each one starts with a shield — and that only lasts for this browser session.</p>
+    <div class="eyebrow" data-i18n="roleLibraryEyebrow"></div>
+    <h2 style="font-size:26px; margin:10px 0 20px;" data-i18n="rolesShieldsTitle"></h2>
+    <p class="hint" style="margin-bottom:16px;" data-i18n="rolesShieldsHint"></p>
     <div id="role-list" class="stack" style="margin-bottom:22px;"></div>
     <div class="grow"></div>
-    <button class="btn btn-ghost" onclick="App.closeManageRoles()">Done</button>
+    <button class="btn btn-ghost" onclick="App.closeManageRoles()" data-i18n="btnDone"></button>
   </div>
 
   <!-- HOST LOBBY -->
   <div class="screen" id="screen-host-lobby">
-    <div class="eyebrow" id="lobby-eyebrow">Host &middot; Lobby</div>
-    <h2 style="font-size:24px; margin:10px 0 16px;">Invite your players</h2>
+    <div class="eyebrow" id="lobby-eyebrow" data-i18n="lobbyEyebrow"></div>
+    <h2 style="font-size:24px; margin:10px 0 16px;" data-i18n="lobbyTitle"></h2>
     <div class="card" style="margin-bottom:20px;">
-      <div class="hint" style="text-align:center;">Room code</div>
+      <div class="hint" style="text-align:center;" data-i18n="labelRoomCode"></div>
       <div class="room-code-display" id="room-code-display">&mdash;&mdash;&mdash;&mdash;&mdash;</div>
       <div class="link-box">
-        <span id="room-link-text">generating link&hellip;</span>
-        <button onclick="App.copyLink()">Copy</button>
+        <span id="room-link-text" data-i18n="generatingLink"></span>
+        <button onclick="App.copyLink()" data-i18n="btnCopy"></button>
       </div>
-      <button class="btn btn-gold" style="margin-top:14px;" onclick="App.shareLink()">Share Invite Link</button>
+      <button class="btn btn-gold" style="margin-top:14px;" onclick="App.shareLink()" data-i18n="btnShareInvite"></button>
     </div>
     <div id="slot-list"></div>
     <div class="grow"></div>
-    <button class="btn btn-primary" id="btn-assign" onclick="App.assignRoles()" disabled>Assign Roles</button>
+    <button class="btn btn-primary" id="btn-assign" onclick="App.assignRoles()" disabled data-i18n="btnAssignRoles"></button>
   </div>
 
   <!-- HOST SUMMARY -->
   <div class="screen" id="screen-host-summary">
-    <div class="eyebrow">Roles Assigned</div>
-    <h2 style="font-size:26px; margin:10px 0 20px;">Roles have been dealt</h2>
+    <div class="eyebrow" data-i18n="rolesAssignedEyebrow"></div>
+    <h2 style="font-size:26px; margin:10px 0 20px;" data-i18n="rolesDealtTitle"></h2>
     <div class="card"><table class="dossier" id="dossier-table"></table></div>
-    <p class="hint" style="margin-top:16px;">Roles were sent privately to each phone — including yours if you're playing too. This screen doesn't show them, even to you.</p>
+    <p class="hint" style="margin-top:16px;" data-i18n="rolesDealtHint"></p>
     <div class="grow"></div>
     <div class="stack">
-      <button class="btn btn-primary" onclick="App.beginGame()">Begin the Game &rarr;</button>
-      <button class="btn btn-ghost" onclick="App.newGame()">Start Over Instead</button>
+      <button class="btn btn-primary" onclick="App.beginGame()" data-i18n="btnBeginGame"></button>
+      <button class="btn btn-ghost" onclick="App.newGame()" data-i18n="btnStartOverInstead"></button>
     </div>
   </div>
 
   <!-- HOST: DAY -->
   <div class="screen" id="screen-host-day">
-    <div class="eyebrow" id="day-eyebrow">Day 1</div>
-    <h2 style="font-size:26px; margin:10px 0 16px;">Daytime discussion</h2>
-    <p class="hint" style="margin-bottom:18px;">Nothing to do here yet &mdash; let the group talk it out. Start voting once they're ready to decide.</p>
+    <div class="eyebrow" id="day-eyebrow"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="dayTitle"></h2>
+    <p class="hint" style="margin-bottom:18px;" data-i18n="dayHint"></p>
     <div class="card">
-      <div class="eyebrow" style="margin-bottom:12px;">Still in the game</div>
+      <div class="eyebrow" style="margin-bottom:12px;" data-i18n="stillInGame"></div>
       <div id="alive-list" class="stack"></div>
     </div>
     <div class="card" id="eliminated-card" style="margin-top:16px; display:none;">
-      <div class="eyebrow" style="margin-bottom:12px;">Eliminated</div>
+      <div class="eyebrow" style="margin-bottom:12px;" data-i18n="eliminatedLabel"></div>
       <div id="eliminated-list" class="stack"></div>
     </div>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.startVoting()">Start Voting</button>
+    <button class="btn btn-primary" onclick="App.startVoting()" data-i18n="btnStartVoting"></button>
   </div>
 
   <!-- HOST: INQUIRY VOTE -->
   <div class="screen" id="screen-host-inquiry-vote">
-    <div class="eyebrow">Day <span id="inquiry-vote-day"></span> &middot; Morning Inquiry</div>
-    <h2 style="font-size:26px; margin:10px 0 16px;">Vote: use an inquiry?</h2>
+    <div class="eyebrow" id="inquiry-vote-day"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="inquiryVoteTitle"></h2>
     <div class="card">
       <div class="stack">
-        <div class="slot"><div class="name">Yes</div><div class="status" id="inquiry-yes-count" style="flex:0;">0</div></div>
-        <div class="slot"><div class="name">No</div><div class="status" id="inquiry-no-count" style="flex:0;">0</div></div>
+        <div class="slot"><div class="name" data-i18n="yes"></div><div class="status" id="inquiry-yes-count" style="flex:0;">0</div></div>
+        <div class="slot"><div class="name" data-i18n="no"></div><div class="status" id="inquiry-no-count" style="flex:0;">0</div></div>
       </div>
     </div>
     <p class="hint" id="inquiry-vote-progress" style="margin-top:12px;"></p>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.closeInquiryVote()">Close Inquiry Vote</button>
+    <button class="btn btn-primary" onclick="App.closeInquiryVote()" data-i18n="btnCloseInquiryVote"></button>
   </div>
 
   <!-- HOST: INQUIRY RESULT -->
   <div class="screen" id="screen-host-inquiry-result">
-    <div class="eyebrow">Day <span id="inquiry-result-day"></span> &middot; Inquiry Result</div>
+    <div class="eyebrow" id="inquiry-result-day"></div>
     <h2 style="font-size:26px; margin:10px 0 16px;" id="inquiry-result-title">&mdash;</h2>
     <div class="card"><p class="hint" id="inquiry-result-detail" style="margin:0;"></p></div>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.continueAfterInquiry()">Continue &rarr;</button>
+    <button class="btn btn-primary" onclick="App.continueAfterInquiry()" data-i18n="btnContinue"></button>
   </div>
 
   <!-- HOST: VOTING (round 1 or 2) -->
   <div class="screen" id="screen-host-voting">
-    <div class="eyebrow" id="voting-eyebrow">Day 1 &middot; First Vote</div>
-    <h2 style="font-size:26px; margin:10px 0 16px;">Voting in progress</h2>
+    <div class="eyebrow" id="voting-eyebrow"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="votingInProgress"></h2>
     <div class="card"><div id="voting-tally" class="stack"></div></div>
     <p class="hint" id="voting-progress" style="margin-top:12px;"></p>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.closeVoting()">Close Voting</button>
+    <button class="btn btn-primary" onclick="App.closeVoting()" data-i18n="btnCloseVoting"></button>
   </div>
 
   <!-- HOST: DEFENSE -->
   <div class="screen" id="screen-host-defense">
-    <div class="eyebrow">Day <span id="defense-day"></span> &middot; On Trial</div>
-    <h2 style="font-size:26px; margin:10px 0 16px;">Time to defend</h2>
+    <div class="eyebrow" id="defense-day"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="timeToDefend"></h2>
     <div class="card"><div id="defense-list" class="stack"></div></div>
-    <p class="hint" style="margin-top:14px;">Let each of them speak, then start the final vote.</p>
+    <p class="hint" style="margin-top:14px;" data-i18n="defenseHint"></p>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.startFinalVote()">Start Final Vote</button>
+    <button class="btn btn-primary" onclick="App.startFinalVote()" data-i18n="btnStartFinalVote"></button>
   </div>
 
   <!-- HOST: RESULT -->
   <div class="screen" id="screen-host-result">
-    <div class="eyebrow">Day <span id="result-day"></span> &middot; Result</div>
+    <div class="eyebrow" id="result-day"></div>
     <h2 style="font-size:26px; margin:10px 0 16px;" id="result-title">&mdash;</h2>
     <div class="card"><p class="hint" id="result-detail" style="margin:0;"></p></div>
     <div class="grow"></div>
-    <button class="btn btn-primary" id="result-continue-btn" onclick="App.proceedAfterResult()">Continue &rarr;</button>
+    <button class="btn btn-primary" id="result-continue-btn" onclick="App.proceedAfterResult()"></button>
   </div>
 
   <!-- HOST: NIGHT -->
   <div class="screen" id="screen-host-night">
-    <div class="eyebrow">Night <span id="night-day"></span></div>
-    <h2 style="font-size:26px; margin:10px 0 16px;">Night in progress</h2>
-    <p class="hint">Special roles are making their choices on their own phones. This screen won't show who they are &mdash; you're playing too.</p>
+    <div class="eyebrow" id="night-day"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="nightInProgress"></h2>
+    <p class="hint" data-i18n="nightHint"></p>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.forceContinueNight()">Force Continue</button>
+    <button class="btn btn-primary" onclick="App.forceContinueNight()" data-i18n="btnForceContinue"></button>
   </div>
 
   <!-- HOST: NIGHT EYES CLOSED -->
   <div class="screen" id="screen-host-night-eyes-closed">
-    <div class="eyebrow">Night <span id="night-eyes-closed-day"></span></div>
-    <h2 style="font-size:26px; margin:10px 0 16px;">Everyone's eyes are closed</h2>
-    <p class="hint">Give the Mafia a moment to talk quietly among themselves, then continue when they're ready.</p>
+    <div class="eyebrow" id="night-eyes-closed-day"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="eyesClosedTitle"></h2>
+    <p class="hint" data-i18n="eyesClosedHint"></p>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.continueAfterEyesClosed()">Continue &rarr;</button>
+    <button class="btn btn-primary" onclick="App.continueAfterEyesClosed()" data-i18n="btnContinue"></button>
   </div>
 
   <!-- HOST: OCEAN TALK -->
   <div class="screen" id="screen-host-ocean-talk">
-    <div class="eyebrow">Night <span id="ocean-talk-day"></span></div>
-    <h2 style="font-size:26px; margin:10px 0 16px;">اوشن's group is talking</h2>
-    <p class="hint">Give them a moment to talk quietly, then continue when they're ready.</p>
+    <div class="eyebrow" id="ocean-talk-day"></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="oceanTalkTitle"></h2>
+    <p class="hint" data-i18n="oceanTalkHint"></p>
     <div class="grow"></div>
-    <button class="btn btn-primary" id="ocean-talk-continue-btn" onclick="App.continueAfterOceanTalk()">Continue &rarr;</button>
+    <button class="btn btn-primary" id="ocean-talk-continue-btn" onclick="App.continueAfterOceanTalk()" data-i18n="btnContinue"></button>
   </div>
 
   <!-- HOST: NIGHT RESULT -->
   <div class="screen" id="screen-host-night-result">
-    <div class="eyebrow">Night <span id="night-result-day"></span> &middot; Result</div>
+    <div class="eyebrow" id="night-result-day"></div>
     <h2 style="font-size:26px; margin:10px 0 16px;" id="night-result-title">&mdash;</h2>
     <div class="grow"></div>
-    <button class="btn btn-primary" id="night-result-continue-btn" onclick="App.proceedAfterNight()">Continue &rarr;</button>
+    <button class="btn btn-primary" id="night-result-continue-btn" onclick="App.proceedAfterNight()"></button>
   </div>
 
   <!-- HOST: GAME OVER -->
   <div class="screen" id="screen-host-game-over">
-    <div class="eyebrow">Game Over</div>
+    <div class="eyebrow" data-i18n="gameOver"></div>
     <h2 style="font-size:30px; margin:10px 0 16px;" id="game-over-title">&mdash;</h2>
     <div class="card"><div id="game-over-roster" class="stack"></div></div>
-    <p class="hint" style="margin-top:14px;">Roles are revealed to everyone now that the game has ended.</p>
+    <p class="hint" style="margin-top:14px;" data-i18n="rolesRevealed"></p>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.newGame()">Start a New Game</button>
+    <button class="btn btn-primary" onclick="App.newGame()" data-i18n="btnStartNewGame"></button>
   </div>
 
   <!-- PLAYER JOIN -->
   <div class="screen" id="screen-player-join">
-    <div class="eyebrow">Player</div>
-    <h2 style="font-size:28px; margin:10px 0 20px;">Join the session</h2>
+    <div class="eyebrow" data-i18n="playerLabel"></div>
+    <h2 style="font-size:28px; margin:10px 0 20px;" data-i18n="joinSessionTitle"></h2>
     <div class="grow center">
       <div class="card" style="width:100%;">
         <div class="field">
-          <label>Room code</label>
+          <label data-i18n="labelRoomCode"></label>
           <input type="text" id="input-room-code" class="code-input" placeholder="ABCDE" maxlength="5" autocomplete="off" autocapitalize="characters">
         </div>
-        <button class="btn btn-primary" onclick="App.playerJoinByCode()">Join Game</button>
+        <button class="btn btn-primary" onclick="App.playerJoinByCode()" data-i18n="btnJoinGame"></button>
       </div>
     </div>
-    <button class="btn btn-ghost" onclick="App.goLanding()">Back</button>
+    <button class="btn btn-ghost" onclick="App.goLanding()" data-i18n="btnBack"></button>
   </div>
 
   <!-- PLAYER CONNECTING -->
   <div class="screen" id="screen-player-connecting">
     <div class="grow center">
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
-      <h3 style="font-size:20px; margin-bottom:8px;" id="connecting-title">Connecting to host&hellip;</h3>
-      <p class="hint" id="connecting-hint">Setting up a direct, private connection.</p>
+      <h3 style="font-size:20px; margin-bottom:8px;" id="connecting-title"></h3>
+      <p class="hint" id="connecting-hint"></p>
     </div>
   </div>
 
   <!-- PLAYER NAME -->
   <div class="screen" id="screen-player-name">
-    <div class="eyebrow">Connected</div>
-    <h2 style="font-size:26px; margin:10px 0 20px;">What's your name?</h2>
+    <div class="eyebrow" data-i18n="connectedLabel"></div>
+    <h2 style="font-size:26px; margin:10px 0 20px;" data-i18n="whatsYourName"></h2>
     <div class="field">
-      <label>This is shown to the host only</label>
-      <input type="text" id="input-player-name" placeholder="e.g. Priya" maxlength="24" autocomplete="off">
+      <label data-i18n="shownToHostOnly"></label>
+      <input type="text" id="input-player-name" maxlength="24" autocomplete="off" data-i18n-placeholder="namePlaceholder">
     </div>
-    <button class="btn btn-primary" onclick="App.playerSubmitName()">Join Game</button>
+    <button class="btn btn-primary" onclick="App.playerSubmitName()" data-i18n="btnJoinGame"></button>
   </div>
 
   <!-- PLAYER WAITING -->
   <div class="screen" id="screen-player-waiting">
     <div class="grow center">
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
-      <h3 style="font-size:20px; margin-bottom:8px;">You're in, <span id="wait-name"></span>.</h3>
-      <p class="hint">Waiting for the host to assign roles&hellip;</p>
+      <h3 style="font-size:20px; margin-bottom:8px;" id="wait-title"></h3>
+      <p class="hint" data-i18n="waitingForRoles"></p>
     </div>
   </div>
 
   <!-- PLAYER ROLE REVEAL -->
   <div class="screen" id="screen-player-role">
-    <div class="eyebrow" style="text-align:center; margin-bottom:22px;">Your Role &middot; Keep it secret</div>
+    <div class="eyebrow" style="text-align:center; margin-bottom:22px;" data-i18n="yourRoleKeepSecret"></div>
     <div class="grow center">
       <div class="role-card" id="role-card" onclick="App.flipRole()">
         <div class="role-card-inner">
-          <div class="role-face role-back"><div class="moon"></div><div class="eyebrow">Tap to Reveal</div></div>
+          <div class="role-face role-back"><div class="moon"></div><div class="eyebrow" data-i18n="tapToReveal"></div></div>
           <div class="role-face role-front" id="role-front">
-            <div class="eyebrow" id="role-eyebrow">Case File</div>
+            <div class="eyebrow" id="role-eyebrow" data-i18n="caseFile"></div>
             <div class="role-title" id="role-title">???</div>
             <div class="role-desc" id="role-desc"></div>
-            <div class="tag shield" id="role-shield" style="display:none; margin-top:14px;">Shielded</div>
+            <div class="tag shield" id="role-shield" style="display:none; margin-top:14px;" data-i18n="shielded"></div>
           </div>
         </div>
       </div>
     </div>
-    <p class="hint" style="text-align:center;">Tap the card again to hide it.</p>
-    <button class="btn btn-ghost" id="role-back-btn" style="display:none; margin-top:14px;" onclick="App.closeMyRole()">&larr; Back</button>
+    <p class="hint" style="text-align:center;" data-i18n="tapCardHide"></p>
+    <button class="btn btn-ghost" id="role-back-btn" style="display:none; margin-top:14px;" onclick="App.closeMyRole()" data-i18n="back"></button>
   </div>
 
   <!-- PLAYER: MY ACTIVITY -->
   <div class="screen" id="screen-player-activity-log">
-    <div class="eyebrow" style="margin-bottom:16px;">My Activity</div>
+    <div class="eyebrow" style="margin-bottom:16px;" data-i18n="myActivity"></div>
     <div id="activity-log-list" class="stack"></div>
     <div class="grow"></div>
-    <button class="btn btn-ghost" onclick="App.closeMyActivity()">&larr; Back</button>
+    <button class="btn btn-ghost" onclick="App.closeMyActivity()" data-i18n="back"></button>
   </div>
 
   <!-- PLAYER: DAY -->
   <div class="screen" id="screen-player-day">
-    <div class="eyebrow" id="day-title-player">Day 1</div>
+    <div class="eyebrow" id="day-title-player"></div>
     <div class="grow center">
-      <h2 style="font-size:26px;">Talk it out</h2>
-      <p class="hint" style="max-width:280px; margin-top:10px;">Share what you've noticed. The God will start a vote when it's time.</p>
+      <h2 style="font-size:26px;" data-i18n="talkItOut"></h2>
+      <p class="hint" style="max-width:280px; margin-top:10px;" data-i18n="shareNoticed"></p>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()">My Activity</button>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: INQUIRY VOTE -->
   <div class="screen" id="screen-player-inquiry-vote">
-    <div class="eyebrow" id="inquiry-vote-day-player">Day 1 &middot; Morning Inquiry</div>
+    <div class="eyebrow" id="inquiry-vote-day-player"></div>
     <div class="grow center">
-      <h2 style="font-size:24px;">Use an inquiry today?</h2>
-      <p class="hint" style="max-width:280px; margin-top:12px;">If enough of you say yes, everyone learns how many Mafia and civilians have been eliminated so far.</p>
+      <h2 style="font-size:24px;" data-i18n="useInquiryToday"></h2>
+      <p class="hint" style="max-width:280px; margin-top:12px;" data-i18n="inquiryExplain"></p>
     </div>
     <div class="stack">
-      <button class="btn btn-primary" onclick="App.submitInquiryVote('yes')">Yes</button>
-      <button class="btn btn-outline" onclick="App.submitInquiryVote('no')">No</button>
+      <button class="btn btn-primary" onclick="App.submitInquiryVote('yes')" data-i18n="yes"></button>
+      <button class="btn btn-outline" onclick="App.submitInquiryVote('no')" data-i18n="no"></button>
     </div>
   </div>
 
@@ -448,14 +451,14 @@
   <div class="screen" id="screen-player-inquiry-waiting">
     <div class="grow center">
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
-      <h3 style="font-size:20px; margin-bottom:8px;">Vote submitted &mdash; waiting for the others&hellip;</h3>
+      <h3 style="font-size:20px; margin-bottom:8px;" data-i18n="voteSubmittedWaiting"></h3>
     </div>
   </div>
 
   <!-- PLAYER: INQUIRY RESULT -->
   <div class="screen" id="screen-player-inquiry-result">
     <div class="grow center">
-      <div class="eyebrow" style="margin-bottom:10px;">Inquiry Result</div>
+      <div class="eyebrow" style="margin-bottom:10px;" data-i18n="inquiryResultLabel"></div>
       <h2 style="font-size:24px;" id="inquiry-result-title-player">&mdash;</h2>
       <p class="hint" style="max-width:280px; margin-top:12px;" id="inquiry-result-detail-player"></p>
     </div>
@@ -463,80 +466,80 @@
 
   <!-- PLAYER: VOTE -->
   <div class="screen" id="screen-player-vote">
-    <div class="eyebrow" id="vote-title">Who do you suspect?</div>
-    <h2 style="font-size:24px; margin:10px 0 10px;">Cast your vote</h2>
-    <p class="hint" id="vote-multi-hint" style="margin-bottom:14px;">Pick as many as you want, or none at all.</p>
+    <div class="eyebrow" id="vote-title"></div>
+    <h2 style="font-size:24px; margin:10px 0 10px;" data-i18n="castYourVote"></h2>
+    <p class="hint" id="vote-multi-hint" style="margin-bottom:14px;" data-i18n="pickAsMany"></p>
     <div id="vote-candidate-list" class="stack"></div>
-    <p class="hint" id="vote-empty-hint" style="display:none; margin-top:10px;">No one else to vote on right now &mdash; please wait.</p>
+    <p class="hint" id="vote-empty-hint" style="display:none; margin-top:10px;" data-i18n="noOneElseToVote"></p>
     <div class="grow"></div>
-    <button class="btn btn-primary" id="vote-submit-btn" onclick="App.submitVote()">Submit Vote</button>
+    <button class="btn btn-primary" id="vote-submit-btn" onclick="App.submitVote()" data-i18n="btnSubmitVote"></button>
   </div>
 
   <!-- PLAYER: VOTE WAITING -->
   <div class="screen" id="screen-player-vote-waiting">
     <div class="grow center">
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
-      <h3 style="font-size:20px; margin-bottom:8px;" id="vote-waiting-text">Vote submitted &mdash; waiting for the others&hellip;</h3>
+      <h3 style="font-size:20px; margin-bottom:8px;" id="vote-waiting-text" data-i18n="voteSubmittedWaiting"></h3>
     </div>
   </div>
 
   <!-- PLAYER: DEFENSE -->
   <div class="screen" id="screen-player-defense">
     <div class="grow center">
-      <div class="eyebrow" style="margin-bottom:10px;">On Trial</div>
+      <div class="eyebrow" style="margin-bottom:10px;" data-i18n="onTrial"></div>
       <h2 style="font-size:24px;" id="defense-player-title">&mdash;</h2>
       <p class="hint" style="max-width:280px; margin-top:12px;" id="defense-player-hint"></p>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()">My Activity</button>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: DAY RESULT -->
   <div class="screen" id="screen-player-day-result">
     <div class="grow center">
-      <div class="eyebrow" style="margin-bottom:10px;">Result</div>
+      <div class="eyebrow" style="margin-bottom:10px;" data-i18n="resultLabel"></div>
       <h2 style="font-size:24px;" id="day-result-title">&mdash;</h2>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()">My Activity</button>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: NIGHT WAITING -->
   <div class="screen" id="screen-player-night-waiting">
-    <div class="eyebrow" id="night-waiting-day">Night 1</div>
+    <div class="eyebrow" id="night-waiting-day"></div>
     <div class="grow center">
-      <h2 style="font-size:26px;" id="night-waiting-title">The town sleeps</h2>
+      <h2 style="font-size:26px;" id="night-waiting-title"></h2>
       <p class="hint" id="night-waiting-note" style="max-width:280px; margin-top:10px; display:none;"></p>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()">View My Role</button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()">My Activity</button>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: NIGHT ACTION -->
   <div class="screen" id="screen-player-night-action">
-    <div class="eyebrow" id="night-action-day">Night 1</div>
-    <h2 style="font-size:24px; margin:10px 0 18px;" id="night-action-title">Choose someone</h2>
-    <label class="shield-toggle" id="night-action-recruit-toggle" style="display:none; margin-bottom:14px;"><input type="checkbox" id="night-action-recruit-checkbox"> Recruit them into Mafia instead of shooting</label>
+    <div class="eyebrow" id="night-action-day"></div>
+    <h2 style="font-size:24px; margin:10px 0 18px;" id="night-action-title"></h2>
+    <label class="shield-toggle" id="night-action-recruit-toggle" style="display:none; margin-bottom:14px;"><input type="checkbox" id="night-action-recruit-checkbox"> <span data-i18n="recruitInsteadOfShoot"></span></label>
     <div id="night-action-candidate-list" class="stack"></div>
     <div class="grow"></div>
     <div class="stack">
-      <button class="btn btn-primary" onclick="App.submitNightAction()">Confirm</button>
-      <button class="btn btn-ghost" id="night-action-skip-btn" onclick="App.skipNightAction()">Do Nothing Tonight</button>
+      <button class="btn btn-primary" onclick="App.submitNightAction()" data-i18n="btnConfirm"></button>
+      <button class="btn btn-ghost" id="night-action-skip-btn" onclick="App.skipNightAction()" data-i18n="btnDoNothingTonight"></button>
     </div>
   </div>
 
   <!-- PLAYER: NIGHT ANNOUNCEMENT -->
   <div class="screen" id="screen-player-night-announcement">
-    <div class="eyebrow" id="night-announcement-day">Night 1</div>
+    <div class="eyebrow" id="night-announcement-day"></div>
     <div class="grow center">
-      <h2 style="font-size:26px;" id="night-announcement-title">Close your eyes</h2>
+      <h2 style="font-size:26px;" id="night-announcement-title"></h2>
     </div>
   </div>
 
   <!-- PLAYER: INVESTIGATE RESULT -->
   <div class="screen" id="screen-player-investigate-result">
     <div class="grow center">
-      <div class="eyebrow" style="margin-bottom:10px;">Investigation Result</div>
+      <div class="eyebrow" style="margin-bottom:10px;" data-i18n="investigationResult"></div>
       <h2 style="font-size:24px;" id="investigate-result-title">&mdash;</h2>
     </div>
   </div>
@@ -544,15 +547,15 @@
   <!-- PLAYER: ELIMINATED -->
   <div class="screen" id="screen-player-eliminated">
     <div class="grow center">
-      <div class="eyebrow" style="margin-bottom:10px;">You're Out</div>
-      <h2 style="font-size:26px;">You've been eliminated</h2>
-      <p class="hint" style="max-width:280px; margin-top:12px;">Thanks for playing &mdash; stick around and keep watching in person.</p>
+      <div class="eyebrow" style="margin-bottom:10px;" data-i18n="youreOut"></div>
+      <h2 style="font-size:26px;" data-i18n="youveBeenEliminated"></h2>
+      <p class="hint" style="max-width:280px; margin-top:12px;" data-i18n="thanksForPlaying"></p>
     </div>
   </div>
 
   <!-- PLAYER: GAME OVER -->
   <div class="screen" id="screen-player-game-over">
-    <div class="eyebrow" style="text-align:center; margin-bottom:16px;">Game Over</div>
+    <div class="eyebrow" style="text-align:center; margin-bottom:16px;" data-i18n="gameOver"></div>
     <h2 style="font-size:28px; text-align:center; margin-bottom:20px;" id="game-over-title-player">&mdash;</h2>
     <div class="card"><div id="game-over-roster-player" class="stack"></div></div>
   </div>
@@ -560,6 +563,10 @@
 </div>
 <div id="toast-host"></div>
 <div id="debug-badge" style="display:none; position:fixed; top:6px; left:8px; z-index:1000; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.05em; color:#EDEFF4; background:rgba(0,0,0,0.55); padding:3px 9px; border-radius:6px; pointer-events:none;"></div>
+<div class="lang-switch">
+  <button id="lang-btn-fa" onclick="App.setLanguage('fa')">فا</button>
+  <button id="lang-btn-en" onclick="App.setLanguage('en')">EN</button>
+</div>
 
 <script>
 (function(){
@@ -583,6 +590,308 @@
   const ROLE_NAME_OCEAN = 'اوشن';
   const ROLE_NAME_PLAIN_VILLAGER = 'شهروند ساده';
 
+  /* ---------------- Language / i18n ---------------- */
+  // Role names themselves (پدر خوانده, اوشن, etc.) are proper nouns chosen by
+  // the host and are never translated — only surrounding UI text is. Role
+  // descriptions DO get an English counterpart, keyed by role id, below.
+  const STRINGS = {
+    fa: {
+      connConnecting: 'در حال اتصال…', connConnected: 'متصل شد', connDisconnected: 'قطع شد', connError: 'خطای اتصال',
+      landingEyebrow: 'یک بازی از شک و تردید', landingTitle: 'مافیا',
+      landingTagline: 'با هم از هر جا بازی کنید. نقش‌ها مخفیانه و مستقیم به هر گوشی داده می‌شود.',
+      btnHost: 'من میزبانم', btnHostGod: '— گاد', btnPlayer: 'من بازیکنم', btnRolesShields: 'نقش‌ها و شیلدها',
+      hostSetupEyebrow: 'میزبان · نشست جدید', hostSetupTitle: 'بازی را تنظیم کنید',
+      labelNumPlayers: 'تعداد بازیکنان', labelNumMafia: 'تعداد مافیا',
+      villagersWillBe: '{n} نفر شهروند خواهند بود.',
+      labelNumInquiries: 'تعداد استعلام‌ها',
+      hintInquiries: 'هر صبح، گروه می‌تواند یکی از آن‌ها را خرج کند تا بفهمد تا الان چند مافیا و چند شهروند حذف شده‌اند.',
+      labelOceanSlots: 'اندازه گروه اوشن',
+      hintOceanSlots: 'اوشن، اگر آن نقش در بازی باشد، چند نفر می‌تواند به گروه خود اضافه کند.',
+      labelRolesInPlay: 'نقش‌های بازی',
+      hintRolesInPlay: 'هر نقش ویژه‌ای که تیک بزنید، دقیقاً به یک بازیکن اختصاص داده می‌شود. بقیهٔ آن گروه، نقش پیش‌فرض را می‌گیرند.',
+      linkAdjustShields: 'تنظیم شیلدها', btnCreateLobby: 'ایجاد اتاق', btnBack: 'بازگشت',
+      roleLibraryEyebrow: 'کتابخانه نقش‌ها', rolesShieldsTitle: 'نقش‌ها و شیلدها',
+      rolesShieldsHint: 'این نقش‌ها ثابت هستند. تنها چیزی که اینجا می‌توانید تغییر دهید این است که هر نقش با شیلد شروع شود یا نه — و این فقط برای همین نشست مرورگر باقی می‌ماند.',
+      btnDone: 'تمام', labelShield: 'شیلد',
+      lobbyEyebrow: 'میزبان · اتاق انتظار', lobbyJoinedCount: 'میزبان · اتاق انتظار · {n}/{total} پیوسته',
+      lobbyTitle: 'بازیکنان خود را دعوت کنید', labelRoomCode: 'کد اتاق', generatingLink: 'در حال ساخت لینک…',
+      btnCopy: 'کپی', btnShareInvite: 'اشتراک‌گذاری لینک دعوت', btnAssignRoles: 'تخصیص نقش‌ها',
+      statusConnecting: 'در حال اتصال…', statusWaitingForPlayer: 'منتظر پیوستن بازیکن با لینک…',
+      toastPlayerJoined: '{name} به بازی پیوست.',
+      rolesAssignedEyebrow: 'نقش‌ها تخصیص یافت', rolesDealtTitle: 'نقش‌ها پخش شدند',
+      rolesDealtHint: 'نقش‌ها به‌صورت خصوصی به هر گوشی ارسال شد — از جمله گوشی شما اگر شما هم بازی می‌کنید. این صفحه آن‌ها را نشان نمی‌دهد، حتی به شما.',
+      roleSentPrivately: 'نقش به‌صورت خصوصی ارسال شد',
+      btnBeginGame: 'شروع بازی ←', btnStartOverInstead: 'در عوض از نو شروع کن',
+      dayLabel: 'روز {n}', dayTitle: 'گفتگوی روز',
+      dayHint: 'فعلاً کاری اینجا نیست — بگذارید گروه صحبت کند. وقتی آماده تصمیم‌گیری بودند رأی‌گیری را شروع کنید.',
+      stillInGame: 'هنوز در بازی', eliminatedLabel: 'حذف‌شده‌ها', btnStartVoting: 'شروع رأی‌گیری',
+      morningInquiry: 'استعلام صبحگاهی', inquiryVoteTitle: 'رأی‌گیری: استعلام استفاده شود؟',
+      yes: 'بله', no: 'خیر', btnCloseInquiryVote: 'پایان رأی‌گیری استعلام',
+      votedProgress: '{n} از {total} رأی داده‌اند.',
+      inquiryResultLabel: 'نتیجه استعلام', inquiryGranted: 'استعلام تأیید شد', noInquiryToday: 'امروز استعلامی نیست',
+      notEnoughVotes: 'رأی کافی موافق نبود.',
+      inquiryDetail: '{mafiaOut} مافیا و {villagerOut} شهروند تا الان حذف شده‌اند. ({remaining} استعلام باقی‌مانده.)',
+      inquiryDetailPlayer: '{mafiaOut} مافیا و {villagerOut} شهروند تا الان حذف شده‌اند.',
+      btnContinue: 'ادامه ←',
+      firstVote: 'رأی‌گیری اول', finalVote: 'رأی‌گیری نهایی', votingInProgress: 'رأی‌گیری در حال انجام',
+      btnCloseVoting: 'پایان رأی‌گیری', voteCount: '{n} رأی', dayVoteEyebrow: 'روز {day} · {round}',
+      onTrial: 'محاکمه', timeToDefend: 'زمان دفاع',
+      defenseHint: 'به هرکدام اجازه صحبت بدهید، سپس رأی‌گیری نهایی را شروع کنید.',
+      btnStartFinalVote: 'شروع رأی‌گیری نهایی',
+      resultLabel: 'نتیجه', votedOut: '{name} با رأی حذف شد', noOneEliminated: 'هیچ‌کس حذف نشد',
+      rolePrivate: 'نقش او خصوصی می‌ماند — حتی از شما.',
+      noMajorityNoOneTrial: 'هیچ‌کس اکثریت نگرفت. امروز کسی محاکمه نمی‌شود.',
+      noMajorityNoOneLeaves: 'اکثریت حاصل نشد. امروز کسی نمی‌رود.',
+      didntReachMajority: 'رأی‌گیری به اکثریت نرسید.',
+      tiedRandomChosen: 'با {n} رأی مساوی — {name} به‌صورت تصادفی انتخاب شد.',
+      seeResults: 'دیدن نتیجه نهایی ←', continueToNight: 'ادامه به شب ←', continueToDay: 'ادامه به روز {n} ←',
+      nightInProgress: 'شب در حال انجام',
+      nightHint: 'نقش‌های ویژه در حال انتخاب روی گوشی خودشان هستند. این صفحه نشان نمی‌دهد چه کسانی هستند — شما هم بازی می‌کنید.',
+      btnForceContinue: 'ادامه اجباری',
+      eyesClosedTitle: 'چشم همه بسته است',
+      eyesClosedHint: 'به مافیا زمان بدهید تا آرام با هم صحبت کنند، سپس وقتی آماده بودند ادامه دهید.',
+      oceanTalkTitle: 'گروه اوشن در حال صحبت است',
+      oceanTalkHint: 'به آن‌ها زمان بدهید تا آرام صحبت کنند، سپس وقتی آماده بودند ادامه دهید.',
+      nightLabel: 'شب {n}', nightResultLabel: 'شب {n} · نتیجه',
+      gameOver: 'پایان بازی', civiliansWin: 'شهروندان بردند!', mafiaWins: 'مافیا برد!',
+      rolesRevealed: 'حالا که بازی تمام شد، نقش‌ها برای همه نمایش داده می‌شود.',
+      btnStartNewGame: 'شروع بازی جدید', outLabel: '(خارج)',
+      playerLabel: 'بازیکن', joinSessionTitle: 'به بازی بپیوندید', btnJoinGame: 'پیوستن به بازی',
+      connectingToHost: 'در حال اتصال به میزبان…', settingUpConnection: 'در حال برقراری یک اتصال مستقیم و خصوصی.',
+      waitingForHost: 'منتظر میزبان…', hostWillConnect: 'میزبان به‌صورت خودکار به شما وصل می‌شود.',
+      joiningRoom: 'در حال پیوستن به اتاق {code}…', contactingHost: 'در حال تماس با میزبان.',
+      almostThere: 'تقریباً رسیدیم…', finalizingConnection: 'در حال نهایی‌کردن اتصال مستقیم.',
+      connectedLabel: 'متصل شد', whatsYourName: 'اسم شما چیست؟', shownToHostOnly: 'این فقط به میزبان نشان داده می‌شود',
+      namePlaceholder: 'مثلاً سارا',
+      youreIn: '{name}، شما وارد شدید.', waitingForRoles: 'منتظر تخصیص نقش‌ها توسط میزبان…',
+      yourRoleKeepSecret: 'نقش شما · مخفی نگه دارید', tapToReveal: 'برای نمایش لمس کنید', caseFile: 'پرونده',
+      shielded: 'دارای شیلد', tapCardHide: 'دوباره روی کارت بزنید تا پنهان شود.', back: 'بازگشت →',
+      myActivity: 'فعالیت من', nothingYet: 'هنوز چیزی نیست.',
+      talkItOut: 'صحبت کنید',
+      shareNoticed: 'چیزهایی که متوجه شدید را به اشتراک بگذارید. گاد در زمان مناسب رأی‌گیری را شروع می‌کند.',
+      viewMyRole: 'دیدن نقش من',
+      useInquiryToday: 'امروز استعلام استفاده شود؟',
+      inquiryExplain: 'اگر تعداد کافی بله بگویید، همه می‌فهمند تا الان چند مافیا و چند شهروند حذف شده‌اند.',
+      voteSubmittedWaiting: 'رأی ثبت شد — منتظر بقیه…',
+      voteSkippedWaiting: 'شما رأی ندادید — منتظر بقیه…',
+      whoSuspect: 'به چه کسی شک دارید؟', castYourVote: 'رأی خود را ثبت کنید',
+      pickAsMany: 'هر تعداد که می‌خواهید انتخاب کنید، یا هیچ‌کدام.',
+      noOneElseToVote: 'الان کس دیگری برای رأی نیست — لطفاً صبر کنید.',
+      btnSubmitVote: 'ثبت رأی', finalVoteTitle: 'رأی‌گیری نهایی',
+      defenseYouOnTrial: 'شما محاکمه می‌شوید',
+      defenseYouHint: 'از خودتان دفاع کنید! گاد وقتی همه آماده بودند رأی‌گیری نهایی را شروع می‌کند.',
+      defenseOthersTitle: 'محاکمه: {names}',
+      defenseOthersHint: 'به دفاع آن‌ها گوش دهید. گاد به‌زودی رأی‌گیری نهایی را شروع می‌کند.',
+      votedOutPlayer: '{name} با رأی حذف شد.', noOneEliminatedPlayer: 'هیچ‌کس حذف نشد.',
+      theTownSleeps: 'شهر خواب است', morningHasCome: 'صبح شد',
+      foundDead: '{names} پیدا شد.', backAmongLiving: '{name} دوباره زنده شد.',
+      everyoneMadeIt: 'همه از شب جان سالم به در بردند.',
+      chooseSomeone: 'کسی را انتخاب کنید',
+      recruitInsteadOfShoot: 'به‌جای شلیک، آن‌ها را به مافیا اضافه کن',
+      btnConfirm: 'تأیید', btnDoNothingTonight: 'امشب کاری نکن',
+      chooseToBlock: 'کسی را برای مسدودکردن انتخاب کنید', chooseToSave: 'کسی را برای نجات انتخاب کنید',
+      chooseToRevive: 'کسی را برای زنده‌کردن انتخاب کنید', chooseToInvestigate: 'کسی را برای تحقیق انتخاب کنید',
+      chooseToShoot: 'کسی را برای شلیک انتخاب کنید', chooseToAddGroup: 'کسی را برای اضافه‌کردن به گروه انتخاب کنید',
+      closeYourEyes: 'چشمانتان را ببندید.',
+      mafiaTalkNow: 'بقیه چشمانشان را بستند. حالا آرام با هم‌تیمی‌های مافیای خود صحبت کنید.',
+      youWereBlocked: 'امشب مسدود شدید — کاری برای شما نیست.',
+      oceanGroupJoinTalk: 'شما به یک گروه مخفی اضافه شدید. حالا می‌توانید چشمانتان را باز کنید و آرام با آن‌ها صحبت کنید.',
+      investigationResult: 'نتیجه تحقیق', isMafia: '{name} مافیا است.', isNotMafia: '{name} مافیا نیست.',
+      youreOut: 'شما خارج شدید', youveBeenEliminated: 'شما حذف شدید',
+      thanksForPlaying: 'ممنون از بازی — بمانید و حضوری تماشا کنید.',
+      backInGame: 'شما به بازی برگشتید!',
+      lostServerConnection: 'اتصال به سرور قطع شد.',
+      roomNotFound: 'این کد اتاق پیدا نشد. با میزبان خود چک کنید.',
+      hostEndedSession: 'میزبان بازی را تمام کرد.',
+      linkCopied: 'لینک کپی شد.', linkCopiedPaste: 'لینک کپی شد — برای بازیکنان خود بفرستید.',
+      enterRoomCode: 'کد اتاق را از میزبان خود وارد کنید.', enterNameFirst: 'ابتدا یک نام وارد کنید.',
+      lostHostConnection: 'اتصال به میزبان قطع شد.', pickSomeoneFirst: 'ابتدا یک نفر را انتخاب کنید.',
+      connectionToHostLost: 'اتصال به میزبان قطع شد.', joinInviteText: 'کد اتاق {room}',
+      shareTitle: 'به بازی مافیای ما بپیوندید',
+      tagMafia: 'مافیا', tagVillage: 'شهروند', tagIndependent: 'مستقل',
+      roleSummaryDefault: '{count} از {slotCount} {label}، نقش پیش‌فرض ({defaultName}) را می‌گیرند.',
+      roleSummaryAllCustom: 'تمام {slotCount} {label} نقش اختصاصی دارند — نقش پیش‌فرض {label} استفاده نخواهد شد.',
+      roleOverflowWarning: 'شما {customCount} نقش {label} انتخاب کرده‌اید ولی فقط {slotCount} جایگاه {label} وجود دارد — {overflow} مورد را بردارید.',
+      recruitedMafiaName: 'مافیای جدید', recruitedMafiaDesc: 'شما به‌تازگی توسط مافیا به گروه اضافه شدید.',
+      nightLogPrefix: 'شب {day}: ',
+      actMatadorBlocked: 'ماتادور {name} را مسدود کرد.', actMatadorNoBlock: 'ماتادور کسی را مسدود نکرد.',
+      actYouBlocked: 'شما {name} را مسدود کردید.', actYouNoBlock: 'شما تصمیم گرفتید کسی را مسدود نکنید.',
+      actYouSaved: 'شما {name} را نجات دادید.', actYouNoSave: 'شما تصمیم گرفتید کسی را نجات ندهید.',
+      actYouRevived: 'شما {name} را دوباره زنده کردید.', actYouNoRevive: 'شما تصمیم گرفتید کسی را زنده نکنید.',
+      actYouInvestigated: 'شما {name} را بررسی کردید — {result}.',
+      actInvestigatedIsMafia: 'مافیا', actInvestigatedNotMafia: 'مافیا نیست',
+      actYouNoInvestigate: 'شما تصمیم گرفتید کسی را بررسی نکنید.',
+      actYouShot: 'شما به {name} شلیک کردید.', actYouNoShot: 'شما تصمیم گرفتید به کسی شلیک نکنید.',
+      actYouWereAddedToGroup: 'شما به گروه اوشن اضافه شدید.',
+      actYouAddedToGroup: 'شما {name} را به گروه خود اضافه کردید.',
+      actYouNoAdd: 'شما تصمیم گرفتید کسی را به گروه خود اضافه نکنید.',
+      actRecruited: '{name} به مافیا اضافه شد.',
+      actRecruitFailed: 'تلاش برای اضافه‌کردن {name} ناموفق بود — شلیکی انجام نشد.',
+      actMafiaShot: 'مافیا به {name} شلیک کرد.', actMafiaShotNoOne: 'مافیا به کسی شلیک نکرد.'
+    },
+    en: {
+      connConnecting: 'Connecting…', connConnected: 'Connected', connDisconnected: 'Disconnected', connError: 'Connection error',
+      landingEyebrow: 'A Game of Suspicion', landingTitle: 'MAFIA',
+      landingTagline: 'Play together from anywhere. Roles are dealt in secret, straight to each phone.',
+      btnHost: "I'm the Host", btnHostGod: '— God', btnPlayer: "I'm a Player", btnRolesShields: 'Roles & Shields',
+      hostSetupEyebrow: 'Host · New Session', hostSetupTitle: 'Set up the game',
+      labelNumPlayers: 'Number of players', labelNumMafia: 'Number of Mafia',
+      villagersWillBe: '{n} will be Villagers.',
+      labelNumInquiries: 'Number of Inquiries',
+      hintInquiries: 'Each morning, the group can spend one to learn how many Mafia and civilians have been eliminated so far.',
+      labelOceanSlots: "اوشن's group size",
+      hintOceanSlots: 'How many members اوشن can recruit into their group, if that role is in play.',
+      labelRolesInPlay: 'Roles in play',
+      hintRolesInPlay: 'Each checked special role goes to exactly one player. Everyone else on that side gets the default role.',
+      linkAdjustShields: 'Adjust shields', btnCreateLobby: 'Create Lobby', btnBack: 'Back',
+      roleLibraryEyebrow: 'Role Library', rolesShieldsTitle: 'Roles & Shields',
+      rolesShieldsHint: "These roles are fixed. The only thing you can adjust here is whether each one starts with a shield — and that only lasts for this browser session.",
+      btnDone: 'Done', labelShield: 'Shield',
+      lobbyEyebrow: 'Host · Lobby', lobbyJoinedCount: 'Host · Lobby · {n}/{total} joined',
+      lobbyTitle: 'Invite your players', labelRoomCode: 'Room code', generatingLink: 'generating link…',
+      btnCopy: 'Copy', btnShareInvite: 'Share Invite Link', btnAssignRoles: 'Assign Roles',
+      statusConnecting: 'Connecting…', statusWaitingForPlayer: 'Waiting for player to join with the link…',
+      toastPlayerJoined: '{name} joined the game.',
+      rolesAssignedEyebrow: 'Roles Assigned', rolesDealtTitle: 'Roles have been dealt',
+      rolesDealtHint: "Roles were sent privately to each phone — including yours if you're playing too. This screen doesn't show them, even to you.",
+      roleSentPrivately: 'Role sent privately',
+      btnBeginGame: 'Begin the Game →', btnStartOverInstead: 'Start Over Instead',
+      dayLabel: 'Day {n}', dayTitle: 'Daytime discussion',
+      dayHint: "Nothing to do here yet — let the group talk it out. Start voting once they're ready to decide.",
+      stillInGame: 'Still in the game', eliminatedLabel: 'Eliminated', btnStartVoting: 'Start Voting',
+      morningInquiry: 'Morning Inquiry', inquiryVoteTitle: 'Vote: use an inquiry?',
+      yes: 'Yes', no: 'No', btnCloseInquiryVote: 'Close Inquiry Vote',
+      votedProgress: '{n} of {total} have voted.',
+      inquiryResultLabel: 'Inquiry Result', inquiryGranted: 'Inquiry granted', noInquiryToday: 'No inquiry today',
+      notEnoughVotes: 'Not enough votes were in favor.',
+      inquiryDetail: '{mafiaOut} Mafia and {villagerOut} civilian(s) eliminated so far. ({remaining} inquiries left.)',
+      inquiryDetailPlayer: '{mafiaOut} Mafia and {villagerOut} civilian(s) eliminated so far.',
+      btnContinue: 'Continue →',
+      firstVote: 'First Vote', finalVote: 'Final Vote', votingInProgress: 'Voting in progress',
+      btnCloseVoting: 'Close Voting', voteCount: '{n} vote(s)', dayVoteEyebrow: 'Day {day} · {round}',
+      onTrial: 'On Trial', timeToDefend: 'Time to defend',
+      defenseHint: 'Let each of them speak, then start the final vote.',
+      btnStartFinalVote: 'Start Final Vote',
+      resultLabel: 'Result', votedOut: '{name} was voted out', noOneEliminated: 'No one was eliminated',
+      rolePrivate: 'Their role stays private — even from you.',
+      noMajorityNoOneTrial: 'No one reached a majority. No one is on trial today.',
+      noMajorityNoOneLeaves: 'No majority was reached. No one leaves today.',
+      didntReachMajority: 'The vote didn’t reach a majority.',
+      tiedRandomChosen: 'Tied at {n} votes each — {name} was chosen at random.',
+      seeResults: 'See Final Results →', continueToNight: 'Continue to Night →', continueToDay: 'Continue to Day {n} →',
+      nightInProgress: 'Night in progress',
+      nightHint: "Special roles are making their choices on their own phones. This screen won't show who they are — you're playing too.",
+      btnForceContinue: 'Force Continue',
+      eyesClosedTitle: "Everyone's eyes are closed",
+      eyesClosedHint: 'Give the Mafia a moment to talk quietly among themselves, then continue when they’re ready.',
+      oceanTalkTitle: "اوشن's group is talking",
+      oceanTalkHint: 'Give them a moment to talk quietly, then continue when they’re ready.',
+      nightLabel: 'Night {n}', nightResultLabel: 'Night {n} · Result',
+      gameOver: 'Game Over', civiliansWin: 'Civilians Win!', mafiaWins: 'Mafia Wins!',
+      rolesRevealed: 'Roles are revealed to everyone now that the game has ended.',
+      btnStartNewGame: 'Start a New Game', outLabel: '(out)',
+      playerLabel: 'Player', joinSessionTitle: 'Join the session', btnJoinGame: 'Join Game',
+      connectingToHost: 'Connecting to host…', settingUpConnection: 'Setting up a direct, private connection.',
+      waitingForHost: 'Waiting for host…', hostWillConnect: 'The host will connect to you automatically.',
+      joiningRoom: 'Joining room {code}…', contactingHost: 'Contacting the host.',
+      almostThere: 'Almost there…', finalizingConnection: 'Finalizing a direct connection.',
+      connectedLabel: 'Connected', whatsYourName: "What's your name?", shownToHostOnly: 'This is shown to the host only',
+      namePlaceholder: 'e.g. Priya',
+      youreIn: "You're in, {name}.", waitingForRoles: 'Waiting for the host to assign roles…',
+      yourRoleKeepSecret: 'Your Role · Keep it secret', tapToReveal: 'Tap to Reveal', caseFile: 'Case File',
+      shielded: 'Shielded', tapCardHide: 'Tap the card again to hide it.', back: '← Back',
+      myActivity: 'My Activity', nothingYet: 'Nothing yet.',
+      talkItOut: 'Talk it out',
+      shareNoticed: "Share what you've noticed. The God will start a vote when it's time.",
+      viewMyRole: 'View My Role',
+      useInquiryToday: 'Use an inquiry today?',
+      inquiryExplain: 'If enough of you say yes, everyone learns how many Mafia and civilians have been eliminated so far.',
+      voteSubmittedWaiting: 'Vote submitted — waiting for the others…',
+      voteSkippedWaiting: "You chose not to vote — waiting for the others…",
+      whoSuspect: 'Who do you suspect?', castYourVote: 'Cast your vote',
+      pickAsMany: 'Pick as many as you want, or none at all.',
+      noOneElseToVote: 'No one else to vote on right now — please wait.',
+      btnSubmitVote: 'Submit Vote', finalVoteTitle: 'Final vote',
+      defenseYouOnTrial: "You're on trial",
+      defenseYouHint: "Defend yourself! The God will start the final vote when everyone's ready.",
+      defenseOthersTitle: 'On trial: {names}',
+      defenseOthersHint: 'Listen to their defense. The God will start the final vote soon.',
+      votedOutPlayer: '{name} was voted out.', noOneEliminatedPlayer: 'No one was eliminated.',
+      theTownSleeps: 'The town sleeps', morningHasCome: 'Morning has come',
+      foundDead: '{names} found dead.', backAmongLiving: '{name} is back among the living.',
+      everyoneMadeIt: 'Everyone made it through the night.',
+      chooseSomeone: 'Choose someone',
+      recruitInsteadOfShoot: 'Recruit them into Mafia instead of shooting',
+      btnConfirm: 'Confirm', btnDoNothingTonight: 'Do Nothing Tonight',
+      chooseToBlock: 'Choose someone to block', chooseToSave: 'Choose someone to save',
+      chooseToRevive: 'Choose someone to bring back to life', chooseToInvestigate: 'Choose someone to investigate',
+      chooseToShoot: 'Choose someone to shoot', chooseToAddGroup: 'Choose someone to add to your group',
+      closeYourEyes: 'Close your eyes.',
+      mafiaTalkNow: 'Everyone else has closed their eyes. Talk quietly with your fellow Mafia now.',
+      youWereBlocked: 'You were blocked tonight — no action for you.',
+      oceanGroupJoinTalk: "You've been added to a secret group. You may open your eyes and talk quietly with them now.",
+      investigationResult: 'Investigation Result', isMafia: '{name} is Mafia.', isNotMafia: '{name} is not Mafia.',
+      youreOut: "You're Out", youveBeenEliminated: "You've been eliminated",
+      thanksForPlaying: 'Thanks for playing — stick around and keep watching in person.',
+      backInGame: "You're back in the game!",
+      lostServerConnection: 'Lost connection to the server.',
+      roomNotFound: 'That room code wasn’t found. Double-check it with the host.',
+      hostEndedSession: 'The host ended the session.',
+      linkCopied: 'Link copied.', linkCopiedPaste: 'Link copied — paste it to your players.',
+      enterRoomCode: 'Enter the room code from your host.', enterNameFirst: 'Enter a name first.',
+      lostHostConnection: 'Lost connection to the host.', pickSomeoneFirst: 'Pick someone first.',
+      connectionToHostLost: 'Connection to host lost.', joinInviteText: 'Room code {room}',
+      shareTitle: 'Join our Mafia game',
+      tagMafia: 'Mafia', tagVillage: 'Village', tagIndependent: 'Independent',
+      roleSummaryDefault: '{count} of {slotCount} {label} will get the default role ({defaultName}).',
+      roleSummaryAllCustom: "All {slotCount} {label} have dedicated roles — the default {label} role won't be used.",
+      roleOverflowWarning: "You've selected {customCount} {label} role(s) but there are only {slotCount} {label} slot(s) — remove {overflow}.",
+      recruitedMafiaName: 'New Mafia', recruitedMafiaDesc: "You were just recruited into Mafia.",
+      nightLogPrefix: 'Night {day}: ',
+      actMatadorBlocked: 'Matador blocked {name}.', actMatadorNoBlock: 'Matador did not block anyone.',
+      actYouBlocked: 'You blocked {name}.', actYouNoBlock: 'You chose not to block anyone.',
+      actYouSaved: 'You saved {name}.', actYouNoSave: 'You chose not to save anyone.',
+      actYouRevived: 'You brought {name} back to life.', actYouNoRevive: 'You chose not to revive anyone.',
+      actYouInvestigated: 'You investigated {name} — {result}.',
+      actInvestigatedIsMafia: 'Mafia', actInvestigatedNotMafia: 'not Mafia',
+      actYouNoInvestigate: 'You chose not to investigate anyone.',
+      actYouShot: 'You shot {name}.', actYouNoShot: 'You chose not to shoot anyone.',
+      actYouWereAddedToGroup: "You were added to اوشن's group.",
+      actYouAddedToGroup: 'You added {name} to your group.',
+      actYouNoAdd: 'You chose not to add anyone to your group.',
+      actRecruited: '{name} was recruited into Mafia.',
+      actRecruitFailed: 'The attempt to recruit {name} failed — no shot was taken.',
+      actMafiaShot: 'Mafia shot {name}.', actMafiaShotNoOne: 'Mafia shot no one.'
+    }
+  };
+
+  // Role descriptions in English, keyed by role id (names themselves stay as-is).
+  const ROLE_DESC_EN = {
+    'builtin-mafia': 'You know the other Mafia. Work in the dark, blend in by day.',
+    'builtin-villager': 'You have no special knowledge. Watch closely, and vote wisely.',
+    'role-godfather': 'Each night you decide who Mafia will target.',
+    'role-matador': "Each night you choose one civilian to block; they can't use their ability that night.",
+    'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
+    'role-detective': 'Each night you investigate someone and learn whether they are Mafia.',
+    'role-professional': "Each night you may target someone. Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead.",
+    'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish.',
+    'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
+    'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning."
+  };
+
+  function t(key, vars){
+    const dict = STRINGS[state.lang] || STRINGS.fa;
+    let str = dict[key] !== undefined ? dict[key] : (STRINGS.fa[key] !== undefined ? STRINGS.fa[key] : key);
+    if(vars){
+      Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
+    }
+    return str;
+  }
+  function roleDescription(role){
+    if(state.lang === 'en' && ROLE_DESC_EN[role.id]) return ROLE_DESC_EN[role.id];
+    return role.description;
+  }
+
   // The full role list is fixed in code so it can never be lost to a server
   // restart. The only thing about a role that's still adjustable in the app
   // is its shield — and that adjustment lives only in this browser tab's
@@ -601,6 +910,9 @@
   ];
 
   const state = {
+    lang: (function(){
+      try{ return localStorage.getItem('mafia-lang') || 'fa'; }catch(e){ return 'fa'; }
+    })(),
     role: null,
     numPlayers: 6,
     numMafia: 2,
@@ -640,7 +952,8 @@
     selectedNightTargetId: null, // (player) chosen target before submit
     myActivityLog: [],           // (player) night-by-night history of this player's (or their mafia team's) actions
     hasActivityLog: false,       // (player) whether to show the "My Activity" link at all
-    activityReturnScreen: null   // (player) screen to return to after viewing activity log
+    activityReturnScreen: null,  // (player) screen to return to after viewing activity log
+    lastPhaseMsg: null           // (player) most recent 'phase' message, for re-rendering on language switch
   };
 
   function $(id){ return document.getElementById(id); }
@@ -683,9 +996,9 @@
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(proto + '//' + location.host + '/ws');
     state.ws = ws;
-    ws.onopen = () => { $('conn-indicator').textContent = 'Connected'; if(onOpen) onOpen(); };
-    ws.onclose = () => { $('conn-indicator').textContent = 'Disconnected'; toast('Lost connection to the server.'); };
-    ws.onerror = () => { $('conn-indicator').textContent = 'Connection error'; };
+    ws.onopen = () => { $('conn-indicator').textContent = t('connConnected'); if(onOpen) onOpen(); };
+    ws.onclose = () => { $('conn-indicator').textContent = t('connDisconnected'); toast(t('lostServerConnection')); };
+    ws.onerror = () => { $('conn-indicator').textContent = t('connError'); };
     ws.onmessage = (evt) => {
       let msg;
       try{ msg = JSON.parse(evt.data); }catch(e){ return; }
@@ -719,17 +1032,17 @@
     if(msg.type === 'joined'){
       state.playerId = msg.playerId;
       state.room = msg.room;
-      $('connecting-title').textContent = 'Waiting for host&hellip;';
-      $('connecting-hint').textContent = 'The host will connect to you automatically.';
+      $('connecting-title').textContent = t('waitingForHost');
+      $('connecting-hint').textContent = t('hostWillConnect');
       return;
     }
     if(msg.type === 'room-not-found'){
-      toast('That room code wasn\u2019t found. Double-check it with the host.');
+      toast(t('roomNotFound'));
       showScreen('screen-player-join');
       return;
     }
     if(msg.type === 'host-left'){
-      toast('The host ended the session.');
+      toast(t('hostEndedSession'));
       showScreen('screen-player-join');
       return;
     }
@@ -737,8 +1050,8 @@
 
   /* ---------------- Role library ---------------- */
   function roleTeamTagHtml(r){
-    if(r.independent) return '<span class="tag independent role-team-tag">Independent</span>';
-    return '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + (r.team === 'mafia' ? 'Mafia' : 'Village') + '</span>';
+    if(r.independent) return '<span class="tag independent role-team-tag">' + escapeHtml(t('tagIndependent')) + '</span>';
+    return '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + escapeHtml(r.team === 'mafia' ? t('tagMafia') : t('tagVillage')) + '</span>';
   }
 
   // Mafia first, then Independent, then regular civilians — for the God's role checklist.
@@ -761,8 +1074,8 @@
         '<div class="role-info">' +
           '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
           roleTeamTagHtml(r) +
-          (r.shield ? '<span class="tag shield role-team-tag">Shield</span>' : '') +
-          (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
+          (r.shield ? '<span class="tag shield role-team-tag">' + escapeHtml(t('labelShield')) + '</span>' : '') +
+          (r.description ? '<div class="role-desc-small">' + escapeHtml(roleDescription(r)) + '</div>' : '') +
         '</div>';
       row.querySelector('input').onchange = (e) => {
         if(e.target.checked) state.selectedRoleIds.add(r.id);
@@ -783,7 +1096,7 @@
       customCount,
       defaultCount: Math.max(0, slotCount - customCount),
       overflow: Math.max(0, customCount - slotCount),
-      defaultName: defaultRole ? defaultRole.name : (team === 'mafia' ? 'مافیا' : 'شهروند')
+      defaultName: defaultRole ? defaultRole.name : (team === 'mafia' ? t('tagMafia') : t('tagVillage'))
     };
   }
 
@@ -796,17 +1109,17 @@
     const village = roleSummaryForTeam('villager');
 
     const lines = [];
-    [['مافیا', mafia], ['شهروند', village]].forEach(([label, s]) => {
+    [[t('tagMafia'), mafia], [t('tagVillage'), village]].forEach(([label, s]) => {
       if(s.customCount === 0) return;
       lines.push(s.defaultCount > 0
-        ? s.defaultCount + ' نفر از ' + s.slotCount + ' ' + label + '، نقش پیش‌فرض (' + s.defaultName + ') را می‌گیرند.'
-        : 'تمام ' + s.slotCount + ' ' + label + ' نقش اختصاصی دارند — نقش پیش‌فرض ' + label + ' استفاده نخواهد شد.');
+        ? t('roleSummaryDefault', { count: s.defaultCount, slotCount: s.slotCount, label: label, defaultName: s.defaultName })
+        : t('roleSummaryAllCustom', { slotCount: s.slotCount, label: label }));
     });
     summaryBox.textContent = lines.join(' ');
 
     const warnings = [];
-    if(mafia.overflow > 0) warnings.push('شما ' + mafia.customCount + ' نقش مافیا انتخاب کرده‌اید ولی فقط ' + mafia.slotCount + ' جایگاه مافیا وجود دارد — ' + mafia.overflow + ' مورد را بردارید.');
-    if(village.overflow > 0) warnings.push('شما ' + village.customCount + ' نقش شهروند انتخاب کرده‌اید ولی فقط ' + village.slotCount + ' جایگاه شهروند وجود دارد — ' + village.overflow + ' مورد را بردارید.');
+    if(mafia.overflow > 0) warnings.push(t('roleOverflowWarning', { customCount: mafia.customCount, slotCount: mafia.slotCount, label: t('tagMafia'), overflow: mafia.overflow }));
+    if(village.overflow > 0) warnings.push(t('roleOverflowWarning', { customCount: village.customCount, slotCount: village.slotCount, label: t('tagVillage'), overflow: village.overflow }));
     warnBox.style.display = warnings.length ? 'block' : 'none';
     warnBox.textContent = warnings.join(' ');
 
@@ -825,9 +1138,9 @@
         '<div class="role-info">' +
           '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
           roleTeamTagHtml(r) +
-          (r.description ? '<div class="role-desc-small">' + escapeHtml(r.description) + '</div>' : '') +
+          (r.description ? '<div class="role-desc-small">' + escapeHtml(roleDescription(r)) + '</div>' : '') +
         '</div>' +
-        '<label class="shield-toggle" style="flex-shrink:0;"><input type="checkbox" id="shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> Shield</label>';
+        '<label class="shield-toggle" style="flex-shrink:0;"><input type="checkbox" id="shield-' + r.id + '"' + (r.shield ? ' checked' : '') + '> ' + escapeHtml(t('labelShield')) + '</label>';
       row.querySelector('#shield-' + r.id).onchange = (e) => { App.toggleShield(r.id, e.target.checked); };
       list.appendChild(row);
     });
@@ -835,6 +1148,48 @@
 
   /* ---------------- App / Landing ---------------- */
   const App = {};
+
+  App.setLanguage = function(lang){
+    if(lang !== 'fa' && lang !== 'en') return;
+    state.lang = lang;
+    try{ localStorage.setItem('mafia-lang', lang); }catch(e){}
+    applyTranslations();
+  };
+
+  function applyTranslations(){
+    document.documentElement.lang = state.lang;
+    document.documentElement.dir = state.lang === 'fa' ? 'rtl' : 'ltr';
+    const btnFa = $('lang-btn-fa'), btnEn = $('lang-btn-en');
+    if(btnFa) btnFa.classList.toggle('active', state.lang === 'fa');
+    if(btnEn) btnEn.classList.toggle('active', state.lang === 'en');
+
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+    document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+
+    refreshDynamicScreenText();
+  }
+
+  // Re-render whatever dynamic content the currently visible screen holds, so
+  // switching languages mid-session updates more than just static labels.
+  function refreshDynamicScreenText(){
+    const active = document.querySelector('.screen.active');
+    if(!active) return;
+    const id = active.id;
+    if(id === 'screen-host-setup'){ renderSetupValues(); renderRoleChecklist(); }
+    else if(id === 'screen-manage-roles') renderRoleList();
+    else if(id === 'screen-host-lobby'){ renderLobbyHeader(); renderLobby(); }
+    else if(id === 'screen-host-day') renderDayScreen();
+    else if(id === 'screen-host-inquiry-vote') renderInquiryTally();
+    else if(id === 'screen-host-voting') renderVotingTally(state.gamePhase === 'voting1' ? 1 : 2);
+    else if(id === 'screen-host-defense') renderDefenseList();
+    else if(id === 'screen-player-role' && state.myRole) renderRole(state.myRole);
+    else if(id === 'screen-player-day' && state.lastPhaseMsg) $('day-title-player').textContent = t('dayLabel', { n: state.lastPhaseMsg.day });
+    else if(id === 'screen-player-inquiry-vote' && state.lastPhaseMsg) $('inquiry-vote-day-player').textContent = t('dayLabel', { n: state.lastPhaseMsg.day }) + ' · ' + t('morningInquiry');
+    else if(id === 'screen-player-vote') renderVoteScreen();
+    else if(id === 'screen-player-defense' && state.lastPhaseMsg) renderDefenseScreen(state.lastPhaseMsg);
+    else if(id === 'screen-player-activity-log') renderActivityLog();
+  }
 
   App.goLanding = function(role){
     if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); renderRoleChecklist(); setDebugBadge('HOST'); }
@@ -879,7 +1234,7 @@
   function renderSetupValues(){
     $('val-players').textContent = state.numPlayers;
     $('val-mafia').textContent = state.numMafia;
-    $('mafia-hint').textContent = (state.numPlayers - state.numMafia) + ' will be Villagers.';
+    $('mafia-hint').textContent = t('villagersWillBe', { n: state.numPlayers - state.numMafia });
     $('val-inquiries').textContent = state.numInquiries;
     $('val-ocean-slots').textContent = state.numOceanSlots;
     renderRoleSummary();
@@ -897,25 +1252,25 @@
   }
   function renderLobbyHeader(){
     $('room-code-display').textContent = state.room ? state.room.split('').join(' ') : '\u2014\u2014\u2014\u2014\u2014';
-    $('room-link-text').textContent = state.room ? inviteURL() : 'generating link\u2026';
+    $('room-link-text').textContent = state.room ? inviteURL() : t('generatingLink');
   }
   App.copyLink = function(){
     if(!state.room) return;
-    navigator.clipboard.writeText(inviteURL()).then(()=> toast('Link copied.'));
+    navigator.clipboard.writeText(inviteURL()).then(()=> toast(t('linkCopied')));
   };
   App.shareLink = function(){
     if(!state.room) return;
     const url = inviteURL();
     if(navigator.share){
-      navigator.share({ title: 'Join our Mafia game', text: 'Room code ' + state.room, url: url }).catch(()=>{});
+      navigator.share({ title: t('shareTitle'), text: t('joinInviteText', { room: state.room }), url: url }).catch(()=>{});
     } else {
-      navigator.clipboard.writeText(url).then(()=> toast('Link copied \u2014 paste it to your players.'));
+      navigator.clipboard.writeText(url).then(()=> toast(t('linkCopiedPaste')));
     }
   };
 
   function renderLobby(){
     const connectedCount = Array.from(state.players.values()).filter(p => p.connected && p.name).length;
-    $('lobby-eyebrow').textContent = 'Host \u00b7 Lobby \u00b7 ' + connectedCount + '/' + state.numPlayers + ' joined';
+    $('lobby-eyebrow').textContent = t('lobbyJoinedCount', { n: connectedCount, total: state.numPlayers });
     const list = $('slot-list');
     list.innerHTML = '';
     let i = 0;
@@ -928,7 +1283,7 @@
         '<div class="num">' + i + '</div>' +
         (ready
           ? '<div class="name">' + escapeHtml(p.name) + '</div><div class="check">&#10003;</div>'
-          : '<div class="status">Connecting&hellip;</div>');
+          : '<div class="status">' + escapeHtml(t('statusConnecting')) + '</div>');
       list.appendChild(row);
     }
     const remaining = state.numPlayers - state.players.size;
@@ -936,7 +1291,7 @@
       i++;
       const row = document.createElement('div');
       row.className = 'slot';
-      row.innerHTML = '<div class="num">' + i + '</div><div class="status">Waiting for player to join with the link&hellip;</div>';
+      row.innerHTML = '<div class="num">' + i + '</div><div class="status">' + escapeHtml(t('statusWaitingForPlayer')) + '</div>';
       list.appendChild(row);
     }
     $('btn-assign').disabled = connectedCount < state.numPlayers;
@@ -987,7 +1342,7 @@
         const msg = JSON.parse(e.data);
         if(msg.type === 'name'){
           const entry = state.players.get(playerId);
-          if(entry){ entry.name = msg.name; renderLobby(); toast(msg.name + ' joined the game.'); }
+          if(entry){ entry.name = msg.name; renderLobby(); toast(t('toastPlayerJoined', {name: msg.name})); }
         } else if(msg.type === 'vote'){
           handlePlayerVote(playerId, msg.round, msg.candidateIds);
         } else if(msg.type === 'inquiry-vote'){
@@ -1012,7 +1367,7 @@
     ['mafia', 'villager'].forEach(team => {
       const customRoles = state.roles.filter(r => r.team === team && !r.builtin && state.selectedRoleIds.has(r.id));
       const defaultRole = state.roles.find(r => r.team === team && r.builtin) ||
-        { team, name: team === 'mafia' ? 'Mafia' : 'Villager', description: '', shield: false };
+        { team, name: team === 'mafia' ? t('tagMafia') : t('tagVillage'), description: '', shield: false };
 
       idsByTeam[team].forEach((id, idx) => {
         const roleDef = idx < customRoles.length ? customRoles[idx] : defaultRole;
@@ -1022,7 +1377,7 @@
         entry.roleDesc = roleDef.description;
         entry.roleShield = !!roleDef.shield;
         try{
-          entry.dc.send(JSON.stringify({ type: 'role', role: roleDef.team, name: roleDef.name, description: roleDef.description, shield: !!roleDef.shield }));
+          entry.dc.send(JSON.stringify({ type: 'role', role: roleDef.team, roleId: roleDef.id, name: roleDef.name, description: roleDef.description, shield: !!roleDef.shield }));
         }catch(e){}
       });
     });
@@ -1038,7 +1393,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td>' + escapeHtml(entry.name) + '</td>' +
-        '<td style="text-align:right;" class="hint">Role sent privately</td>';
+        '<td style="text-align:right;" class="hint">' + escapeHtml(t('roleSentPrivately')) + '</td>';
       table.appendChild(tr);
     }
   }
@@ -1086,12 +1441,12 @@
   }
 
   function renderInquiryTally(){
-    $('inquiry-vote-day').textContent = state.day;
+    $('inquiry-vote-day').textContent = t('dayLabel', { n: state.day }) + ' · ' + t('morningInquiry');
     let yes = 0, no = 0;
     state.votesInquiry.forEach(choice => { if(choice === 'yes') yes++; else no++; });
     $('inquiry-yes-count').textContent = yes;
     $('inquiry-no-count').textContent = no;
-    $('inquiry-vote-progress').textContent = state.votesInquiry.size + ' of ' + aliveEntries().length + ' have voted.';
+    $('inquiry-vote-progress').textContent = t('votedProgress', { n: state.votesInquiry.size, total: aliveEntries().length });
   }
 
   function handlePlayerInquiryVote(voterId, choice){
@@ -1107,19 +1462,19 @@
     state.votesInquiry.forEach(choice => { if(choice === 'yes') yes++; });
     const granted = yes > 0 && yes >= threshold;
 
-    $('inquiry-result-day').textContent = state.day;
+    $('inquiry-result-day').textContent = t('dayLabel', { n: state.day }) + ' · ' + t('inquiryResultLabel');
     if(granted){
       state.inquiriesRemaining -= 1;
       const eliminated = Array.from(state.players.values()).filter(e => !e.alive);
       const mafiaOut = eliminated.filter(e => e.role === 'mafia').length;
       const villagerOut = eliminated.filter(e => e.role === 'villager').length;
       aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: true, mafiaOut, villagerOut }));
-      $('inquiry-result-title').textContent = 'Inquiry granted';
-      $('inquiry-result-detail').textContent = mafiaOut + ' Mafia and ' + villagerOut + ' civilian' + (villagerOut === 1 ? '' : 's') + ' eliminated so far. (' + state.inquiriesRemaining + ' inquir' + (state.inquiriesRemaining === 1 ? 'y' : 'ies') + ' left.)';
+      $('inquiry-result-title').textContent = t('inquiryGranted');
+      $('inquiry-result-detail').textContent = t('inquiryDetail', { mafiaOut, villagerOut, remaining: state.inquiriesRemaining });
     } else {
       aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: false }));
-      $('inquiry-result-title').textContent = 'No inquiry today';
-      $('inquiry-result-detail').textContent = 'Not enough votes were in favor.';
+      $('inquiry-result-title').textContent = t('noInquiryToday');
+      $('inquiry-result-detail').textContent = t('notEnoughVotes');
     }
     showScreen('screen-host-inquiry-result');
   };
@@ -1129,7 +1484,7 @@
   };
 
   function renderDayScreen(){
-    $('day-eyebrow').textContent = 'Day ' + state.day;
+    $('day-eyebrow').textContent = t('dayLabel', { n: state.day });
 
     const aliveBox = $('alive-list');
     aliveBox.innerHTML = '';
@@ -1211,13 +1566,13 @@
         row.className = 'slot';
         row.innerHTML =
           '<div class="name">' + escapeHtml(c.name) + '</div>' +
-          '<div class="status" style="flex:0; white-space:nowrap;">' + c.count + ' vote' + (c.count === 1 ? '' : 's') + '</div>';
+          '<div class="status" style="flex:0; white-space:nowrap;">' + t('voteCount', { n: c.count }) + '</div>';
         box.appendChild(row);
       });
 
     const totalAlive = aliveEntries().length;
-    $('voting-progress').textContent = votes.size + ' of ' + totalAlive + ' have voted.';
-    $('voting-eyebrow').textContent = 'Day ' + state.day + ' · ' + (round === 1 ? 'First Vote' : 'Final Vote');
+    $('voting-progress').textContent = t('votedProgress', { n: votes.size, total: totalAlive });
+    $('voting-eyebrow').textContent = t('dayVoteEyebrow', { day: state.day, round: round === 1 ? t('firstVote') : t('finalVote') });
   }
 
   App.closeVoting = function(){
@@ -1232,7 +1587,7 @@
     const defendingIds = Array.from(counts.entries()).filter(([id, c]) => c >= threshold).map(([id]) => id);
 
     if(!defendingIds.length){
-      showRoundResult(null, 'No one reached a majority. No one is on trial today.');
+      showRoundResult(null, t('noMajorityNoOneTrial'));
       return;
     }
     state.defendingIds = defendingIds;
@@ -1250,7 +1605,7 @@
   }
 
   function renderDefenseList(){
-    $('defense-day').textContent = state.day;
+    $('defense-day').textContent = t('dayLabel', { n: state.day });
     const box = $('defense-list');
     box.innerHTML = '';
     state.defendingIds.forEach(id => {
@@ -1284,7 +1639,7 @@
           eliminatedId = topIds[0];
         } else {
           eliminatedId = topIds[Math.floor(Math.random() * topIds.length)];
-          note = 'Tied at ' + maxCount + ' votes each — ' + state.players.get(eliminatedId).name + ' was chosen at random.';
+          note = t('tiedRandomChosen', { n: maxCount, name: state.players.get(eliminatedId).name });
         }
       }
     }
@@ -1294,7 +1649,7 @@
       state.winner = checkWinner();
       showRoundResult(eliminatedId, note);
     } else {
-      showRoundResult(null, 'No majority was reached. No one leaves today.');
+      showRoundResult(null, t('noMajorityNoOneLeaves'));
     }
   }
 
@@ -1321,17 +1676,17 @@
       sendToPlayer(entry, { type: 'day-result', eliminatedName: eliminatedEntry ? eliminatedEntry.name : null });
     });
 
-    $('result-day').textContent = state.day;
+    $('result-day').textContent = t('dayLabel', { n: state.day });
     if(eliminatedEntry){
-      $('result-title').textContent = eliminatedEntry.name + ' was voted out';
-      $('result-detail').textContent = note || 'Their role stays private — even from you.';
+      $('result-title').textContent = t('votedOut', { name: eliminatedEntry.name });
+      $('result-detail').textContent = note || t('rolePrivate');
     } else {
-      $('result-title').textContent = 'No one was eliminated';
-      $('result-detail').textContent = note || 'The vote didn’t reach a majority.';
+      $('result-title').textContent = t('noOneEliminated');
+      $('result-detail').textContent = note || t('didntReachMajority');
     }
     $('result-continue-btn').textContent = state.winner
-      ? 'See Final Results →'
-      : 'Continue to Night →';
+      ? t('seeResults')
+      : t('continueToNight');
     showScreen('screen-host-result');
   }
 
@@ -1352,14 +1707,14 @@
       sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster });
     }
 
-    $('game-over-title').textContent = state.winner === 'village' ? 'Civilians Win!' : 'Mafia Wins!';
+    $('game-over-title').textContent = state.winner === 'village' ? t('civiliansWin') : t('mafiaWins');
     const box = $('game-over-roster');
     box.innerHTML = '';
     Array.from(state.players.values()).forEach(entry => {
       const row = document.createElement('div');
       row.className = 'slot' + (entry.alive ? ' connected' : '');
       row.innerHTML =
-        '<div class="name">' + escapeHtml(entry.name) + (entry.alive ? '' : ' <span class="hint" style="font-size:11px;">(out)</span>') + '</div>' +
+        '<div class="name">' + escapeHtml(entry.name) + (entry.alive ? '' : ' <span class="hint" style="font-size:11px;">' + escapeHtml(t('outLabel')) + '</span>') + '</div>' +
         '<span class="tag ' + entry.role + '" style="flex-shrink:0;">' + escapeHtml(entry.roleName || entry.role) + '</span>';
       box.appendChild(row);
     });
@@ -1387,7 +1742,7 @@
   function startNight(){
     state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set() };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
-    $('night-day').textContent = state.day;
+    $('night-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night');
     runNightStep(0);
   }
@@ -1416,7 +1771,7 @@
     if(!holders.length){ advanceNight(); return; }
     const [actorId, actorEntry] = holders[0];
     if(isBlockedTonight(actorId)){
-      sendToPlayer(actorEntry, { type: 'phase', phase: 'night', day: state.day, note: 'You were blocked tonight — no action for you.' });
+      sendToPlayer(actorEntry, { type: 'phase', phase: 'night', day: state.day, note: t('youWereBlocked') });
       advanceNight();
       return;
     }
@@ -1431,7 +1786,7 @@
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && (id !== doctorId || !state.doctorSelfSaveUsed))
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'doctor', 'Choose someone to save');
+    }, 'doctor', t('chooseToSave'));
   }
 
   function startConstantineStep(){
@@ -1439,7 +1794,7 @@
       return Array.from(state.players.entries())
         .filter(([id, e]) => !e.alive)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'constantine', 'Choose someone to bring back to life');
+    }, 'constantine', t('chooseToRevive'));
   }
 
   function startDetectiveStep(){
@@ -1447,7 +1802,7 @@
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== detectiveId)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'detective', 'Choose someone to investigate');
+    }, 'detective', t('chooseToInvestigate'));
   }
 
   function startProfessionalStep(){
@@ -1455,7 +1810,7 @@
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== proId)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'professional', 'Choose someone to shoot');
+    }, 'professional', t('chooseToShoot'));
   }
 
   function startOceanRecruitStep(){
@@ -1464,7 +1819,7 @@
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== oceanId && !state.oceanTeam.has(id))
         .map(([id, e]) => ({ id, name: e.name }));
-    }, 'ocean-recruit', 'Choose someone to add to your group');
+    }, 'ocean-recruit', t('chooseToAddGroup'));
   }
 
   function startOceanTalkStep(){
@@ -1484,9 +1839,9 @@
     // this step runs immediately after ocean-recruit, so it's their first message either way.
     teamIds.forEach(id => {
       const entry = state.players.get(id);
-      if(entry) sendToPlayer(entry, { type: 'phase', phase: 'night-announcement', day: state.day, text: 'You’ve been added to a secret group. You may open your eyes and talk quietly with them now.' });
+      if(entry) sendToPlayer(entry, { type: 'phase', phase: 'night-announcement', day: state.day, text: t('oceanGroupJoinTalk') });
     });
-    $('ocean-talk-day').textContent = state.day;
+    $('ocean-talk-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-ocean-talk');
 
     // Guarantee real talk time regardless of how quickly the host taps through —
@@ -1504,11 +1859,11 @@
   function startEyesClosedStep(){
     aliveEntries().forEach(([id, entry]) => {
       const text = entry.role === 'mafia'
-        ? 'Everyone else has closed their eyes. Talk quietly with your fellow Mafia now.'
-        : 'Close your eyes.';
+        ? t('mafiaTalkNow')
+        : t('closeYourEyes');
       sendToPlayer(entry, { type: 'phase', phase: 'night-announcement', day: state.day, text });
     });
-    $('night-eyes-closed-day').textContent = state.day;
+    $('night-eyes-closed-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night-eyes-closed');
   }
   App.continueAfterEyesClosed = function(){
@@ -1533,7 +1888,7 @@
         const candidates = Array.from(state.players.entries())
           .filter(([cid, e]) => e.alive && cid !== id)
           .map(([cid, e]) => ({ id: cid, name: e.name }));
-        sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: 'Choose someone to shoot', candidates, allowSkip: false, canRecruit });
+        sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: t('chooseToShoot'), candidates, allowSkip: false, canRecruit });
       });
     }
 
@@ -1545,7 +1900,7 @@
         .map(([id, e]) => ({ id, name: e.name }));
       if(candidates.length){
         state.night.mafiaPending.add('matador');
-        sendToPlayer(matadorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: 'Choose someone to block', candidates, allowSkip: true });
+        sendToPlayer(matadorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: t('chooseToBlock'), candidates, allowSkip: true });
       }
     }
 
@@ -1577,21 +1932,23 @@
     if(state.gamePhase !== (isMafiaPhaseRole ? 'night-mafia-phase' : ('night-' + role))) return;
     const targetName = targetId && state.players.get(targetId) ? state.players.get(targetId).name : null;
 
+    const prefix = t('nightLogPrefix', { day: state.day });
+
     if(role === 'matador'){
       state.night.blockedId = targetId || null;
-      const text = 'Night ' + state.day + ': ' + (targetName ? ('Matador blocked ' + targetName + '.') : 'Matador did not block anyone.');
-      logActivity(voter, targetName ? ('Night ' + state.day + ': You blocked ' + targetName + '.') : ('Night ' + state.day + ': You chose not to block anyone.'));
+      const text = prefix + (targetName ? t('actMatadorBlocked', { name: targetName }) : t('actMatadorNoBlock'));
+      logActivity(voter, prefix + (targetName ? t('actYouBlocked', { name: targetName }) : t('actYouNoBlock')));
       logMafiaActivity(text);
       state.night.mafiaPending.delete('matador');
       checkMafiaPhaseComplete();
     } else if(role === 'doctor'){
       state.night.savedId = targetId || null;
       if(targetId && targetId === voterId) state.doctorSelfSaveUsed = true;
-      logActivity(voter, targetName ? ('Night ' + state.day + ': You saved ' + targetName + '.') : ('Night ' + state.day + ': You chose not to save anyone.'));
+      logActivity(voter, prefix + (targetName ? t('actYouSaved', { name: targetName }) : t('actYouNoSave')));
       advanceNight();
     } else if(role === 'constantine'){
       state.night.revivedId = targetId || null;
-      logActivity(voter, targetName ? ('Night ' + state.day + ': You brought ' + targetName + ' back to life.') : ('Night ' + state.day + ': You chose not to revive anyone.'));
+      logActivity(voter, prefix + (targetName ? t('actYouRevived', { name: targetName }) : t('actYouNoRevive')));
       advanceNight();
     } else if(role === 'detective'){
       if(targetId){
@@ -1599,15 +1956,15 @@
         if(target){
           const isMafia = target.role === 'mafia';
           sendToPlayer(voter, { type: 'investigate-result', targetName: target.name, isMafia });
-          logActivity(voter, 'Night ' + state.day + ': You investigated ' + target.name + ' — ' + (isMafia ? '' : 'not ') + 'Mafia.');
+          logActivity(voter, prefix + t('actYouInvestigated', { name: target.name, result: isMafia ? t('actInvestigatedIsMafia') : t('actInvestigatedNotMafia') }));
         }
       } else {
-        logActivity(voter, 'Night ' + state.day + ': You chose not to investigate anyone.');
+        logActivity(voter, prefix + t('actYouNoInvestigate'));
       }
       advanceNight();
     } else if(role === 'professional'){
       state.night.professionalTargetId = targetId || null;
-      logActivity(voter, targetName ? ('Night ' + state.day + ': You shot ' + targetName + '.') : ('Night ' + state.day + ': You chose not to shoot anyone.'));
+      logActivity(voter, prefix + (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
       advanceNight();
     } else if(role === 'ocean-recruit'){
       if(targetId){
@@ -1616,12 +1973,12 @@
         // The "you may talk now" announcement happens in the very next step
         // (ocean-talk), not here — but the recruit's own activity record starts now.
         if(target){
-          logActivity(target, 'Night ' + state.day + ': You were added to اوشن’s group.');
+          logActivity(target, prefix + t('actYouWereAddedToGroup'));
           if(target.role === 'mafia') state.night.extraDeathIds.push(voterId);
         }
-        logActivity(voter, 'Night ' + state.day + ': You added ' + targetName + ' to your group.');
+        logActivity(voter, prefix + t('actYouAddedToGroup', { name: targetName }));
       } else {
-        logActivity(voter, 'Night ' + state.day + ': You chose not to add anyone to your group.');
+        logActivity(voter, prefix + t('actYouNoAdd'));
       }
       advanceNight();
     } else if(role === 'mafia'){
@@ -1663,19 +2020,19 @@
       const target = state.players.get(state.night.mafiaRecruitId);
       if(target && target.roleName === ROLE_NAME_PLAIN_VILLAGER){
         target.role = 'mafia';
-        target.roleName = 'مافیای جدید';
-        target.roleDesc = 'شما به‌تازگی توسط مافیا به گروه اضافه شدید.';
+        target.roleName = t('recruitedMafiaName');
+        target.roleDesc = t('recruitedMafiaDesc');
         target.roleShield = false;
         sendToPlayer(target, { type: 'role', role: 'mafia', name: target.roleName, description: target.roleDesc, shield: false });
         sendToPlayer(target, { type: 'activity-log', log: state.mafiaActivityLog });
-        logMafiaActivity('Night ' + state.day + ': ' + target.name + ' was recruited into Mafia.');
+        logMafiaActivity(t('nightLogPrefix', { day: state.day }) + t('actRecruited', { name: target.name }));
       } else {
-        logMafiaActivity('Night ' + state.day + ': The attempt to recruit ' + (target ? target.name : 'someone') + ' failed — no shot was taken.');
+        logMafiaActivity(t('nightLogPrefix', { day: state.day }) + t('actRecruitFailed', { name: target ? target.name : t('playerLabel') }));
       }
     } else if(state.night.mafiaTargetId){
       const target = state.players.get(state.night.mafiaTargetId);
       rawDeaths.add(state.night.mafiaTargetId);
-      logMafiaActivity('Night ' + state.day + ': Mafia shot ' + (target ? target.name : 'no one') + '.');
+      logMafiaActivity(t('nightLogPrefix', { day: state.day }) + (target ? t('actMafiaShot', { name: target.name }) : t('actMafiaShotNoOne')));
     }
 
     // اوشن's fatal mistake: recruiting a Mafia member into the group.
@@ -1733,12 +2090,12 @@
       sendToPlayer(entry, { type: 'night-result', deadNames, revivedName });
     });
 
-    $('night-result-day').textContent = state.day;
+    $('night-result-day').textContent = t('nightResultLabel', { n: state.day });
     const parts = [];
-    if(deadNames.length) parts.push(deadNames.join(', ') + (deadNames.length === 1 ? ' was' : ' were') + ' found dead this morning.');
-    if(revivedName) parts.push(revivedName + ' is back among the living.');
-    $('night-result-title').textContent = parts.length ? parts.join(' ') : 'Everyone made it through the night.';
-    $('night-result-continue-btn').textContent = state.winner ? 'See Final Results →' : 'Continue to Day ' + (state.day + 1) + ' →';
+    if(deadNames.length) parts.push(t('foundDead', { names: deadNames.join(', ') }));
+    if(revivedName) parts.push(t('backAmongLiving', { name: revivedName }));
+    $('night-result-title').textContent = parts.length ? parts.join(' ') : t('everyoneMadeIt');
+    $('night-result-continue-btn').textContent = state.winner ? t('seeResults') : t('continueToDay', { n: state.day + 1 });
     showScreen('screen-host-night-result');
   }
 
@@ -1769,14 +2126,14 @@
   /* ---------------- Player flow ---------------- */
   App.playerJoinByCode = function(){
     const code = $('input-room-code').value.trim().toUpperCase();
-    if(code.length < 4){ toast('Enter the room code from your host.'); return; }
+    if(code.length < 4){ toast(t('enterRoomCode')); return; }
     startPlayerJoin(code);
   };
 
   function startPlayerJoin(code){
     showScreen('screen-player-connecting');
-    $('connecting-title').textContent = 'Joining room ' + code + '\u2026';
-    $('connecting-hint').textContent = 'Contacting the host.';
+    $('connecting-title').textContent = t('joiningRoom', {code: code});
+    $('connecting-hint').textContent = t('contactingHost');
     wsSend({ type: 'join-room', room: code });
   }
 
@@ -1793,8 +2150,8 @@
         .then(answer => pc.setLocalDescription(answer))
         .then(() => {
           wsSend({ type: 'signal', to: 'host', payload: { kind: 'answer', sdp: pc.localDescription } });
-          $('connecting-title').textContent = 'Almost there\u2026';
-          $('connecting-hint').textContent = 'Finalizing a direct connection.';
+          $('connecting-title').textContent = t('almostThere');
+          $('connecting-hint').textContent = t('finalizingConnection');
         });
     } else if(payload.kind === 'candidate'){
       if(state.playerPC) state.playerPC.addIceCandidate(payload.candidate).catch(()=>{});
@@ -1833,15 +2190,15 @@
         else if(msg.type === 'revived'){ handleRevived(msg); }
       }catch(err){}
     };
-    dc.onclose = () => { toast('Connection to host lost.'); };
+    dc.onclose = () => { toast(t('connectionToHostLost')); };
   }
 
   App.playerSubmitName = function(){
     const val = $('input-player-name').value.trim();
-    if(!val){ toast('Enter a name first.'); return; }
+    if(!val){ toast(t('enterNameFirst')); return; }
     try{ state.playerDC.send(JSON.stringify({ type: 'name', name: val })); }
-    catch(e){ toast('Lost connection to the host.'); return; }
-    $('wait-name').textContent = val;
+    catch(e){ toast(t('lostHostConnection')); return; }
+    $('wait-title').textContent = t('youreIn', {name: val});
     setDebugBadge(val);
     showScreen('screen-player-waiting');
   };
@@ -1850,8 +2207,8 @@
     const front = $('role-front');
     front.classList.remove('is-mafia', 'is-villager');
     front.classList.add(msg.role === 'mafia' ? 'is-mafia' : 'is-villager');
-    $('role-title').textContent = (msg.name || (msg.role === 'mafia' ? 'Mafia' : 'Villager')).toUpperCase();
-    $('role-desc').textContent = msg.description || '';
+    $('role-title').textContent = (msg.name || (msg.role === 'mafia' ? t('tagMafia') : t('tagVillage'))).toUpperCase();
+    $('role-desc').textContent = (msg.roleId ? roleDescription({ id: msg.roleId, description: msg.description }) : msg.description) || '';
     $('role-shield').style.display = msg.shield ? 'inline-flex' : 'none';
     $('role-card').classList.remove('flipped');
   }
@@ -1859,11 +2216,12 @@
 
   /* ---------------- Player: Phase 2 game flow ---------------- */
   function handlePhaseMessage(msg){
+    state.lastPhaseMsg = msg;
     if(msg.phase === 'day'){
-      $('day-title-player').textContent = 'Day ' + msg.day;
+      $('day-title-player').textContent = t('dayLabel', { n: msg.day });
       showScreen('screen-player-day');
     } else if(msg.phase === 'inquiry-vote'){
-      $('inquiry-vote-day-player').textContent = 'Day ' + msg.day + ' · Morning Inquiry';
+      $('inquiry-vote-day-player').textContent = t('dayLabel', { n: msg.day }) + ' · ' + t('morningInquiry');
       showScreen('screen-player-inquiry-vote');
     } else if(msg.phase === 'voting1' || msg.phase === 'voting2'){
       state.voteRound = msg.phase === 'voting1' ? 1 : 2;
@@ -1873,22 +2231,22 @@
     } else if(msg.phase === 'defense'){
       renderDefenseScreen(msg);
     } else if(msg.phase === 'night'){
-      $('night-waiting-day').textContent = 'Night ' + msg.day;
-      $('night-waiting-title').textContent = 'The town sleeps';
+      $('night-waiting-day').textContent = t('nightLabel', { n: msg.day });
+      $('night-waiting-title').textContent = t('theTownSleeps');
       $('night-waiting-note').textContent = msg.note || '';
       $('night-waiting-note').style.display = msg.note ? 'block' : 'none';
       showScreen('screen-player-night-waiting');
     } else if(msg.phase === 'night-action'){
       renderNightActionScreen(msg);
     } else if(msg.phase === 'night-announcement'){
-      $('night-announcement-day').textContent = 'Night ' + msg.day;
+      $('night-announcement-day').textContent = t('nightLabel', { n: msg.day });
       $('night-announcement-title').textContent = msg.text;
       showScreen('screen-player-night-announcement');
     }
   }
 
   function renderVoteScreen(){
-    $('vote-title').textContent = state.voteRound === 1 ? 'Who do you suspect?' : 'Final vote';
+    $('vote-title').textContent = state.voteRound === 1 ? t('whoSuspect') : t('finalVoteTitle');
     const list = $('vote-candidate-list');
     list.innerHTML = '';
     const hasCandidates = state.voteCandidates.length > 0;
@@ -1899,7 +2257,7 @@
       const row = document.createElement('label');
       row.className = 'role-row role-check-row';
       row.innerHTML =
-        '<input type="checkbox">' +
+        '<input type="checkbox"' + (state.selectedCandidateIds.has(c.id) ? ' checked' : '') + '>' +
         '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
       row.querySelector('input').onchange = (e) => {
         if(e.target.checked) state.selectedCandidateIds.add(c.id);
@@ -1913,46 +2271,46 @@
   App.submitVote = function(){
     const candidateIds = Array.from(state.selectedCandidateIds);
     try{ state.playerDC.send(JSON.stringify({ type: 'vote', round: state.voteRound, candidateIds })); }
-    catch(e){ toast('Lost connection to the host.'); return; }
-    $('vote-waiting-text').textContent = candidateIds.length ? 'Vote submitted — waiting for the others…' : 'You chose not to vote — waiting for the others…';
+    catch(e){ toast(t('lostHostConnection')); return; }
+    $('vote-waiting-text').textContent = candidateIds.length ? t('voteSubmittedWaiting') : t('voteSkippedWaiting');
     showScreen('screen-player-vote-waiting');
   };
 
   function renderDefenseScreen(msg){
     if(msg.onTrial){
-      $('defense-player-title').textContent = 'You’re on trial';
-      $('defense-player-hint').textContent = 'Defend yourself! The God will start the final vote when everyone’s ready.';
+      $('defense-player-title').textContent = t('defenseYouOnTrial');
+      $('defense-player-hint').textContent = t('defenseYouHint');
     } else {
-      $('defense-player-title').textContent = 'On trial: ' + msg.defendingNames.join(', ');
-      $('defense-player-hint').textContent = 'Listen to their defense. The God will start the final vote soon.';
+      $('defense-player-title').textContent = t('defenseOthersTitle', { names: msg.defendingNames.join(', ') });
+      $('defense-player-hint').textContent = t('defenseOthersHint');
     }
     showScreen('screen-player-defense');
   }
 
   function handleDayResult(msg){
-    $('day-result-title').textContent = msg.eliminatedName ? (msg.eliminatedName + ' was voted out.') : 'No one was eliminated.';
+    $('day-result-title').textContent = msg.eliminatedName ? t('votedOutPlayer', { name: msg.eliminatedName }) : t('noOneEliminatedPlayer');
     showScreen('screen-player-day-result');
   }
 
   App.submitInquiryVote = function(choice){
     try{ state.playerDC.send(JSON.stringify({ type: 'inquiry-vote', choice })); }
-    catch(e){ toast('Lost connection to the host.'); return; }
+    catch(e){ toast(t('lostHostConnection')); return; }
     showScreen('screen-player-inquiry-waiting');
   };
 
   function handleInquiryResult(msg){
     if(msg.granted){
-      $('inquiry-result-title-player').textContent = 'Inquiry granted';
-      $('inquiry-result-detail-player').textContent = msg.mafiaOut + ' Mafia and ' + msg.villagerOut + ' civilian' + (msg.villagerOut === 1 ? '' : 's') + ' eliminated so far.';
+      $('inquiry-result-title-player').textContent = t('inquiryGranted');
+      $('inquiry-result-detail-player').textContent = t('inquiryDetailPlayer', { mafiaOut: msg.mafiaOut, villagerOut: msg.villagerOut });
     } else {
-      $('inquiry-result-title-player').textContent = 'No inquiry today';
-      $('inquiry-result-detail-player').textContent = 'Not enough votes were in favor.';
+      $('inquiry-result-title-player').textContent = t('noInquiryToday');
+      $('inquiry-result-detail-player').textContent = t('notEnoughVotes');
     }
     showScreen('screen-player-inquiry-result');
   }
 
   function handleGameOver(msg){
-    $('game-over-title-player').textContent = msg.winner === 'village' ? 'Civilians Win!' : 'Mafia Wins!';
+    $('game-over-title-player').textContent = msg.winner === 'village' ? t('civiliansWin') : t('mafiaWins');
     const box = $('game-over-roster-player');
     box.innerHTML = '';
     (msg.roster || []).forEach(p => {
@@ -1969,8 +2327,8 @@
   function renderNightActionScreen(msg){
     state.nightActionRole = msg.role;
     state.selectedNightTargetId = null;
-    $('night-action-day').textContent = 'Night ' + msg.day;
-    $('night-action-title').textContent = msg.title || 'Choose someone';
+    $('night-action-day').textContent = t('nightLabel', { n: msg.day });
+    $('night-action-title').textContent = msg.title || t('chooseSomeone');
     const recruitToggle = $('night-action-recruit-toggle');
     if(recruitToggle){
       recruitToggle.style.display = msg.canRecruit ? 'flex' : 'none';
@@ -1995,13 +2353,13 @@
     const recruitEl = $('night-action-recruit-checkbox');
     const recruit = !!(recruitEl && recruitEl.checked);
     try{ state.playerDC.send(JSON.stringify({ type: 'night-action', role: state.nightActionRole, targetId, recruit })); }
-    catch(e){ toast('Lost connection to the host.'); return; }
+    catch(e){ toast(t('lostHostConnection')); return; }
     $('night-waiting-note').style.display = 'none';
     showScreen('screen-player-night-waiting');
   }
 
   App.submitNightAction = function(){
-    if(!state.selectedNightTargetId){ toast('Pick someone first.'); return; }
+    if(!state.selectedNightTargetId){ toast(t('pickSomeoneFirst')); return; }
     sendNightAction(state.selectedNightTargetId);
   };
   App.skipNightAction = function(){
@@ -2010,28 +2368,28 @@
 
   function nightResultText(deadNames, revivedName){
     const parts = [];
-    if(deadNames && deadNames.length) parts.push(deadNames.join(', ') + (deadNames.length === 1 ? ' was' : ' were') + ' found dead.');
-    if(revivedName) parts.push(revivedName + ' is back among the living.');
-    return parts.length ? parts.join(' ') : 'Everyone made it through the night.';
+    if(deadNames && deadNames.length) parts.push(t('foundDead', { names: deadNames.join(', ') }));
+    if(revivedName) parts.push(t('backAmongLiving', { name: revivedName }));
+    return parts.length ? parts.join(' ') : t('everyoneMadeIt');
   }
 
   function handleNightResult(msg){
-    $('night-waiting-title').textContent = 'Morning has come';
+    $('night-waiting-title').textContent = t('morningHasCome');
     $('night-waiting-note').textContent = nightResultText(msg.deadNames, msg.revivedName);
     $('night-waiting-note').style.display = 'block';
     showScreen('screen-player-night-waiting');
   }
 
   function handleRevived(msg){
-    toast('You’re back in the game!');
-    $('night-waiting-title').textContent = 'Morning has come';
+    toast(t('backInGame'));
+    $('night-waiting-title').textContent = t('morningHasCome');
     $('night-waiting-note').textContent = nightResultText(msg.deadNames, null);
     $('night-waiting-note').style.display = 'block';
     showScreen('screen-player-night-waiting');
   }
 
   function handleInvestigateResult(msg){
-    $('investigate-result-title').textContent = msg.targetName + ' is ' + (msg.isMafia ? '' : 'not ') + 'Mafia.';
+    $('investigate-result-title').textContent = msg.isMafia ? t('isMafia', { name: msg.targetName }) : t('isNotMafia', { name: msg.targetName });
     showScreen('screen-player-investigate-result');
   }
 
@@ -2062,7 +2420,7 @@
     box.innerHTML = '';
     const log = state.myActivityLog || [];
     if(!log.length){
-      box.innerHTML = '<p class="hint">Nothing yet.</p>';
+      box.innerHTML = '<p class="hint">' + escapeHtml(t('nothingYet')) + '</p>';
       return;
     }
     log.forEach(text => {
@@ -2074,8 +2432,9 @@
   }
 
   /* ---------------- Init ---------------- */
-  renderSetupValues();
   window.App = App;
+  applyTranslations();
+  renderSetupValues();
   renderRoleChecklist();
 
   const params = new URLSearchParams(location.search);
