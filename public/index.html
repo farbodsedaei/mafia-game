@@ -2000,11 +2000,11 @@
 
   function resolveNight(){
     const rawDeaths = new Set();       // may be blocked by the target's own shield, then by a Doctor's save
-    const guaranteedDeaths = new Set(); // bypasses shields (still save-able by a Doctor)
+    const guaranteedDeaths = new Set(); // bypasses both the shield check and a Doctor's save entirely
 
     // حرفه‌ای's shot: kills a Mafia target (their shield can still absorb it) or backfires on
-    // the shooter — the backfire is a guaranteed consequence, so the shooter's own shield
-    // (even though they carry one by default) cannot save them from their own mistake.
+    // the shooter — the backfire is a truly unavoidable consequence, so neither the shooter's
+    // own shield (even though they carry one by default) nor a Doctor's save can stop it.
     const professionalEntries = findAliveByRoleName(ROLE_NAME_PROFESSIONAL);
     const professional = professionalEntries.find(([id]) => id !== state.night.blockedId);
     if(state.night.professionalTargetId && professional){
@@ -2047,11 +2047,10 @@
       if(id === state.night.savedId) return;
       finalDeaths.add(id);
     });
-    // Guaranteed deaths skip the shield check entirely, but a Doctor can still save them.
+    // Guaranteed deaths skip both the shield check and the Doctor's save — nothing stops them.
     guaranteedDeaths.forEach(id => {
       const entry = state.players.get(id);
       if(!entry) return;
-      if(id === state.night.savedId) return;
       finalDeaths.add(id);
     });
 
