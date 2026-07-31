@@ -320,6 +320,15 @@
     <button class="btn btn-primary" onclick="App.continueAfterEyesClosed()">Continue &rarr;</button>
   </div>
 
+  <!-- HOST: OCEAN TALK -->
+  <div class="screen" id="screen-host-ocean-talk">
+    <div class="eyebrow">Night <span id="ocean-talk-day"></span></div>
+    <h2 style="font-size:26px; margin:10px 0 16px;">اوشن's group is talking</h2>
+    <p class="hint">Give them a moment to talk quietly, then continue when they're ready.</p>
+    <div class="grow"></div>
+    <button class="btn btn-primary" id="ocean-talk-continue-btn" onclick="App.continueAfterOceanTalk()">Continue &rarr;</button>
+  </div>
+
   <!-- HOST: NIGHT RESULT -->
   <div class="screen" id="screen-host-night-result">
     <div class="eyebrow">Night <span id="night-result-day"></span> &middot; Result</div>
@@ -1362,7 +1371,11 @@
   // 'night-<key>' branch in handleNightAction/forceContinueNight, write a
   // start<Key>Step() that either calls advanceNight() immediately (no eligible
   // actor) or messages the actor and waits, then insert its key here.
-  const NIGHT_STEP_ORDER = ['eyes-closed', 'mafia', 'matador', 'doctor', 'constantine', 'detective', 'professional', 'ocean-recruit', 'ocean-talk'];
+  // Mafia-aligned roles (the kill decision and ماتادور's block) act together, in
+  // parallel, during one shared 'mafia-phase' step — nobody has to wait for
+  // پدر خوانده to decide before ماتادور can decide. Civilian roles stay strictly
+  // one-at-a-time, each getting their own sequential step.
+  const NIGHT_STEP_ORDER = ['eyes-closed', 'mafia-phase', 'doctor', 'constantine', 'detective', 'professional', 'ocean-recruit', 'ocean-talk'];
 
   function findAliveByRoleName(name){
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.roleName === name);
@@ -1372,7 +1385,7 @@
   }
 
   function startNight(){
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [] };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set() };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = state.day;
     showScreen('screen-host-night');
@@ -1384,7 +1397,7 @@
     state.nightStepIndex = index;
     const step = NIGHT_STEP_ORDER[index];
     state.gamePhase = 'night-' + step;
-    if(step === 'matador') startMatadorStep();
+    if(step === 'mafia-phase') startMafiaPhaseStep();
     else if(step === 'doctor') startDoctorStep();
     else if(step === 'constantine') startConstantineStep();
     else if(step === 'detective') startDetectiveStep();
@@ -1392,7 +1405,6 @@
     else if(step === 'ocean-recruit') startOceanRecruitStep();
     else if(step === 'ocean-talk') startOceanTalkStep();
     else if(step === 'eyes-closed') startEyesClosedStep();
-    else if(step === 'mafia') startMafiaStep();
   }
 
   function advanceNight(){
@@ -1413,16 +1425,6 @@
     sendToPlayer(actorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: promptRole, title, candidates, allowSkip: true });
   }
 
-  function startMatadorStep(){
-    const matadors = findAliveByRoleName(ROLE_NAME_MATADOR);
-    if(!matadors.length){ advanceNight(); return; }
-    const [matadorId, matadorEntry] = matadors[0];
-    const candidates = Array.from(state.players.entries())
-      .filter(([id, e]) => e.alive && e.role === 'villager' && id !== matadorId)
-      .map(([id, e]) => ({ id, name: e.name }));
-    if(!candidates.length){ advanceNight(); return; }
-    sendToPlayer(matadorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: 'Choose someone to block', candidates, allowSkip: true });
-  }
 
   function startDoctorStep(){
     startBlockableRoleStep(ROLE_NAME_DOCTOR, (doctorId) => {
@@ -1467,20 +1469,37 @@
 
   function startOceanTalkStep(){
     const oceanEntries = findAliveByRoleName(ROLE_NAME_OCEAN);
-    if(oceanEntries.length){
-      const [oceanId] = oceanEntries[0];
-      const teamIds = [oceanId].concat(Array.from(state.oceanTeam)).filter(id => {
-        const e = state.players.get(id);
-        return e && e.alive;
-      });
-      if(teamIds.length >= 2){
-        teamIds.forEach(id => {
-          sendToPlayer(state.players.get(id), { type: 'phase', phase: 'night-announcement', day: state.day, text: 'You may open your eyes and talk quietly with your group.' });
-        });
-      }
+    if(!oceanEntries.length){ advanceNight(); return; }
+    const oceanId = oceanEntries[0][0];
+
+    const teamIds = [oceanId];
+    state.oceanTeam.forEach(id => {
+      if(teamIds.indexOf(id) !== -1) return;
+      const e = state.players.get(id);
+      if(e && e.alive) teamIds.push(id);
+    });
+    if(teamIds.length < 2){ advanceNight(); return; }
+
+    // Doubles as the "you've joined" notice for anyone recruited moments ago —
+    // this step runs immediately after ocean-recruit, so it's their first message either way.
+    teamIds.forEach(id => {
+      const entry = state.players.get(id);
+      if(entry) sendToPlayer(entry, { type: 'phase', phase: 'night-announcement', day: state.day, text: 'You’ve been added to a secret group. You may open your eyes and talk quietly with them now.' });
+    });
+    $('ocean-talk-day').textContent = state.day;
+    showScreen('screen-host-ocean-talk');
+
+    // Guarantee real talk time regardless of how quickly the host taps through —
+    // the button is disabled for a few seconds before it can be used.
+    const btn = $('ocean-talk-continue-btn');
+    if(btn){
+      btn.disabled = true;
+      setTimeout(() => { btn.disabled = false; }, 4000);
     }
-    advanceNight();
   }
+  App.continueAfterOceanTalk = function(){
+    advanceNight();
+  };
 
   function startEyesClosedStep(){
     aliveEntries().forEach(([id, entry]) => {
@@ -1496,22 +1515,45 @@
     advanceNight();
   };
 
-  function startMafiaStep(){
+  // Mafia's kill/recruit decision and ماتادور's block are prompted at the same
+  // time and resolved independently — the phase only advances once every
+  // in-play mafia-aligned action has been decided (or the host force-continues).
+  function startMafiaPhaseStep(){
+    state.night.mafiaPending = new Set();
+
     const godfathers = findAliveByRoleName(ROLE_NAME_GODFATHER);
-    const deciders = godfathers.length ? godfathers : Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.role === 'mafia');
-    if(!deciders.length){ advanceNight(); return; }
+    const killDeciders = godfathers.length ? godfathers : Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.role === 'mafia');
+    if(killDeciders.length){
+      state.night.mafiaPending.add('kill');
+      const saulAlive = findAliveByRoleName(ROLE_NAME_SAUL).length > 0;
+      const mafiaHasDied = Array.from(state.players.values()).some(e => !e.alive && e.role === 'mafia');
+      const canRecruit = saulAlive && mafiaHasDied;
+      killDeciders.forEach(([id, entry]) => {
+        // Mafia can target their own teammates too — only the decider themselves is excluded.
+        const candidates = Array.from(state.players.entries())
+          .filter(([cid, e]) => e.alive && cid !== id)
+          .map(([cid, e]) => ({ id: cid, name: e.name }));
+        sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: 'Choose someone to shoot', candidates, allowSkip: false, canRecruit });
+      });
+    }
 
-    const saulAlive = findAliveByRoleName(ROLE_NAME_SAUL).length > 0;
-    const mafiaHasDied = Array.from(state.players.values()).some(e => !e.alive && e.role === 'mafia');
-    const canRecruit = saulAlive && mafiaHasDied;
+    const matadors = findAliveByRoleName(ROLE_NAME_MATADOR);
+    if(matadors.length){
+      const [matadorId, matadorEntry] = matadors[0];
+      const candidates = Array.from(state.players.entries())
+        .filter(([id, e]) => e.alive && e.role === 'villager' && id !== matadorId)
+        .map(([id, e]) => ({ id, name: e.name }));
+      if(candidates.length){
+        state.night.mafiaPending.add('matador');
+        sendToPlayer(matadorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: 'Choose someone to block', candidates, allowSkip: true });
+      }
+    }
 
-    const candidates = Array.from(state.players.entries())
-      .filter(([id, e]) => e.alive && e.role !== 'mafia')
-      .map(([id, e]) => ({ id, name: e.name }));
-    deciders.forEach(([id, entry]) => {
-      sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: 'Choose someone to shoot', candidates, allowSkip: false, canRecruit });
-    });
+    if(!state.night.mafiaPending.size){ advanceNight(); return; }
     showScreen('screen-host-night');
+  }
+  function checkMafiaPhaseComplete(){
+    if(state.night.mafiaPending.size === 0) advanceNight();
   }
 
   // Personal history for one player (Doctor/Detective/Professional/Matador/Constantine/Ocean).
@@ -1531,7 +1573,8 @@
   function handleNightAction(voterId, role, targetId, recruit){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
-    if(state.gamePhase !== 'night-' + role) return;
+    const isMafiaPhaseRole = (role === 'mafia' || role === 'matador');
+    if(state.gamePhase !== (isMafiaPhaseRole ? 'night-mafia-phase' : ('night-' + role))) return;
     const targetName = targetId && state.players.get(targetId) ? state.players.get(targetId).name : null;
 
     if(role === 'matador'){
@@ -1539,7 +1582,8 @@
       const text = 'Night ' + state.day + ': ' + (targetName ? ('Matador blocked ' + targetName + '.') : 'Matador did not block anyone.');
       logActivity(voter, targetName ? ('Night ' + state.day + ': You blocked ' + targetName + '.') : ('Night ' + state.day + ': You chose not to block anyone.'));
       logMafiaActivity(text);
-      advanceNight();
+      state.night.mafiaPending.delete('matador');
+      checkMafiaPhaseComplete();
     } else if(role === 'doctor'){
       state.night.savedId = targetId || null;
       if(targetId && targetId === voterId) state.doctorSelfSaveUsed = true;
@@ -1569,10 +1613,12 @@
       if(targetId){
         state.oceanTeam.add(targetId);
         const target = state.players.get(targetId);
-        // Notified the same way whether they're civilian or Mafia — the target never
-        // learns which one triggered اوشن's own risk of being announced dead by morning.
-        if(target) sendToPlayer(target, { type: 'phase', phase: 'night-announcement', day: state.day, text: 'You’ve been invited into a secret group. Watch for a chance to talk quietly with them at night.' });
-        if(target && target.role === 'mafia') state.night.extraDeathIds.push(voterId);
+        // The "you may talk now" announcement happens in the very next step
+        // (ocean-talk), not here — but the recruit's own activity record starts now.
+        if(target){
+          logActivity(target, 'Night ' + state.day + ': You were added to اوشن’s group.');
+          if(target.role === 'mafia') state.night.extraDeathIds.push(voterId);
+        }
         logActivity(voter, 'Night ' + state.day + ': You added ' + targetName + ' to your group.');
       } else {
         logActivity(voter, 'Night ' + state.day + ': You chose not to add anyone to your group.');
@@ -1582,12 +1628,13 @@
       if(state.night.mafiaTargetId || state.night.mafiaRecruitId) return; // another mafia member already decided
       if(recruit) state.night.mafiaRecruitId = targetId;
       else state.night.mafiaTargetId = targetId;
-      advanceNight(); // outcome (shot / recruited / failed) is logged once it resolves, in resolveNight()
+      state.night.mafiaPending.delete('kill');
+      checkMafiaPhaseComplete(); // outcome (shot / recruited / failed) is logged once it resolves, in resolveNight()
     }
   }
 
   App.forceContinueNight = function(){
-    if(state.gamePhase === 'night-matador') state.night.blockedId = null;
+    if(state.gamePhase === 'night-mafia-phase') state.night.mafiaPending.clear();
     else if(state.gamePhase === 'night-doctor') state.night.savedId = null;
     else if(state.gamePhase === 'night-constantine') state.night.revivedId = null;
     else if(state.gamePhase === 'night-professional') state.night.professionalTargetId = null;
@@ -1712,7 +1759,7 @@
     state.votesInquiry = new Map();
     state.inquiriesRemaining = 0;
     state.winner = null;
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set() };
     state.doctorSelfSaveUsed = false;
     state.mafiaActivityLog = [];
     state.oceanTeam = new Set();
@@ -1775,7 +1822,14 @@
         else if(msg.type === 'game-over'){ handleGameOver(msg); }
         else if(msg.type === 'night-result'){ handleNightResult(msg); }
         else if(msg.type === 'investigate-result'){ handleInvestigateResult(msg); }
-        else if(msg.type === 'activity-log'){ state.myActivityLog = msg.log || []; }
+        else if(msg.type === 'activity-log'){
+          state.myActivityLog = msg.log || [];
+          // Receiving any activity log at all (e.g. just-recruited by اوشن, or
+          // freshly converted to Mafia) means there's something to show — reveal
+          // the link even if their original role never granted it up front.
+          state.hasActivityLog = true;
+          document.querySelectorAll('.activity-link').forEach(el => { el.style.display = 'block'; });
+        }
         else if(msg.type === 'revived'){ handleRevived(msg); }
       }catch(err){}
     };
