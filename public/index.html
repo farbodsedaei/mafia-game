@@ -715,8 +715,8 @@
       votedProgress: '{n} از {total} رأی داده‌اند.',
       inquiryResultLabel: 'نتیجه استعلام', inquiryGranted: 'استعلام تأیید شد', noInquiryToday: 'امروز استعلامی نیست',
       notEnoughVotes: 'رأی کافی موافق نبود.',
-      inquiryDetail: '{mafiaOut} مافیا و {villagerOut} شهروند تا الان حذف شده‌اند. ({remaining} استعلام باقی‌مانده.)',
-      inquiryDetailPlayer: '{mafiaOut} مافیا و {villagerOut} شهروند تا الان حذف شده‌اند.',
+      inquiryDetail: '{mafiaOut} مافیا، {villagerOut} شهروند و {independentOut} زودیاک تا الان حذف شده‌اند. ({remaining} استعلام باقی‌مانده.)',
+      inquiryDetailPlayer: '{mafiaOut} مافیا، {villagerOut} شهروند و {independentOut} زودیاک تا الان حذف شده‌اند.',
       btnContinue: 'ادامه ←',
       firstVote: 'رأی‌گیری اول', finalVote: 'رأی‌گیری نهایی', votingInProgress: 'رأی‌گیری در حال انجام',
       btnCloseVoting: 'پایان رأی‌گیری', voteCount: '{n} رأی', dayVoteEyebrow: 'روز {day} · {round}',
@@ -876,8 +876,8 @@
       votedProgress: '{n} of {total} have voted.',
       inquiryResultLabel: 'Inquiry Result', inquiryGranted: 'Inquiry granted', noInquiryToday: 'No inquiry today',
       notEnoughVotes: 'Not enough votes were in favor.',
-      inquiryDetail: '{mafiaOut} Mafia and {villagerOut} civilian(s) eliminated so far. ({remaining} inquiries left.)',
-      inquiryDetailPlayer: '{mafiaOut} Mafia and {villagerOut} civilian(s) eliminated so far.',
+      inquiryDetail: '{mafiaOut} Mafia, {villagerOut} civilian(s), and {independentOut} زودیاک eliminated so far. ({remaining} inquiries left.)',
+      inquiryDetailPlayer: '{mafiaOut} Mafia, {villagerOut} civilian(s), and {independentOut} زودیاک eliminated so far.',
       btnContinue: 'Continue →',
       firstVote: 'First Vote', finalVote: 'Final Vote', votingInProgress: 'Voting in progress',
       btnCloseVoting: 'Close Voting', voteCount: '{n} vote(s)', dayVoteEyebrow: 'Day {day} · {round}',
@@ -1016,7 +1016,7 @@
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
     'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If the gun is fired at a civilian by mistake, any remaining guns are cancelled and won't be handed over again.",
-    'role-zodiac': "You're an independent role. Your goal is to get every Mafia member out of the game before Mafia eliminates all the civilians. Mafia can never target or shoot you at night — not even حرفه‌ای can hit you; the only way you can be removed is a day vote. As long as you're alive, Mafia can never win, even if civilians drop below Mafia's own count. Each night (every night or every other night, depending on the game's settings), after Mafia's turn and before the civilian roles act, you may target one person and shoot them."
+    'role-zodiac': "You're an independent role. Your goal is to get every Mafia member out of the game before Mafia eliminates all the civilians. Mafia, حرفه‌ای, and تفنگدار can all target you, but none of them can ever actually kill you — the only way you can be removed is a day vote. As long as you're alive, Mafia can never win, even if civilians drop below Mafia's own count. Each night (every night or every other night, depending on the game's settings), after Mafia's turn and before the civilian roles act, you may target one person and shoot them."
   };
 
   function t(key, vars){
@@ -1048,7 +1048,7 @@
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
     { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد.', shield: false, independent: false, builtin: false },
-    { id: 'role-zodiac', team: 'villager', name: 'زودیاک', description: 'شما یک نقش مستقل هستید. هدف شما این است که همه اعضای مافیا از بازی خارج شوند، پیش از آنکه مافیا همه شهروندان را از بین ببرد. مافیا نمی‌تواند شب‌ها شما را هدف بگیرد و شلیک کند — حتی حرفه‌ای هم نمی‌تواند شما را بزند؛ تنها راه حذف شما رأی‌گیری روز است. تا وقتی شما زنده‌اید، حتی اگر تعداد شهروندان از مافیا کمتر شود، مافیا برنده بازی نمی‌شود. هر شب (بسته به تنظیمات بازی، هر شب یا یک شب در میان)، بعد از نوبت مافیا و پیش از نوبت نقش‌های شهروندی، می‌توانید یک نفر را هدف بگیرید و به او شلیک کنید.', shield: false, independent: true, builtin: false }
+    { id: 'role-zodiac', team: 'villager', name: 'زودیاک', description: 'شما یک نقش مستقل هستید. هدف شما این است که همه اعضای مافیا از بازی خارج شوند، پیش از آنکه مافیا همه شهروندان را از بین ببرد. مافیا، حرفه‌ای و تفنگدار می‌توانند شما را هدف بگیرند، اما هیچ‌کدام هرگز نمی‌توانند واقعاً شما را بکشند — تنها راه حذف شما رأی‌گیری روز است. تا وقتی شما زنده‌اید، حتی اگر تعداد شهروندان از مافیا کمتر شود، مافیا برنده بازی نمی‌شود. هر شب (بسته به تنظیمات بازی، هر شب یا یک شب در میان)، بعد از نوبت مافیا و پیش از نوبت نقش‌های شهروندی، می‌توانید یک نفر را هدف بگیرید و به او شلیک کنید.', shield: false, independent: true, builtin: false }
   ];
 
   const state = {
@@ -1651,13 +1651,17 @@
 
     let outcome = target ? 'no-effect' : 'not-fired';
     if(target && !neutralized){
-      if(target.role !== 'mafia') state.gunsCancelled = true; // wrong target — no more handovers, ever
-      if(target.roleShield){
-        target.roleShield = false;
-      } else if(target.alive){
-        target.alive = false;
-        outcome = 'died';
-        sendToPlayer(target, { type: 'eliminated' });
+      if(target.role !== 'mafia') state.gunsCancelled = true; // wrong target (civilian or زودیاک) — no more handovers, ever
+      // زودیاک never actually dies to the gun either — same "nothing happened",
+      // no shield consumed, indistinguishable from any other no-effect case.
+      if(!target.independent){
+        if(target.roleShield){
+          target.roleShield = false;
+        } else if(target.alive){
+          target.alive = false;
+          outcome = 'died';
+          sendToPlayer(target, { type: 'eliminated' });
+        }
       }
     }
 
@@ -1729,10 +1733,11 @@
       state.inquiriesRemaining -= 1;
       const eliminated = Array.from(state.players.values()).filter(e => !e.alive);
       const mafiaOut = eliminated.filter(e => e.role === 'mafia').length;
-      const villagerOut = eliminated.filter(e => e.role === 'villager').length;
-      aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: true, mafiaOut, villagerOut }));
+      const villagerOut = eliminated.filter(e => e.role === 'villager' && !e.independent).length;
+      const independentOut = eliminated.filter(e => e.independent).length;
+      aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: true, mafiaOut, villagerOut, independentOut }));
       $('inquiry-result-title').textContent = t('inquiryGranted');
-      $('inquiry-result-detail').textContent = t('inquiryDetail', { mafiaOut, villagerOut, remaining: state.inquiriesRemaining });
+      $('inquiry-result-detail').textContent = t('inquiryDetail', { mafiaOut, villagerOut, independentOut, remaining: state.inquiriesRemaining });
     } else {
       aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: false }));
       $('inquiry-result-title').textContent = t('noInquiryToday');
@@ -2107,17 +2112,18 @@
         .map(([id, e]) => ({ id, name: e.name }));
     }, t('chooseToInvestigate'), null, pending);
 
-    // حرفه‌ای and تفنگدار's gun are lethal, so — like Mafia — independent roles
-    // (زودیاک) are excluded from their candidate lists too: unshootable by anyone.
+    // زودیاک stays targetable/selectable by حرفه‌ای and تفنگدار too — it just never
+    // actually dies (see resolveNight / resolveDayGunAction).
     promptCivilianRole('professional', ROLE_NAME_PROFESSIONAL, (proId) => {
       return Array.from(state.players.entries())
-        .filter(([id, e]) => e.alive && id !== proId && !e.independent)
+        .filter(([id, e]) => e.alive && id !== proId)
         .map(([id, e]) => ({ id, name: e.name }));
     }, t('chooseToShoot'), null, pending);
 
+    // تفنگدار may also hand the gun to زودیاک itself — nothing stops that handover.
     promptCivilianRole('gunner', ROLE_NAME_GUNNER, (gunnerId) => {
       return Array.from(state.players.entries())
-        .filter(([id, e]) => e.alive && id !== gunnerId && !e.independent)
+        .filter(([id, e]) => e.alive && id !== gunnerId)
         .map(([id, e]) => ({ id, name: e.name }));
     }, t('chooseToHandGun'), () => state.gunsRemaining > 0 && !state.gunsCancelled && !state.pendingGun, pending);
 
@@ -2197,9 +2203,12 @@
       const canRecruit = saulAlive && mafiaHasDied;
       killDeciders.forEach(([id, entry]) => {
         // Mafia can target their own teammates too — only the decider themselves
-        // and independent roles (زودیاک is unshootable, day-vote only) are excluded.
+        // زودیاک stays a selectable target here even though it can never actually
+        // die to this shot (see resolveNight) — Mafia can still choose to "shoot"
+        // it, they just won't get a kill, and won't be told why (shield / Doctor's
+        // save / زودیاک are all indistinguishable from the group's perspective).
         const candidates = Array.from(state.players.entries())
-          .filter(([cid, e]) => e.alive && cid !== id && !e.independent)
+          .filter(([cid, e]) => e.alive && cid !== id)
           .map(([cid, e]) => ({ id: cid, name: e.name }));
         sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: t('chooseToShoot'), candidates, allowSkip: false, canRecruit });
       });
@@ -2395,11 +2404,16 @@
     // اوشن's fatal mistake: recruiting a Mafia member into the group.
     state.night.extraDeathIds.forEach(id => rawDeaths.add(id));
 
-    // Shields absorb one death each (consumed), then a Doctor's save clears anyone left.
+    // Shields absorb one death each (consumed), then a Doctor's save clears anyone
+    // left. زودیاک (or any independent role) never actually dies here regardless —
+    // it just stays alive, indistinguishable from a shield absorbing the hit or a
+    // Doctor's save from the group's perspective (see gunHitNoEffect/resolveNight
+    // callers for the same "don't reveal why" treatment on تفنگدار's gun).
     const finalDeaths = new Set();
     rawDeaths.forEach(id => {
       const entry = state.players.get(id);
       if(!entry) return;
+      if(entry.independent) return;
       if(entry.roleShield){ entry.roleShield = false; return; }
       if(id === state.night.savedId) return;
       finalDeaths.add(id);
@@ -2663,7 +2677,7 @@
   function handleInquiryResult(msg){
     if(msg.granted){
       $('inquiry-result-title-player').textContent = t('inquiryGranted');
-      $('inquiry-result-detail-player').textContent = t('inquiryDetailPlayer', { mafiaOut: msg.mafiaOut, villagerOut: msg.villagerOut });
+      $('inquiry-result-detail-player').textContent = t('inquiryDetailPlayer', { mafiaOut: msg.mafiaOut, villagerOut: msg.villagerOut, independentOut: msg.independentOut });
     } else {
       $('inquiry-result-title-player').textContent = t('noInquiryToday');
       $('inquiry-result-detail-player').textContent = t('notEnoughVotes');
