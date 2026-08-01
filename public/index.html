@@ -189,6 +189,10 @@
       <div class="hint" data-i18n="hintOceanSlots"></div>
     </div>
     <div class="field">
+      <label data-i18n="labelZodiacFrequency"></label>
+      <label class="shield-toggle"><input type="checkbox" id="zodiac-every-night-toggle" checked onchange="App.setZodiacEveryNight(this.checked)"> <span data-i18n="zodiacEveryNightToggle"></span></label>
+    </div>
+    <div class="field">
       <label data-i18n="labelRolesInPlay"></label>
       <div class="hint" dir="rtl" style="margin-bottom:10px; text-align:right;" data-i18n="hintRolesInPlay"></div>
       <div id="role-checklist" class="stack"></div>
@@ -666,6 +670,7 @@
   const ROLE_NAME_SAUL = 'ساول گودمن';
   const ROLE_NAME_OCEAN = 'اوشن';
   const ROLE_NAME_GUNNER = 'تفنگدار';
+  const ROLE_NAME_ZODIAC = 'زودیاک';
   const ROLE_NAME_PLAIN_VILLAGER = 'شهروند ساده';
   const GUNNER_MAX_GUNS = 2; // whole-game limit on how many times تفنگدار may hand over the gun
 
@@ -686,6 +691,7 @@
       hintInquiries: 'هر صبح، گروه می‌تواند یکی از آن‌ها را خرج کند تا بفهمد تا الان چند مافیا و چند شهروند حذف شده‌اند.',
       labelOceanSlots: 'اندازه گروه اوشن',
       hintOceanSlots: 'اوشن، اگر آن نقش در بازی باشد، چند نفر می‌تواند به گروه خود اضافه کند.',
+      labelZodiacFrequency: 'شلیک زودیاک', zodiacEveryNightToggle: 'زودیاک، اگر آن نقش در بازی باشد، هر شب شلیک کند (در غیر این صورت یک شب در میان).',
       labelRolesInPlay: 'نقش‌های بازی',
       hintRolesInPlay: 'هر نقش ویژه‌ای که تیک بزنید، دقیقاً به یک بازیکن اختصاص داده می‌شود. بقیهٔ آن گروه، نقش پیش‌فرض را می‌گیرند.',
       linkAdjustShields: 'تنظیم شیلدها', btnCreateLobby: 'ایجاد اتاق', btnBack: 'بازگشت',
@@ -846,6 +852,7 @@
       hintInquiries: 'Each morning, the group can spend one to learn how many Mafia and civilians have been eliminated so far.',
       labelOceanSlots: "اوشن's group size",
       hintOceanSlots: 'How many members اوشن can recruit into their group, if that role is in play.',
+      labelZodiacFrequency: "زودیاک's Shooting", zodiacEveryNightToggle: 'زودیاک, if that role is in play, shoots every night (otherwise, every other night).',
       labelRolesInPlay: 'Roles in play',
       hintRolesInPlay: 'Each checked special role goes to exactly one player. Everyone else on that side gets the default role.',
       linkAdjustShields: 'Adjust shields', btnCreateLobby: 'Create Lobby', btnBack: 'Back',
@@ -1008,7 +1015,8 @@
     'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish.',
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
-    'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If the gun is fired at a civilian by mistake, any remaining guns are cancelled and won't be handed over again."
+    'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If the gun is fired at a civilian by mistake, any remaining guns are cancelled and won't be handed over again.",
+    'role-zodiac': "You're an independent role. Your goal is to get every Mafia member out of the game before Mafia eliminates all the civilians. Mafia can never target or shoot you at night — not even حرفه‌ای can hit you; the only way you can be removed is a day vote. As long as you're alive, Mafia can never win, even if civilians drop below Mafia's own count. Each night (every night or every other night, depending on the game's settings), after Mafia's turn and before the civilian roles act, you may target one person and shoot them."
   };
 
   function t(key, vars){
@@ -1039,7 +1047,8 @@
     { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
-    { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد.', shield: false, independent: false, builtin: false }
+    { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد.', shield: false, independent: false, builtin: false },
+    { id: 'role-zodiac', team: 'villager', name: 'زودیاک', description: 'شما یک نقش مستقل هستید. هدف شما این است که همه اعضای مافیا از بازی خارج شوند، پیش از آنکه مافیا همه شهروندان را از بین ببرد. مافیا نمی‌تواند شب‌ها شما را هدف بگیرد و شلیک کند — حتی حرفه‌ای هم نمی‌تواند شما را بزند؛ تنها راه حذف شما رأی‌گیری روز است. تا وقتی شما زنده‌اید، حتی اگر تعداد شهروندان از مافیا کمتر شود، مافیا برنده بازی نمی‌شود. هر شب (بسته به تنظیمات بازی، هر شب یا یک شب در میان)، بعد از نوبت مافیا و پیش از نوبت نقش‌های شهروندی، می‌توانید یک نفر را هدف بگیرید و به او شلیک کنید.', shield: false, independent: true, builtin: false }
   ];
 
   const state = {
@@ -1051,6 +1060,7 @@
     numMafia: 2,
     numInquiries: 1,
     numOceanSlots: 2,      // how many members اوشن can recruit into their group
+    zodiacShootsEveryNight: true, // false = زودیاک only shoots on odd nights (Night 1, 3, 5…)
     room: null,
     players: new Map(),   // playerId -> {name, connected, pc, dc, role}
     ws: null,
@@ -1071,7 +1081,7 @@
     inquiriesRemaining: 0,  // (host) inquiries left to spend this game
     votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
-    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set(), civilianPending: new Set() }, // (host) this night's decisions
+    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set() }, // (host) this night's decisions
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
     mafiaActivityLog: [],   // (host) shared night-by-night log of mafia shots + blocks, sent to every mafia member
@@ -1372,12 +1382,17 @@
     state.numOceanSlots = Math.max(1, Math.min(10, state.numOceanSlots + delta));
     renderSetupValues();
   };
+  App.setZodiacEveryNight = function(checked){
+    state.zodiacShootsEveryNight = !!checked;
+  };
   function renderSetupValues(){
     $('val-players').textContent = state.numPlayers;
     $('val-mafia').textContent = state.numMafia;
     $('mafia-hint').textContent = t('villagersWillBe', { n: state.numPlayers - state.numMafia });
     $('val-inquiries').textContent = state.numInquiries;
     $('val-ocean-slots').textContent = state.numOceanSlots;
+    const zodiacToggle = $('zodiac-every-night-toggle');
+    if(zodiacToggle) zodiacToggle.checked = state.zodiacShootsEveryNight;
     renderRoleSummary();
   }
 
@@ -1519,6 +1534,7 @@
         entry.roleName = roleDef.name;
         entry.roleDesc = roleDef.description;
         entry.roleShield = !!roleDef.shield;
+        entry.independent = !!roleDef.independent;
         try{
           entry.dc.send(JSON.stringify({ type: 'role', role: roleDef.team, roleId: roleDef.id, name: roleDef.name, description: roleDef.description, shield: !!roleDef.shield }));
         }catch(e){}
@@ -1915,9 +1931,15 @@
   function checkWinner(){
     const alive = Array.from(state.players.values()).filter(e => e.alive);
     const aliveMafia = alive.filter(e => e.role === 'mafia').length;
-    const aliveVillagers = alive.filter(e => e.role === 'villager').length;
+    const aliveVillagers = alive.filter(e => e.role === 'villager' && !e.independent).length;
+    // زودیاک (or any independent role) blocks the usual "Mafia outnumbers the
+    // village" win outright — Mafia can only win once every independent role
+    // is gone too, and the only way to remove one is a day vote (see
+    // startMafiaPhaseStep/promptCivilianRole, which exclude independents from
+    // every night-kill candidate list).
+    const independentAlive = alive.some(e => e.independent);
     if(aliveMafia === 0) return 'village';
-    if(aliveVillagers <= aliveMafia) return 'mafia';
+    if(!independentAlive && aliveVillagers <= aliveMafia) return 'mafia';
     return null;
   }
 
@@ -1955,7 +1977,7 @@
 
   App.showGameOver = function(){
     state.gamePhase = 'game-over';
-    const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role }));
+    const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role, independent: !!e.independent }));
     for(const entry of state.players.values()){
       sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster });
     }
@@ -1968,7 +1990,7 @@
       row.className = 'slot' + (entry.alive ? ' connected' : '');
       row.innerHTML =
         '<div class="name">' + escapeHtml(entry.name) + (entry.alive ? '' : ' <span class="hint" style="font-size:11px;">' + escapeHtml(t('outLabel')) + '</span>') + '</div>' +
-        '<span class="tag ' + entry.role + '" style="flex-shrink:0;">' + escapeHtml(entry.roleName || entry.role) + '</span>';
+        '<span class="tag ' + (entry.independent ? 'independent' : entry.role) + '" style="flex-shrink:0;">' + escapeHtml(entry.roleName || entry.role) + '</span>';
       box.appendChild(row);
     });
     showScreen('screen-host-game-over');
@@ -1976,15 +1998,17 @@
 
   /* ---------------- Night phase ---------------- */
   // Ordered list of night phases. Mafia-aligned roles (the kill decision and
-  // ماتادور's block) act together in one shared 'mafia-phase' step. Once that's
-  // fully resolved — so ماتادور's block target is already known — every civilian
-  // action role (دکتر, کنستانتین, کاراگاه, حرفه‌ای, تفنگدار, اوشن's recruit choice)
-  // is prompted at the same time too, in one shared 'civilian-phase' step.
-  // Nobody waits on anyone else to decide before making their own choice; this
-  // is what actually saves real time at the table, not sequential one-at-a-time
-  // turns. اوشن's talk stays its own step afterward, since it needs everyone's
-  // civilian-phase decisions (including who اوشن just recruited) finalized first.
-  const NIGHT_STEP_ORDER = ['eyes-closed', 'mafia-phase', 'civilian-phase', 'ocean-talk'];
+  // ماتادور's block) act together in one shared 'mafia-phase' step. زودیاک acts
+  // alone, right after — its own 'zodiac-phase' step — since it's independent,
+  // not a civilian role, and must go after Mafia but before the civilians per
+  // its design. Once that's all resolved (so ماتادور's block target is known),
+  // every civilian action role (دکتر, کنستانتین, کاراگاه, حرفه‌ای, تفنگدار, اوشن's
+  // recruit choice) is prompted at the same time too, in one shared
+  // 'civilian-phase' step. Nobody waits on anyone else to decide before making
+  // their own choice; this is what actually saves real time at the table, not
+  // sequential one-at-a-time turns. اوشن's talk stays its own step afterward,
+  // since it needs everyone's civilian-phase decisions finalized first.
+  const NIGHT_STEP_ORDER = ['eyes-closed', 'mafia-phase', 'zodiac-phase', 'civilian-phase', 'ocean-talk'];
   const CIVILIAN_PHASE_ROLES = ['doctor', 'constantine', 'detective', 'professional', 'gunner', 'ocean-recruit'];
 
   function findAliveByRoleName(name){
@@ -1995,7 +2019,7 @@
   }
 
   function startNight(){
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set(), civilianPending: new Set() };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set() };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night');
@@ -2008,6 +2032,7 @@
     const step = NIGHT_STEP_ORDER[index];
     state.gamePhase = 'night-' + step;
     if(step === 'mafia-phase') startMafiaPhaseStep();
+    else if(step === 'zodiac-phase') startZodiacPhaseStep();
     else if(step === 'civilian-phase') startCivilianPhaseStep();
     else if(step === 'ocean-talk') startOceanTalkStep();
     else if(step === 'eyes-closed') startEyesClosedStep();
@@ -2017,12 +2042,35 @@
     runNightStep(state.nightStepIndex + 1);
   }
 
-  // Sends one civilian role's prompt — but only if they're alive, eligible (per
-  // an optional extra check like تفنگدار's remaining-guns count), and actually
-  // have someone to act on. Adds them to civilianPending so the phase knows to
-  // wait for their answer; a blocked actor gets a "you were blocked" notice
-  // instead and is never added, since there's nothing left to wait for from them.
-  function promptCivilianRole(key, roleName, buildCandidates, title, eligible){
+  // زودیاک acts alone, right after Mafia and before the civilian roles. Per the
+  // game's settings it either shoots every night or only every other night
+  // (Night 1, 3, 5…) — see the "زودیاک's Shooting" toggle in host setup. Like
+  // any other blockable role, ماتادور can still shut it down for the night.
+  function startZodiacPhaseStep(){
+    state.night.zodiacPending = new Set();
+    const shootsTonight = state.zodiacShootsEveryNight || (state.day % 2 === 1);
+    if(shootsTonight){
+      promptCivilianRole('zodiac', ROLE_NAME_ZODIAC, (zodiacId) => {
+        return Array.from(state.players.entries())
+          .filter(([id, e]) => e.alive && id !== zodiacId)
+          .map(([id, e]) => ({ id, name: e.name }));
+      }, t('chooseToShoot'), null, state.night.zodiacPending);
+    }
+    if(!state.night.zodiacPending.size){ advanceNight(); return; }
+    showScreen('screen-host-night');
+  }
+  function checkZodiacPhaseComplete(){
+    if(state.night.zodiacPending.size === 0) advanceNight();
+  }
+
+  // Sends one role's prompt into a given pending Set — but only if they're
+  // alive, eligible (per an optional extra check like تفنگدار's remaining-guns
+  // count), and actually have someone to act on. Adds them to pendingSet so
+  // the phase knows to wait for their answer; a blocked actor gets a "you were
+  // blocked" notice instead and is never added, since there's nothing left to
+  // wait for from them. Shared by both the civilian-phase (civilianPending)
+  // and زودیاک's solo zodiac-phase (zodiacPending).
+  function promptCivilianRole(key, roleName, buildCandidates, title, eligible, pendingSet){
     const holders = findAliveByRoleName(roleName);
     if(!holders.length) return;
     const [actorId, actorEntry] = holders[0];
@@ -2033,48 +2081,51 @@
     }
     const candidates = buildCandidates(actorId);
     if(!candidates.length) return;
-    state.night.civilianPending.add(key);
+    pendingSet.add(key);
     sendToPlayer(actorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: key, title, candidates, allowSkip: true });
   }
 
   function startCivilianPhaseStep(){
     state.night.civilianPending = new Set();
+    const pending = state.night.civilianPending;
 
     promptCivilianRole('doctor', ROLE_NAME_DOCTOR, (doctorId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && (id !== doctorId || !state.doctorSelfSaveUsed))
         .map(([id, e]) => ({ id, name: e.name }));
-    }, t('chooseToSave'));
+    }, t('chooseToSave'), null, pending);
 
     promptCivilianRole('constantine', ROLE_NAME_CONSTANTINE, () => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => !e.alive)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, t('chooseToRevive'));
+    }, t('chooseToRevive'), null, pending);
 
     promptCivilianRole('detective', ROLE_NAME_DETECTIVE, (detectiveId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== detectiveId)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, t('chooseToInvestigate'));
+    }, t('chooseToInvestigate'), null, pending);
 
+    // حرفه‌ای and تفنگدار's gun are lethal, so — like Mafia — independent roles
+    // (زودیاک) are excluded from their candidate lists too: unshootable by anyone.
     promptCivilianRole('professional', ROLE_NAME_PROFESSIONAL, (proId) => {
       return Array.from(state.players.entries())
-        .filter(([id, e]) => e.alive && id !== proId)
+        .filter(([id, e]) => e.alive && id !== proId && !e.independent)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, t('chooseToShoot'));
+    }, t('chooseToShoot'), null, pending);
 
     promptCivilianRole('gunner', ROLE_NAME_GUNNER, (gunnerId) => {
       return Array.from(state.players.entries())
-        .filter(([id, e]) => e.alive && id !== gunnerId)
+        .filter(([id, e]) => e.alive && id !== gunnerId && !e.independent)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, t('chooseToHandGun'), () => state.gunsRemaining > 0 && !state.gunsCancelled && !state.pendingGun);
+    }, t('chooseToHandGun'), () => state.gunsRemaining > 0 && !state.gunsCancelled && !state.pendingGun, pending);
 
     promptCivilianRole('ocean-recruit', ROLE_NAME_OCEAN, (oceanId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== oceanId && !state.oceanTeam.has(id))
         .map(([id, e]) => ({ id, name: e.name }));
-    }, t('chooseToAddGroup'), () => state.oceanTeam.size < state.numOceanSlots);
+    }, t('chooseToAddGroup'), () => state.oceanTeam.size < state.numOceanSlots, pending);
 
     if(!state.night.civilianPending.size){ advanceNight(); return; }
     showScreen('screen-host-night');
@@ -2145,9 +2196,10 @@
       const mafiaHasDied = Array.from(state.players.values()).some(e => !e.alive && e.role === 'mafia');
       const canRecruit = saulAlive && mafiaHasDied;
       killDeciders.forEach(([id, entry]) => {
-        // Mafia can target their own teammates too — only the decider themselves is excluded.
+        // Mafia can target their own teammates too — only the decider themselves
+        // and independent roles (زودیاک is unshootable, day-vote only) are excluded.
         const candidates = Array.from(state.players.entries())
-          .filter(([cid, e]) => e.alive && cid !== id)
+          .filter(([cid, e]) => e.alive && cid !== id && !e.independent)
           .map(([cid, e]) => ({ id: cid, name: e.name }));
         sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: t('chooseToShoot'), candidates, allowSkip: false, canRecruit });
       });
@@ -2191,7 +2243,10 @@
     if(!voter || !voter.alive) return;
     const isMafiaPhaseRole = (role === 'mafia' || role === 'matador');
     const isCivilianPhaseRole = CIVILIAN_PHASE_ROLES.indexOf(role) !== -1;
-    const expectedPhase = isMafiaPhaseRole ? 'night-mafia-phase' : (isCivilianPhaseRole ? 'night-civilian-phase' : ('night-' + role));
+    const expectedPhase = isMafiaPhaseRole ? 'night-mafia-phase'
+      : isCivilianPhaseRole ? 'night-civilian-phase'
+      : role === 'zodiac' ? 'night-zodiac-phase'
+      : ('night-' + role);
     if(state.gamePhase !== expectedPhase) return;
     const targetName = targetId && state.players.get(targetId) ? state.players.get(targetId).name : null;
 
@@ -2261,6 +2316,11 @@
       }
       state.night.civilianPending.delete('ocean-recruit');
       checkCivilianPhaseComplete();
+    } else if(role === 'zodiac'){
+      state.night.zodiacTargetId = targetId || null;
+      logActivity(voter, prefix + (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
+      state.night.zodiacPending.delete('zodiac');
+      checkZodiacPhaseComplete();
     } else if(role === 'mafia'){
       if(state.night.mafiaTargetId || state.night.mafiaRecruitId) return; // another mafia member already decided
       if(recruit) state.night.mafiaRecruitId = targetId;
@@ -2272,6 +2332,7 @@
 
   App.forceContinueNight = function(){
     if(state.gamePhase === 'night-mafia-phase') state.night.mafiaPending.clear();
+    else if(state.gamePhase === 'night-zodiac-phase') state.night.zodiacPending.clear();
     else if(state.gamePhase === 'night-civilian-phase') state.night.civilianPending.clear();
     advanceNight();
   };
@@ -2325,6 +2386,11 @@
       rawDeaths.add(state.night.mafiaTargetId);
       logMafiaActivity(t('nightLogPrefix', { day: state.day }) + (target ? t('actMafiaShot', { name: target.name }) : t('actMafiaShotNoOne')));
     }
+
+    // زودیاک's shot — a plain kill attempt like Mafia's, no backfire mechanic.
+    // Its target list already excludes independent roles, but since زودیاک is
+    // the only one so far it can never target itself anyway.
+    if(state.night.zodiacTargetId) rawDeaths.add(state.night.zodiacTargetId);
 
     // اوشن's fatal mistake: recruiting a Mafia member into the group.
     state.night.extraDeathIds.forEach(id => rawDeaths.add(id));
@@ -2406,7 +2472,7 @@
     state.votesInquiry = new Map();
     state.inquiriesRemaining = 0;
     state.winner = null;
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, extraDeathIds: [], mafiaPending: new Set(), civilianPending: new Set() };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set() };
     state.doctorSelfSaveUsed = false;
     state.mafiaActivityLog = [];
     state.oceanTeam = new Set();
@@ -2460,7 +2526,7 @@
         if(msg.type === 'role'){
           state.myRole = msg;
           state.hasActivityLog = msg.role === 'mafia' ||
-            [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN, ROLE_NAME_GUNNER].includes(msg.name);
+            [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN, ROLE_NAME_GUNNER, ROLE_NAME_ZODIAC].includes(msg.name);
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = state.hasActivityLog ? 'block' : 'none'; });
           renderRole(msg);
           showScreen('screen-player-role');
@@ -2614,7 +2680,7 @@
       row.className = 'slot';
       row.innerHTML =
         '<div class="name">' + escapeHtml(p.name) + '</div>' +
-        '<span class="tag ' + p.team + '" style="flex-shrink:0;">' + escapeHtml(p.roleName || p.team) + '</span>';
+        '<span class="tag ' + (p.independent ? 'independent' : p.team) + '" style="flex-shrink:0;">' + escapeHtml(p.roleName || p.team) + '</span>';
       box.appendChild(row);
     });
     showScreen('screen-player-game-over');
@@ -2798,7 +2864,7 @@
         row.className = 'debug-row';
         row.innerHTML =
           '<strong>' + escapeHtml(entry.name || '—') + '</strong> — ' + escapeHtml(entry.roleName || entry.role || '—') +
-          ' (' + escapeHtml(entry.role === 'mafia' ? t('tagMafia') : t('tagVillage')) + ') · ' +
+          ' (' + escapeHtml(entry.independent ? t('tagIndependent') : (entry.role === 'mafia' ? t('tagMafia') : t('tagVillage'))) + ') · ' +
           (entry.alive ? escapeHtml(t('debugAlive')) : escapeHtml(t('debugDead'))) + ' · ' +
           (entry.roleShield ? escapeHtml(t('debugShieldOn')) : escapeHtml(t('debugShieldOff')));
         rolesBox.appendChild(row);
