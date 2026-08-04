@@ -115,7 +115,14 @@ wss.on('connection', (ws) => {
     if (msg.type === 'join-room') {
       const room = rooms.get(msg.room);
       if (!room) { send(ws, { type: 'room-not-found' }); return; }
-      const playerId = crypto.randomBytes(4).toString('hex');
+      // A rejoining player sends back the token it was given the first time
+      // (persisted client-side), so it can reclaim its same seat instead of
+      // looking like a brand-new joiner — this is what makes reconnecting
+      // after a phone screen lock / dropped connection actually work.
+      const token = typeof msg.token === 'string' && msg.token.length > 0 && msg.token.length <= 64 ? msg.token : null;
+      const playerId = token || crypto.randomBytes(4).toString('hex');
+      const prior = room.players.get(playerId);
+      if (prior && prior !== ws) { try { prior.close(); } catch (e) {} }
       room.players.set(playerId, ws);
       ws._room = msg.room; ws._role = 'player'; ws._playerId = playerId;
       send(ws, { type: 'joined', room: msg.room, playerId });
@@ -144,8 +151,14 @@ wss.on('connection', (ws) => {
       for (const p of room.players.values()) send(p, { type: 'host-left' });
       rooms.delete(ws._room);
     } else if (ws._role === 'player') {
-      room.players.delete(ws._playerId);
-      send(room.host, { type: 'player-left', playerId: ws._playerId });
+      // Only evict if this socket is still the live one for that player id —
+      // if they already reconnected (a newer socket claimed the same id
+      // before this stale one's close event arrived), leave the new mapping
+      // alone and don't tell the host they left.
+      if (room.players.get(ws._playerId) === ws) {
+        room.players.delete(ws._playerId);
+        send(room.host, { type: 'player-left', playerId: ws._playerId });
+      }
     }
   });
 });

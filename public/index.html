@@ -414,6 +414,15 @@
     </div>
   </div>
 
+  <!-- PLAYER RECONNECTING -->
+  <div class="screen" id="screen-player-reconnecting">
+    <div class="grow center">
+      <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
+      <h3 style="font-size:20px; margin-bottom:8px;" data-i18n="reconnectingTitle"></h3>
+      <p class="hint" data-i18n="reconnectingHint"></p>
+    </div>
+  </div>
+
   <!-- PLAYER NAME -->
   <div class="screen" id="screen-player-name">
     <div class="eyebrow" data-i18n="connectedLabel"></div>
@@ -702,7 +711,7 @@
       lobbyTitle: 'بازیکنان خود را دعوت کنید', labelRoomCode: 'کد اتاق', generatingLink: 'در حال ساخت لینک…',
       btnCopy: 'کپی', btnShareInvite: 'اشتراک‌گذاری لینک دعوت', btnAssignRoles: 'تخصیص نقش‌ها',
       statusConnecting: 'در حال اتصال…', statusWaitingForPlayer: 'منتظر پیوستن بازیکن با لینک…',
-      toastPlayerJoined: '{name} به بازی پیوست.',
+      toastPlayerJoined: '{name} به بازی پیوست.', toastPlayerReconnected: '{name} دوباره وصل شد.',
       rolesAssignedEyebrow: 'نقش‌ها تخصیص یافت', rolesDealtTitle: 'نقش‌ها پخش شدند',
       rolesDealtHint: 'نقش‌ها به‌صورت خصوصی به هر گوشی ارسال شد — از جمله گوشی شما اگر شما هم بازی می‌کنید. در حال حاضر، تا وقتی بازی در حال ساخته‌شدن است، این نقش‌ها پایین همین صفحه هم به شما نشان داده می‌شوند.',
       roleSentPrivately: 'نقش به‌صورت خصوصی ارسال شد',
@@ -740,7 +749,7 @@
       nightLabel: 'شب {n}', nightResultLabel: 'شب {n} · نتیجه',
       morningReadyTitle: 'همه تصمیم خود را گرفتند', morningReadyHint: 'وقتی آماده بودید، نتیجه شب را برای همه اعلام کنید.',
       btnAnnounceMorning: 'اعلام صبح ←',
-      gameOver: 'پایان بازی', civiliansWin: 'شهروندان بردند!', mafiaWins: 'مافیا برد!',
+      gameOver: 'پایان بازی', civiliansWin: 'شهروندان بردند!', mafiaWins: 'مافیا برد!', zodiacWins: 'زودیاک برد!',
       rolesRevealed: 'حالا که بازی تمام شد، نقش‌ها برای همه نمایش داده می‌شود.',
       btnStartNewGame: 'شروع بازی جدید', outLabel: '(خارج)',
       playerLabel: 'بازیکن', joinSessionTitle: 'به بازی بپیوندید', btnJoinGame: 'پیوستن به بازی',
@@ -749,6 +758,7 @@
       joiningRoom: 'در حال پیوستن به اتاق {code}…', contactingHost: 'در حال تماس با میزبان.',
       almostThere: 'تقریباً رسیدیم…', finalizingConnection: 'در حال نهایی‌کردن اتصال مستقیم.',
       connectedLabel: 'متصل شد', whatsYourName: 'اسم شما چیست؟', shownToHostOnly: 'این فقط به میزبان نشان داده می‌شود',
+      reconnectingTitle: 'در حال اتصال دوباره…', reconnectingHint: 'اتصال شما قطع شده بود — در حال وصل‌شدن دوباره به بازی هستیم.',
       namePlaceholder: 'مثلاً سارا',
       youreIn: '{name}، شما وارد شدید.', waitingForRoles: 'منتظر تخصیص نقش‌ها توسط میزبان…',
       yourRoleKeepSecret: 'نقش شما · مخفی نگه دارید', tapToReveal: 'برای نمایش لمس کنید', caseFile: 'پرونده',
@@ -833,6 +843,7 @@
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
       debugNoActivity: 'هنوز فعالیتی ثبت نشده.', debugAlive: 'زنده', debugDead: 'مرده',
       debugShieldOn: 'دارای شیلد', debugShieldOff: 'بدون شیلد', debugMafiaSharedLog: 'گزارش مشترک مافیا',
+      debugConnected: 'متصل', debugDisconnected: 'قطع شده',
       debugPhaseLabel: 'فاز', debugWinnerLabel: 'برنده', debugGunsRemainingLabel: 'اسلحه‌های باقی‌مانده',
       debugGunsCancelledLabel: 'اسلحه‌ها لغو شده', debugPendingGunLabel: 'اسلحه در دست', debugNone: 'هیچ‌کدام',
       dayGunReturnedWaitHint: '{name} که اسلحه دستش بود، شب گذشته جان خود را از دست داد. اسلحه به تفنگدار برگشته و او باید تصمیم بگیرد.',
@@ -863,7 +874,7 @@
       lobbyTitle: 'Invite your players', labelRoomCode: 'Room code', generatingLink: 'generating link…',
       btnCopy: 'Copy', btnShareInvite: 'Share Invite Link', btnAssignRoles: 'Assign Roles',
       statusConnecting: 'Connecting…', statusWaitingForPlayer: 'Waiting for player to join with the link…',
-      toastPlayerJoined: '{name} joined the game.',
+      toastPlayerJoined: '{name} joined the game.', toastPlayerReconnected: '{name} reconnected.',
       rolesAssignedEyebrow: 'Roles Assigned', rolesDealtTitle: 'Roles have been dealt',
       rolesDealtHint: "Roles were sent privately to each phone — including yours if you're playing too. For now, while the game is still being built, they're also listed below on this screen.",
       roleSentPrivately: 'Role sent privately',
@@ -901,7 +912,7 @@
       nightLabel: 'Night {n}', nightResultLabel: 'Night {n} · Result',
       morningReadyTitle: 'Everyone has decided', morningReadyHint: "When you're ready, announce the night's results to everyone.",
       btnAnnounceMorning: 'Announce Morning →',
-      gameOver: 'Game Over', civiliansWin: 'Civilians Win!', mafiaWins: 'Mafia Wins!',
+      gameOver: 'Game Over', civiliansWin: 'Civilians Win!', mafiaWins: 'Mafia Wins!', zodiacWins: 'زودیاک Wins!',
       rolesRevealed: 'Roles are revealed to everyone now that the game has ended.',
       btnStartNewGame: 'Start a New Game', outLabel: '(out)',
       playerLabel: 'Player', joinSessionTitle: 'Join the session', btnJoinGame: 'Join Game',
@@ -910,6 +921,7 @@
       joiningRoom: 'Joining room {code}…', contactingHost: 'Contacting the host.',
       almostThere: 'Almost there…', finalizingConnection: 'Finalizing a direct connection.',
       connectedLabel: 'Connected', whatsYourName: "What's your name?", shownToHostOnly: 'This is shown to the host only',
+      reconnectingTitle: 'Reconnecting…', reconnectingHint: 'Your connection dropped — reconnecting you to the game.',
       namePlaceholder: 'e.g. Priya',
       youreIn: "You're in, {name}.", waitingForRoles: 'Waiting for the host to assign roles…',
       yourRoleKeepSecret: 'Your Role · Keep it secret', tapToReveal: 'Tap to Reveal', caseFile: 'Case File',
@@ -994,6 +1006,7 @@
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
       debugNoActivity: 'No activity logged yet.', debugAlive: 'Alive', debugDead: 'Dead',
       debugShieldOn: 'Shielded', debugShieldOff: 'No shield', debugMafiaSharedLog: "Mafia's Shared Log",
+      debugConnected: 'Connected', debugDisconnected: 'Disconnected',
       debugPhaseLabel: 'Phase', debugWinnerLabel: 'Winner', debugGunsRemainingLabel: 'Guns remaining',
       debugGunsCancelledLabel: 'Guns cancelled', debugPendingGunLabel: 'Gun currently held by', debugNone: 'None',
       dayGunReturnedWaitHint: "{name}, who was holding the gun, didn't survive the night. The gun has returned to تفنگدار, who must now decide.",
@@ -1012,7 +1025,7 @@
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
     'role-detective': 'Each night you investigate someone and learn whether they are Mafia.',
     'role-professional': "Each night you may target someone. Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead.",
-    'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish.',
+    'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish. This is only possible once in the whole game.',
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
     'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If the gun is fired at a civilian by mistake, any remaining guns are cancelled and won't be handed over again.",
@@ -1031,6 +1044,13 @@
     if(state.lang === 'en' && ROLE_DESC_EN[role.id]) return ROLE_DESC_EN[role.id];
     return role.description;
   }
+  // 'village' / 'mafia' / 'zodiac' — three distinct win outcomes now that
+  // زودیاک can win on its own without the rest of the civilians.
+  function winnerLabel(winner){
+    if(winner === 'village') return t('civiliansWin');
+    if(winner === 'zodiac') return t('zodiacWins');
+    return t('mafiaWins');
+  }
 
   // The full role list is fixed in code so it can never be lost to a server
   // restart. The only thing about a role that's still adjustable in the app
@@ -1044,7 +1064,7 @@
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
     { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و می‌فهمید که او مافیاست یا نه.', shield: false, independent: false, builtin: false },
     { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید. اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید.', shield: true, independent: false, builtin: false },
-    { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید.', shield: true, independent: false, builtin: false },
+    { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید. این کار فقط یک‌بار در کل بازی ممکن است.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
     { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد.', shield: false, independent: false, builtin: false },
@@ -1068,6 +1088,10 @@
     playerDC: null,
     playerId: null,
     pendingJoinCode: null,
+    myPlayerToken: null,    // (player) stable id persisted in localStorage, reused across reconnects
+    myPlayerName: null,     // (player) name persisted alongside the token, resent automatically on reconnect
+    isReconnecting: false,  // (player) true once we know this join is a reconnect, not a first-time join
+    reconnectInProgress: false, // (player) guards against overlapping reconnect attempts
     roles: HARDCODED_ROLES.map(r => Object.assign({}, r)), // per-session copy; only .shield is ever mutated
     selectedRoleIds: new Set(['builtin-mafia', 'builtin-villager']), // roles in play this game
     manageRolesReturnTo: 'landing',
@@ -1084,6 +1108,7 @@
     night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set() }, // (host) this night's decisions
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
+    constantineReviveUsed: false, // (host) whole-game limit — کنستانتین may only revive one person, ever
     mafiaActivityLog: [],   // (host) shared night-by-night log of mafia shots + blocks, sent to every mafia member
     oceanTeam: new Set(),   // (host) player ids اوشن has recruited so far (not including اوشن themselves)
     gunsRemaining: GUNNER_MAX_GUNS, // (host) how many more times تفنگدار may hand over the gun this game
@@ -1138,6 +1163,33 @@
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  /* ---------------- Player session persistence (reconnect support) ----------------
+     A player's identity (token + name) is saved to localStorage the moment they
+     join, keyed to the room code. Reopening the same room — after a phone screen
+     lock, a killed tab, or any dropped connection — reuses that same token instead
+     of looking like a brand-new joiner, so the host can reattach them to their
+     existing seat (role, alive status, activity log all intact) rather than
+     rejecting them once the room's full or handing them a blank slate. */
+  function generatePlayerToken(){
+    try{ if(window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID(); }catch(e){}
+    return 'p-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+  function loadPlayerSession(room){
+    try{
+      const raw = localStorage.getItem('mafia-player-session');
+      if(!raw) return null;
+      const s = JSON.parse(raw);
+      if(s && s.room === room && s.token) return s;
+    }catch(e){}
+    return null;
+  }
+  function savePlayerSession(session){
+    try{ localStorage.setItem('mafia-player-session', JSON.stringify(session)); }catch(e){}
+  }
+  function clearPlayerSession(){
+    try{ localStorage.removeItem('mafia-player-session'); }catch(e){}
+  }
+
   /* ---------------- WebSocket signaling ---------------- */
   function connectWS(onOpen){
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1184,11 +1236,15 @@
       return;
     }
     if(msg.type === 'room-not-found'){
+      clearPlayerSession();
+      state.reconnectInProgress = false;
       toast(t('roomNotFound'));
       showScreen('screen-player-join');
       return;
     }
     if(msg.type === 'host-left'){
+      clearPlayerSession();
+      state.reconnectInProgress = false;
       toast(t('hostEndedSession'));
       showScreen('screen-player-join');
       return;
@@ -1455,17 +1511,31 @@
 
   /* ---------------- Host: WebRTC per player ---------------- */
   function hostBeginConnectionTo(playerId){
-    if(state.players.size >= state.numPlayers && !state.players.has(playerId)){
-      // Room already full; ignore additional joiners.
+    // An existing entry for this id means it's a reconnect (same persisted
+    // token as before) — reattach the fresh connection to it instead of
+    // treating them as a new joiner, and let them back in even if the room
+    // is otherwise "full" (they already have a seat).
+    const existing = state.players.get(playerId);
+    if(!existing && state.players.size >= state.numPlayers){
       return;
     }
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     const dc = pc.createDataChannel('mafia');
-    const entry = { name: null, connected: false, pc, dc, role: null, alive: true };
-    state.players.set(playerId, entry);
+    let entry;
+    if(existing){
+      try{ existing.dc && existing.dc.close(); }catch(e){}
+      try{ existing.pc && existing.pc.close(); }catch(e){}
+      existing.pc = pc;
+      existing.dc = dc;
+      existing.connected = false;
+      entry = existing;
+    } else {
+      entry = { name: null, connected: false, pc, dc, role: null, roleId: null, alive: true, independent: false, activityLog: [] };
+      state.players.set(playerId, entry);
+    }
     renderLobby();
 
-    setupHostDataChannel(dc, playerId);
+    setupHostDataChannel(dc, playerId, !!existing);
 
     pc.onicecandidate = (e) => {
       if(e.candidate){
@@ -1488,17 +1558,26 @@
     }
   }
 
-  function setupHostDataChannel(dc, playerId){
+  function setupHostDataChannel(dc, playerId, isReconnect){
     dc.onopen = () => {
       const entry = state.players.get(playerId);
-      if(entry){ entry.connected = true; renderLobby(); }
+      if(entry){
+        entry.connected = true;
+        renderLobby();
+        if(isReconnect) resyncPlayer(entry);
+      }
     };
     dc.onmessage = (e) => {
       try{
         const msg = JSON.parse(e.data);
         if(msg.type === 'name'){
           const entry = state.players.get(playerId);
-          if(entry){ entry.name = msg.name; renderLobby(); toast(t('toastPlayerJoined', {name: msg.name})); }
+          if(entry){
+            const wasReconnect = entry.name === msg.name;
+            entry.name = msg.name;
+            renderLobby();
+            toast(t(wasReconnect ? 'toastPlayerReconnected' : 'toastPlayerJoined', {name: msg.name}));
+          }
         } else if(msg.type === 'vote'){
           handlePlayerVote(playerId, msg.round, msg.candidateIds);
         } else if(msg.type === 'inquiry-vote'){
@@ -1531,13 +1610,12 @@
         const roleDef = idx < customRoles.length ? customRoles[idx] : defaultRole;
         const entry = state.players.get(id);
         entry.role = roleDef.team;
+        entry.roleId = roleDef.id;
         entry.roleName = roleDef.name;
         entry.roleDesc = roleDef.description;
         entry.roleShield = !!roleDef.shield;
         entry.independent = !!roleDef.independent;
-        try{
-          entry.dc.send(JSON.stringify({ type: 'role', role: roleDef.team, roleId: roleDef.id, name: roleDef.name, description: roleDef.description, shield: !!roleDef.shield }));
-        }catch(e){}
+        sendToPlayer(entry, { type: 'role', role: roleDef.team, roleId: roleDef.id, name: roleDef.name, description: roleDef.description, shield: !!roleDef.shield });
       });
     });
 
@@ -1565,7 +1643,34 @@
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive);
   }
   function sendToPlayer(entry, obj){
+    // Cache the most recent 'phase' message per player — this is what lets a
+    // reconnecting player pick up exactly where they left off (see
+    // resyncPlayer), including any role-specific night-action prompt they
+    // hadn't answered yet, without having to special-case every phase kind.
+    if(obj && obj.type === 'phase') entry.lastPhase = obj;
     try{ entry.dc.send(JSON.stringify(obj)); }catch(e){}
+  }
+
+  // Called once a reconnecting player's fresh data channel opens. Their
+  // browser has zero client-side state after a reload, so everything that
+  // matters gets replayed: their role (if assigned), their personal activity
+  // log, and — most importantly — whatever they're currently supposed to be
+  // looking at (game-over, eliminated, or their last cached phase/prompt).
+  function resyncPlayer(entry){
+    if(entry.role){
+      sendToPlayer(entry, { type: 'role', role: entry.role, roleId: entry.roleId, name: entry.roleName, description: entry.roleDesc, shield: !!entry.roleShield });
+    }
+    if(entry.activityLog && entry.activityLog.length){
+      sendToPlayer(entry, { type: 'activity-log', log: entry.activityLog });
+    }
+    if(state.winner){
+      const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role, independent: !!e.independent }));
+      sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster });
+    } else if(!entry.alive){
+      sendToPlayer(entry, { type: 'eliminated' });
+    } else if(entry.lastPhase){
+      sendToPlayer(entry, entry.lastPhase);
+    }
   }
 
   App.beginGame = function(){
@@ -1937,13 +2042,16 @@
     const alive = Array.from(state.players.values()).filter(e => e.alive);
     const aliveMafia = alive.filter(e => e.role === 'mafia').length;
     const aliveVillagers = alive.filter(e => e.role === 'villager' && !e.independent).length;
-    // زودیاک (or any independent role) blocks the usual "Mafia outnumbers the
-    // village" win outright — Mafia can only win once every independent role
-    // is gone too, and the only way to remove one is a day vote (see
-    // startMafiaPhaseStep/promptCivilianRole, which exclude independents from
-    // every night-kill candidate list).
     const independentAlive = alive.some(e => e.independent);
-    if(aliveMafia === 0) return 'village';
+    // Mafia eliminated: زودیاک (if still alive) wins outright on its own — this
+    // is a separate outcome from a plain civilian win, not folded into it.
+    if(aliveMafia === 0) return independentAlive ? 'zodiac' : 'village';
+    // No civilians left at all — Mafia wins outright even with زودیاک still
+    // alive; a lone independent can't stop Mafia once the whole town is gone.
+    if(aliveVillagers === 0) return 'mafia';
+    // Otherwise, زودیاک blocks the usual "Mafia outnumbers the village" win —
+    // Mafia can only win once every independent role is gone too (day vote only;
+    // see startMafiaPhaseStep/promptCivilianRole for why night kills can't do it).
     if(!independentAlive && aliveVillagers <= aliveMafia) return 'mafia';
     return null;
   }
@@ -1987,7 +2095,7 @@
       sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster });
     }
 
-    $('game-over-title').textContent = state.winner === 'village' ? t('civiliansWin') : t('mafiaWins');
+    $('game-over-title').textContent = winnerLabel(state.winner);
     const box = $('game-over-roster');
     box.innerHTML = '';
     Array.from(state.players.values()).forEach(entry => {
@@ -2104,7 +2212,7 @@
       return Array.from(state.players.entries())
         .filter(([id, e]) => !e.alive)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, t('chooseToRevive'), null, pending);
+    }, t('chooseToRevive'), () => !state.constantineReviveUsed, pending);
 
     promptCivilianRole('detective', ROLE_NAME_DETECTIVE, (detectiveId) => {
       return Array.from(state.players.entries())
@@ -2276,6 +2384,7 @@
       checkCivilianPhaseComplete();
     } else if(role === 'constantine'){
       state.night.revivedId = targetId || null;
+      if(targetId) state.constantineReviveUsed = true; // whole-game limit — only one revival, ever
       logActivity(voter, prefix + (targetName ? t('actYouRevived', { name: targetName }) : t('actYouNoRevive')));
       state.night.civilianPending.delete('constantine');
       checkCivilianPhaseComplete();
@@ -2381,6 +2490,7 @@
       const target = state.players.get(state.night.mafiaRecruitId);
       if(target && target.roleName === ROLE_NAME_PLAIN_VILLAGER){
         target.role = 'mafia';
+        target.roleId = null; // no fixed role def for this ad-hoc recruit — resync (see resyncPlayer) falls back to the plain description text
         target.roleName = t('recruitedMafiaName');
         target.roleDesc = t('recruitedMafiaDesc');
         target.roleShield = false;
@@ -2488,6 +2598,7 @@
     state.winner = null;
     state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set() };
     state.doctorSelfSaveUsed = false;
+    state.constantineReviveUsed = false;
     state.mafiaActivityLog = [];
     state.oceanTeam = new Set();
     state.gunsRemaining = GUNNER_MAX_GUNS;
@@ -2504,14 +2615,43 @@
   };
 
   function startPlayerJoin(code){
+    const session = loadPlayerSession(code);
+    state.myPlayerToken = session ? session.token : generatePlayerToken();
+    state.myPlayerName = session ? session.name : null;
+    state.isReconnecting = !!session;
+    savePlayerSession({ room: code, token: state.myPlayerToken, name: state.myPlayerName });
     showScreen('screen-player-connecting');
     $('connecting-title').textContent = t('joiningRoom', {code: code});
     $('connecting-hint').textContent = t('contactingHost');
-    wsSend({ type: 'join-room', room: code });
+    wsSend({ type: 'join-room', room: code, token: state.myPlayerToken });
+  }
+
+  // Fires when the data channel dies (screen lock, dropped WiFi, killed tab)
+  // or when the tab becomes visible again after being backgrounded and the
+  // connection looks dead. Re-establishes the WebSocket if needed, then
+  // rejoins with the SAME persisted token so the host reattaches us to our
+  // existing seat (see hostBeginConnectionTo/resyncPlayer) instead of treating
+  // us as a new player.
+  function attemptPlayerReconnect(){
+    if(state.role !== 'player' || !state.room || !state.myPlayerToken) return;
+    if(state.reconnectInProgress) return;
+    state.reconnectInProgress = true;
+    state.isReconnecting = true;
+    showScreen('screen-player-reconnecting');
+    setTimeout(() => {
+      if(state.ws && state.ws.readyState === WebSocket.OPEN){
+        wsSend({ type: 'join-room', room: state.room, token: state.myPlayerToken });
+      } else {
+        connectWS(() => {
+          wsSend({ type: 'join-room', room: state.room, token: state.myPlayerToken });
+        });
+      }
+    }, 1500);
   }
 
   function playerHandleSignal(payload){
     if(payload.kind === 'offer'){
+      if(state.playerPC){ try{ state.playerPC.close(); }catch(e){} }
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       state.playerPC = pc;
       pc.ondatachannel = (e) => setupPlayerDataChannel(e.channel);
@@ -2533,7 +2673,18 @@
 
   function setupPlayerDataChannel(dc){
     state.playerDC = dc;
-    dc.onopen = () => { showScreen('screen-player-name'); };
+    dc.onopen = () => {
+      state.reconnectInProgress = false;
+      if(state.isReconnecting && state.myPlayerName){
+        // Re-announce our name so the host's roster stays accurate, then just
+        // wait — the host will resync us with whatever's happening right now
+        // (role, activity log, current phase/eliminated/game-over).
+        try{ state.playerDC.send(JSON.stringify({ type: 'name', name: state.myPlayerName })); }catch(e){}
+        showScreen('screen-player-reconnecting');
+      } else {
+        showScreen('screen-player-name');
+      }
+    };
     dc.onmessage = (e) => {
       try{
         const msg = JSON.parse(e.data);
@@ -2564,7 +2715,10 @@
         else if(msg.type === 'day-gun-result'){ handleDayGunResult(msg); }
       }catch(err){}
     };
-    dc.onclose = () => { toast(t('connectionToHostLost')); };
+    dc.onclose = () => {
+      toast(t('connectionToHostLost'));
+      attemptPlayerReconnect();
+    };
   }
 
   App.playerSubmitName = function(){
@@ -2572,6 +2726,8 @@
     if(!val){ toast(t('enterNameFirst')); return; }
     try{ state.playerDC.send(JSON.stringify({ type: 'name', name: val })); }
     catch(e){ toast(t('lostHostConnection')); return; }
+    state.myPlayerName = val;
+    savePlayerSession({ room: state.room, token: state.myPlayerToken, name: val });
     $('wait-title').textContent = t('youreIn', {name: val});
     setDebugBadge(val);
     showScreen('screen-player-waiting');
@@ -2686,7 +2842,7 @@
   }
 
   function handleGameOver(msg){
-    $('game-over-title-player').textContent = msg.winner === 'village' ? t('civiliansWin') : t('mafiaWins');
+    $('game-over-title-player').textContent = winnerLabel(msg.winner);
     const box = $('game-over-roster-player');
     box.innerHTML = '';
     (msg.roster || []).forEach(p => {
@@ -2860,7 +3016,7 @@
   function renderDebugPanel(){
     const stateBox = $('debug-state');
     if(stateBox){
-      const winnerText = state.winner ? (state.winner === 'village' ? t('civiliansWin') : t('mafiaWins')) : t('debugNone');
+      const winnerText = state.winner ? winnerLabel(state.winner) : t('debugNone');
       const pendingHolder = state.pendingGun ? state.players.get(state.pendingGun.holderId) : null;
       stateBox.innerHTML =
         escapeHtml(t('dayLabel', { n: state.day })) + ' · ' + escapeHtml(t('debugPhaseLabel')) + ': ' + escapeHtml(state.gamePhase || '—') + '<br>' +
@@ -2880,7 +3036,8 @@
           '<strong>' + escapeHtml(entry.name || '—') + '</strong> — ' + escapeHtml(entry.roleName || entry.role || '—') +
           ' (' + escapeHtml(entry.independent ? t('tagIndependent') : (entry.role === 'mafia' ? t('tagMafia') : t('tagVillage'))) + ') · ' +
           (entry.alive ? escapeHtml(t('debugAlive')) : escapeHtml(t('debugDead'))) + ' · ' +
-          (entry.roleShield ? escapeHtml(t('debugShieldOn')) : escapeHtml(t('debugShieldOff')));
+          (entry.roleShield ? escapeHtml(t('debugShieldOn')) : escapeHtml(t('debugShieldOff'))) + ' · ' +
+          (entry.connected ? escapeHtml(t('debugConnected')) : escapeHtml(t('debugDisconnected')));
         rolesBox.appendChild(row);
       });
     }
@@ -2930,6 +3087,18 @@
       setDebugBadge('PLAYER');
       startPlayerJoin(joinCode.toUpperCase());
     }
+  });
+
+  // Mobile browsers suspend background tabs (screen lock, app-switch) and
+  // silently drop the WebRTC connection — this is the #1 way a player used to
+  // get permanently kicked out. Whenever the tab becomes visible again, check
+  // whether the connection actually survived, and reconnect if not.
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState !== 'visible') return;
+    if(state.role !== 'player' || !state.room || !state.myPlayerToken) return;
+    const dcDead = !state.playerDC || state.playerDC.readyState !== 'open';
+    const wsDead = !state.ws || state.ws.readyState !== WebSocket.OPEN;
+    if(dcDead || wsDead) attemptPlayerReconnect();
   });
 })();
 </script>
