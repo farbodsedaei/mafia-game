@@ -130,11 +130,11 @@
   .debug-panel .debug-row{padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.04); margin-bottom:6px; font-size:13px; line-height:1.5;}
   .debug-panel .debug-log-entry{padding:4px 0 4px 10px; border-left:2px solid rgba(255,255,255,0.12); font-size:12px; color:var(--text-faint);}
 
-  /* Mafia-only night chat — a fixed bottom drawer, present on every night
-     screen a living Mafia member sees (waiting, their own night action,
-     announcements), so they can coordinate without leaving whatever they're
-     doing. body.mafia-chat-open pushes #app's bottom padding out to make
-     room so it never covers the action buttons above it. */
+  /* Mafia-only chat — a fixed bottom drawer, present on every night and
+     daytime-conversation screen a living Mafia member sees, so they can
+     coordinate without leaving whatever they're doing. body.mafia-chat-open
+     pushes #app's bottom padding out to make room so it never covers the
+     action buttons above it. */
   body.mafia-chat-open #app{ padding-bottom: calc(32vh + 12px + max(28px, env(safe-area-inset-bottom))); }
   .mafia-chat-panel{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column; height:32vh; background:rgba(10,7,8,0.97); border-top:1px solid var(--red-dim); box-shadow:0 -6px 24px rgba(0,0,0,0.45); padding-bottom:env(safe-area-inset-bottom);}
   .mafia-chat-panel.open{display:flex;}
@@ -690,9 +690,9 @@
   <div id="debug-mafia-chat"></div>
 </div>
 
-<!-- Mafia-only night chat: visible only to an alive Mafia-team player, only
-     during a night phase, regardless of which specific night screen is
-     showing underneath. See updateMafiaChatVisibility(). -->
+<!-- Mafia-only chat: visible only to an alive Mafia-team player, during any
+     night phase or daytime conversation phase, regardless of which specific
+     screen is showing underneath. See updateMafiaChatVisibility(). -->
 <div id="mafia-chat-panel" class="mafia-chat-panel">
   <div class="mafia-chat-header" data-i18n="mafiaChatTitle"></div>
   <div id="mafia-chat-messages" class="mafia-chat-messages"></div>
@@ -2364,18 +2364,32 @@
     state.night.mafiaPending = new Set();
 
     const godfathers = findAliveByRoleName(ROLE_NAME_GODFATHER);
-    const killDeciders = godfathers.length ? godfathers : Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.role === 'mafia');
+    let killDeciders;
+    if(godfathers.length){
+      killDeciders = godfathers;
+    } else {
+      // No پدرخوانده left to make the call — every other Mafia-aligned role
+      // (ماتادور, ساول گودمن) still acts normally below, but the kill decision
+      // itself goes to exactly one randomly-picked living Mafia member for
+      // tonight, instead of prompting all of them (which used to turn into a
+      // free-for-all where whoever answered first won). Re-rolled fresh each
+      // night; the choice is still announced to the whole team afterward via
+      // the shared Mafia activity log in resolveNight, same as always.
+      const aliveMafia = Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.role === 'mafia');
+      killDeciders = aliveMafia.length ? [aliveMafia[Math.floor(Math.random() * aliveMafia.length)]] : [];
+    }
     if(killDeciders.length){
       state.night.mafiaPending.add('kill');
       const saulAlive = findAliveByRoleName(ROLE_NAME_SAUL).length > 0;
       const mafiaHasDied = Array.from(state.players.values()).some(e => !e.alive && e.role === 'mafia');
       const canRecruit = saulAlive && mafiaHasDied;
       killDeciders.forEach(([id, entry]) => {
-        // Mafia can target their own teammates too — only the decider themselves
-        // زودیاک stays a selectable target here even though it can never actually
-        // die to this shot (see resolveNight) — Mafia can still choose to "shoot"
-        // it, they just won't get a kill, and won't be told why (shield / Doctor's
-        // save / زودیاک are all indistinguishable from the group's perspective).
+        // Mafia can target their own teammates too — only the decider
+        // themselves is excluded. زودیاک stays a selectable target here even
+        // though it can never actually die to this shot (see resolveNight) —
+        // Mafia can still choose to "shoot" it, they just won't get a kill,
+        // and won't be told why (shield / Doctor's save / زودیاک are all
+        // indistinguishable from the group's perspective).
         const candidates = Array.from(state.players.entries())
           .filter(([cid, e]) => e.alive && cid !== id)
           .map(([cid, e]) => ({ id: cid, name: e.name }));
@@ -2903,12 +2917,19 @@
 
   // The Mafia chat drawer (see #mafia-chat-panel) is a single global element,
   // not tied to any one screen — this decides whether it should be showing
-  // at all right now, independent of whichever night screen is underneath.
-  function isNightPhaseForChat(){
+  // at all right now, independent of whichever screen is underneath. Covers
+  // every night phase, plus daytime conversation phases (talk, inquiry vote,
+  // both voting rounds, defense) — so a member can post something for the
+  // rest of the team to see and react to any time they're actually playing,
+  // not just at night. It deliberately excludes brief transient reveal
+  // screens (results, eliminated, game-over) — those aren't "conversation."
+  const DAY_CHAT_PHASES = ['day', 'inquiry-vote', 'voting1', 'voting2', 'defense'];
+  function isChatVisiblePhase(){
     if(!state.lastPhaseMsg) return false;
     const phase = state.lastPhaseMsg.phase;
     if(phase === 'night' || phase === 'night-announcement') return true;
     if(phase === 'night-action') return state.nightActionRole === 'mafia' || state.nightActionRole === 'matador';
+    if(DAY_CHAT_PHASES.indexOf(phase) !== -1) return true;
     return false;
   }
 
@@ -2916,7 +2937,7 @@
     const panel = $('mafia-chat-panel');
     if(!panel) return;
     const isMafia = state.myRole && state.myRole.role === 'mafia';
-    const show = !!(isMafia && state.amAlive && !state.gameEnded && isNightPhaseForChat());
+    const show = !!(isMafia && state.amAlive && !state.gameEnded && isChatVisiblePhase());
     panel.classList.toggle('open', show);
     document.body.classList.toggle('mafia-chat-open', show);
     if(show) renderMafiaChat();
