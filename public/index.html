@@ -129,6 +129,23 @@
   .debug-panel h3{font-size:15px; margin:18px 0 8px; color:var(--gold);}
   .debug-panel .debug-row{padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.04); margin-bottom:6px; font-size:13px; line-height:1.5;}
   .debug-panel .debug-log-entry{padding:4px 0 4px 10px; border-left:2px solid rgba(255,255,255,0.12); font-size:12px; color:var(--text-faint);}
+
+  /* Mafia-only night chat — a fixed bottom drawer, present on every night
+     screen a living Mafia member sees (waiting, their own night action,
+     announcements), so they can coordinate without leaving whatever they're
+     doing. body.mafia-chat-open pushes #app's bottom padding out to make
+     room so it never covers the action buttons above it. */
+  body.mafia-chat-open #app{ padding-bottom: calc(32vh + 12px + max(28px, env(safe-area-inset-bottom))); }
+  .mafia-chat-panel{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column; height:32vh; background:rgba(10,7,8,0.97); border-top:1px solid var(--red-dim); box-shadow:0 -6px 24px rgba(0,0,0,0.45); padding-bottom:env(safe-area-inset-bottom);}
+  .mafia-chat-panel.open{display:flex;}
+  .mafia-chat-header{padding:8px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--red-bright); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
+  .mafia-chat-messages{flex:1; overflow-y:auto; padding:8px 14px; display:flex; flex-direction:column; gap:6px;}
+  .mafia-chat-msg{font-size:13px; line-height:1.4; color:var(--text-muted); word-break:break-word;}
+  .mafia-chat-sender{color:var(--gold); font-weight:700;}
+  .mafia-chat-input-row{display:flex; gap:8px; padding:10px 14px; border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
+  .mafia-chat-input-row input{flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:8px; padding:9px 11px; color:var(--text); font-family:inherit; font-size:13px; outline:none;}
+  .mafia-chat-input-row input:focus{border-color:var(--red-bright);}
+  .mafia-chat-input-row button{flex-shrink:0; appearance:none; border:none; background:var(--red-dim); color:var(--red-bright); font-weight:700; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px;}
 </style>
 </head>
 <body>
@@ -656,6 +673,20 @@
   <div id="debug-roles"></div>
   <h3 data-i18n="debugActivityHeading"></h3>
   <div id="debug-activity"></div>
+  <h3 data-i18n="debugMafiaChatHeading"></h3>
+  <div id="debug-mafia-chat"></div>
+</div>
+
+<!-- Mafia-only night chat: visible only to an alive Mafia-team player, only
+     during a night phase, regardless of which specific night screen is
+     showing underneath. See updateMafiaChatVisibility(). -->
+<div id="mafia-chat-panel" class="mafia-chat-panel">
+  <div class="mafia-chat-header" data-i18n="mafiaChatTitle"></div>
+  <div id="mafia-chat-messages" class="mafia-chat-messages"></div>
+  <div class="mafia-chat-input-row">
+    <input type="text" id="mafia-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendMafiaChat();}">
+    <button onclick="App.sendMafiaChat()" data-i18n="btnSend"></button>
+  </div>
 </div>
 
 <script>
@@ -841,6 +872,7 @@
       btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
       debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
+      debugMafiaChatHeading: 'گفتگوی مافیا', mafiaChatTitle: 'گفتگوی مافیا', mafiaChatPlaceholder: 'پیام بنویسید…', btnSend: 'ارسال',
       debugNoActivity: 'هنوز فعالیتی ثبت نشده.', debugAlive: 'زنده', debugDead: 'مرده',
       debugShieldOn: 'دارای شیلد', debugShieldOff: 'بدون شیلد', debugMafiaSharedLog: 'گزارش مشترک مافیا',
       debugConnected: 'متصل', debugDisconnected: 'قطع شده',
@@ -1004,6 +1036,7 @@
       btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
       debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
+      debugMafiaChatHeading: 'Mafia Chat', mafiaChatTitle: 'Mafia Chat', mafiaChatPlaceholder: 'Type a message…', btnSend: 'Send',
       debugNoActivity: 'No activity logged yet.', debugAlive: 'Alive', debugDead: 'Dead',
       debugShieldOn: 'Shielded', debugShieldOff: 'No shield', debugMafiaSharedLog: "Mafia's Shared Log",
       debugConnected: 'Connected', debugDisconnected: 'Disconnected',
@@ -1110,6 +1143,7 @@
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
     constantineReviveUsed: false, // (host) whole-game limit — کنستانتین may only revive one person, ever
     mafiaActivityLog: [],   // (host) shared night-by-night log of mafia shots + blocks, sent to every mafia member
+    mafiaChatLog: [],       // (host: authoritative log; player: local copy) {name, text}[] — Mafia-only night chat
     oceanTeam: new Set(),   // (host) player ids اوشن has recruited so far (not including اوشن themselves)
     gunsRemaining: GUNNER_MAX_GUNS, // (host) how many more times تفنگدار may hand over the gun this game
     gunsCancelled: false,   // (host) true once the gun has been fired at a civilian — no more handovers
@@ -1125,7 +1159,9 @@
     myActivityLog: [],           // (player) night-by-night history of this player's (or their mafia team's) actions
     hasActivityLog: false,       // (player) whether to show the "My Activity" link at all
     activityReturnScreen: null,  // (player) screen to return to after viewing activity log
-    lastPhaseMsg: null           // (player) most recent 'phase' message, for re-rendering on language switch
+    lastPhaseMsg: null,          // (player) most recent 'phase' message, for re-rendering on language switch
+    amAlive: true,                // (player) tracks eliminated/revived so the mafia chat drawer hides once out
+    gameEnded: false             // (player) true once game-over arrives, so a stale night phase can't keep the chat drawer open
   };
 
   function $(id){ return document.getElementById(id); }
@@ -1586,6 +1622,8 @@
           handleNightAction(playerId, msg.role, msg.targetId, msg.recruit);
         } else if(msg.type === 'day-gun-action'){
           handleDayGunAction(playerId, msg.targetId);
+        } else if(msg.type === 'mafia-chat'){
+          handleMafiaChat(playerId, msg.text);
         }
       }catch(err){}
     };
@@ -1662,6 +1700,9 @@
     }
     if(entry.activityLog && entry.activityLog.length){
       sendToPlayer(entry, { type: 'activity-log', log: entry.activityLog });
+    }
+    if(entry.role === 'mafia' && state.mafiaChatLog.length){
+      sendToPlayer(entry, { type: 'mafia-chat-log', log: state.mafiaChatLog });
     }
     if(state.winner){
       const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role, independent: !!e.independent }));
@@ -2355,6 +2396,25 @@
     });
   }
 
+  // Mafia's private night chat. Messages always relay through the host (no
+  // direct player-to-player connections exist in this app's architecture) —
+  // the full log is rebroadcast to every alive Mafia member on each new
+  // message, same pattern as logMafiaActivity above.
+  function logMafiaChat(senderName, text){
+    state.mafiaChatLog.push({ name: senderName, text });
+    Array.from(state.players.values()).filter(e => e.alive && e.role === 'mafia').forEach(e => {
+      sendToPlayer(e, { type: 'mafia-chat-log', log: state.mafiaChatLog });
+    });
+  }
+
+  function handleMafiaChat(voterId, text){
+    const voter = state.players.get(voterId);
+    if(!voter || !voter.alive || voter.role !== 'mafia') return;
+    const trimmed = String(text || '').trim().slice(0, 300);
+    if(!trimmed) return;
+    logMafiaChat(voter.name, trimmed);
+  }
+
   function handleNightAction(voterId, role, targetId, recruit){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
@@ -2496,6 +2556,7 @@
         target.roleShield = false;
         sendToPlayer(target, { type: 'role', role: 'mafia', name: target.roleName, description: target.roleDesc, shield: false });
         sendToPlayer(target, { type: 'activity-log', log: state.mafiaActivityLog });
+        if(state.mafiaChatLog.length) sendToPlayer(target, { type: 'mafia-chat-log', log: state.mafiaChatLog });
         logMafiaActivity(t('nightLogPrefix', { day: state.day }) + t('actRecruited', { name: target.name }));
       } else {
         logMafiaActivity(t('nightLogPrefix', { day: state.day }) + t('actRecruitFailed', { name: target ? target.name : t('playerLabel') }));
@@ -2600,6 +2661,7 @@
     state.doctorSelfSaveUsed = false;
     state.constantineReviveUsed = false;
     state.mafiaActivityLog = [];
+    state.mafiaChatLog = [];
     state.oceanTeam = new Set();
     state.gunsRemaining = GUNNER_MAX_GUNS;
     state.gunsCancelled = false;
@@ -2690,15 +2752,17 @@
         const msg = JSON.parse(e.data);
         if(msg.type === 'role'){
           state.myRole = msg;
+          state.amAlive = true;
           state.hasActivityLog = msg.role === 'mafia' ||
             [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN, ROLE_NAME_GUNNER, ROLE_NAME_ZODIAC].includes(msg.name);
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = state.hasActivityLog ? 'block' : 'none'; });
           renderRole(msg);
           showScreen('screen-player-role');
+          updateMafiaChatVisibility();
         }
         else if(msg.type === 'phase'){ handlePhaseMessage(msg); }
         else if(msg.type === 'day-result'){ handleDayResult(msg); }
-        else if(msg.type === 'eliminated'){ showScreen('screen-player-eliminated'); }
+        else if(msg.type === 'eliminated'){ state.amAlive = false; updateMafiaChatVisibility(); showScreen('screen-player-eliminated'); }
         else if(msg.type === 'inquiry-result'){ handleInquiryResult(msg); }
         else if(msg.type === 'game-over'){ handleGameOver(msg); }
         else if(msg.type === 'night-result'){ handleNightResult(msg); }
@@ -2713,6 +2777,10 @@
         }
         else if(msg.type === 'revived'){ handleRevived(msg); }
         else if(msg.type === 'day-gun-result'){ handleDayGunResult(msg); }
+        else if(msg.type === 'mafia-chat-log'){
+          state.mafiaChatLog = msg.log || [];
+          renderMafiaChat();
+        }
       }catch(err){}
     };
     dc.onclose = () => {
@@ -2775,7 +2843,51 @@
       $('night-announcement-title').textContent = msg.text;
       showScreen('screen-player-night-announcement');
     }
+    updateMafiaChatVisibility();
   }
+
+  // The Mafia chat drawer (see #mafia-chat-panel) is a single global element,
+  // not tied to any one screen — this decides whether it should be showing
+  // at all right now, independent of whichever night screen is underneath.
+  function isNightPhaseForChat(){
+    if(!state.lastPhaseMsg) return false;
+    const phase = state.lastPhaseMsg.phase;
+    if(phase === 'night' || phase === 'night-announcement') return true;
+    if(phase === 'night-action') return state.nightActionRole === 'mafia' || state.nightActionRole === 'matador';
+    return false;
+  }
+
+  function updateMafiaChatVisibility(){
+    const panel = $('mafia-chat-panel');
+    if(!panel) return;
+    const isMafia = state.myRole && state.myRole.role === 'mafia';
+    const show = !!(isMafia && state.amAlive && !state.gameEnded && isNightPhaseForChat());
+    panel.classList.toggle('open', show);
+    document.body.classList.toggle('mafia-chat-open', show);
+    if(show) renderMafiaChat();
+  }
+
+  function renderMafiaChat(){
+    const list = $('mafia-chat-messages');
+    if(!list) return;
+    list.innerHTML = '';
+    (state.mafiaChatLog || []).forEach(m => {
+      const row = document.createElement('div');
+      row.className = 'mafia-chat-msg';
+      row.innerHTML = '<span class="mafia-chat-sender">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
+      list.appendChild(row);
+    });
+    list.scrollTop = list.scrollHeight;
+  }
+
+  App.sendMafiaChat = function(){
+    const input = $('mafia-chat-input');
+    if(!input) return;
+    const text = input.value.trim();
+    if(!text) return;
+    try{ state.playerDC.send(JSON.stringify({ type: 'mafia-chat', text })); }catch(e){ toast(t('lostHostConnection')); return; }
+    input.value = '';
+  };
 
   function renderVoteScreen(){
     $('vote-title').textContent = state.voteRound === 1 ? t('whoSuspect') : t('finalVoteTitle');
@@ -2842,6 +2954,8 @@
   }
 
   function handleGameOver(msg){
+    state.gameEnded = true;
+    updateMafiaChatVisibility();
     $('game-over-title-player').textContent = winnerLabel(msg.winner);
     const box = $('game-over-roster-player');
     box.innerHTML = '';
@@ -2951,6 +3065,8 @@
 
   function handleRevived(msg){
     toast(t('backInGame'));
+    state.amAlive = true;
+    updateMafiaChatVisibility();
     $('night-waiting-title').textContent = t('morningHasCome');
     $('night-waiting-note').textContent = nightResultText(msg.deadNames, null);
     $('night-waiting-note').style.display = 'block';
@@ -3057,6 +3173,16 @@
         activityBox.appendChild(buildDebugLogSection(t('debugMafiaSharedLog'), state.mafiaActivityLog));
       }
       if(!anyLog) activityBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
+    }
+
+    const chatBox = $('debug-mafia-chat');
+    if(chatBox){
+      chatBox.innerHTML = '';
+      if(state.mafiaChatLog.length){
+        chatBox.appendChild(buildDebugLogSection(t('debugMafiaChatHeading'), state.mafiaChatLog.map(m => m.name + ': ' + m.text)));
+      } else {
+        chatBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
+      }
     }
   }
 
