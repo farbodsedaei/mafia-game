@@ -440,6 +440,19 @@
     </div>
   </div>
 
+  <!-- PLAYER WELCOME BACK (fresh join found an existing session for this room) -->
+  <div class="screen" id="screen-player-welcome-back">
+    <div class="grow center">
+      <div class="eyebrow" style="margin-bottom:10px;" data-i18n="welcomeBackEyebrow"></div>
+      <h2 style="font-size:26px; margin:0 0 8px;" id="welcome-back-name">&mdash;</h2>
+      <p class="hint" style="max-width:280px;" data-i18n="welcomeBackHint"></p>
+    </div>
+    <div class="stack">
+      <button class="btn btn-primary" id="welcome-back-continue-btn" onclick="App.continueAsReturningPlayer()"></button>
+      <button class="btn btn-ghost" onclick="App.joinAsNewPlayer()" data-i18n="btnJoinAsNewPlayer"></button>
+    </div>
+  </div>
+
   <!-- PLAYER NAME -->
   <div class="screen" id="screen-player-name">
     <div class="eyebrow" data-i18n="connectedLabel"></div>
@@ -790,6 +803,8 @@
       almostThere: 'تقریباً رسیدیم…', finalizingConnection: 'در حال نهایی‌کردن اتصال مستقیم.',
       connectedLabel: 'متصل شد', whatsYourName: 'اسم شما چیست؟', shownToHostOnly: 'این فقط به میزبان نشان داده می‌شود',
       reconnectingTitle: 'در حال اتصال دوباره…', reconnectingHint: 'اتصال شما قطع شده بود — در حال وصل‌شدن دوباره به بازی هستیم.',
+      welcomeBackEyebrow: 'دوباره خوش آمدید', welcomeBackHint: 'به نظر می‌رسد قبلاً به این اتاق پیوسته بودید.',
+      btnContinueAs: 'ادامه به‌عنوان {name} ←', btnJoinAsNewPlayer: 'شما نیستید؟ به‌عنوان بازیکن جدید بپیوندید',
       namePlaceholder: 'مثلاً سارا',
       youreIn: '{name}، شما وارد شدید.', waitingForRoles: 'منتظر تخصیص نقش‌ها توسط میزبان…',
       yourRoleKeepSecret: 'نقش شما · مخفی نگه دارید', tapToReveal: 'برای نمایش لمس کنید', caseFile: 'پرونده',
@@ -954,6 +969,8 @@
       almostThere: 'Almost there…', finalizingConnection: 'Finalizing a direct connection.',
       connectedLabel: 'Connected', whatsYourName: "What's your name?", shownToHostOnly: 'This is shown to the host only',
       reconnectingTitle: 'Reconnecting…', reconnectingHint: 'Your connection dropped — reconnecting you to the game.',
+      welcomeBackEyebrow: 'Welcome Back', welcomeBackHint: "Looks like you already joined this room before.",
+      btnContinueAs: 'Continue as {name} →', btnJoinAsNewPlayer: 'Not you? Join as a new player',
       namePlaceholder: 'e.g. Priya',
       youreIn: "You're in, {name}.", waitingForRoles: 'Waiting for the host to assign roles…',
       yourRoleKeepSecret: 'Your Role · Keep it secret', tapToReveal: 'Tap to Reveal', caseFile: 'Case File',
@@ -1125,6 +1142,7 @@
     myPlayerName: null,     // (player) name persisted alongside the token, resent automatically on reconnect
     isReconnecting: false,  // (player) true once we know this join is a reconnect, not a first-time join
     reconnectInProgress: false, // (player) guards against overlapping reconnect attempts
+    pendingRejoinSession: null, // (player) session found on a fresh join, awaiting "continue as X" / "join as someone else"
     roles: HARDCODED_ROLES.map(r => Object.assign({}, r)), // per-session copy; only .shield is ever mutated
     selectedRoleIds: new Set(['builtin-mafia', 'builtin-villager']), // roles in play this game
     manageRolesReturnTo: 'landing',
@@ -1274,6 +1292,7 @@
     if(msg.type === 'room-not-found'){
       clearPlayerSession();
       state.reconnectInProgress = false;
+      state.pendingRejoinSession = null;
       toast(t('roomNotFound'));
       showScreen('screen-player-join');
       return;
@@ -1281,6 +1300,7 @@
     if(msg.type === 'host-left'){
       clearPlayerSession();
       state.reconnectInProgress = false;
+      state.pendingRejoinSession = null;
       toast(t('hostEndedSession'));
       showScreen('screen-player-join');
       return;
@@ -2676,17 +2696,52 @@
     startPlayerJoin(code);
   };
 
+  // A fresh navigation (page load, pasted link, typed code) is genuinely
+  // ambiguous about who's arriving: it could be this same tab coming back
+  // after being fully killed, or it could be a different tab/device/person
+  // that happens to share this browser's localStorage (the exact bug this
+  // screen exists to prevent — see the "join as someone else" escape hatch).
+  // So instead of silently reconnecting, ask. attemptPlayerReconnect (below)
+  // is the only path that skips this, since it only fires from a tab that's
+  // already mid-session — there's no ambiguity about who that is.
   function startPlayerJoin(code){
     const session = loadPlayerSession(code);
-    state.myPlayerToken = session ? session.token : generatePlayerToken();
-    state.myPlayerName = session ? session.name : null;
-    state.isReconnecting = !!session;
-    savePlayerSession({ room: code, token: state.myPlayerToken, name: state.myPlayerName });
+    if(session && session.name){
+      state.pendingRejoinSession = session;
+      $('welcome-back-name').textContent = session.name;
+      $('welcome-back-continue-btn').textContent = t('btnContinueAs', { name: session.name });
+      showScreen('screen-player-welcome-back');
+      return;
+    }
+    beginFreshPlayerJoin(code, generatePlayerToken(), null);
+  }
+
+  function beginFreshPlayerJoin(code, token, name){
+    state.myPlayerToken = token;
+    state.myPlayerName = name;
+    state.isReconnecting = !!name;
+    savePlayerSession({ room: code, token, name });
     showScreen('screen-player-connecting');
     $('connecting-title').textContent = t('joiningRoom', {code: code});
     $('connecting-hint').textContent = t('contactingHost');
-    wsSend({ type: 'join-room', room: code, token: state.myPlayerToken });
+    wsSend({ type: 'join-room', room: code, token });
   }
+
+  App.continueAsReturningPlayer = function(){
+    const session = state.pendingRejoinSession;
+    state.pendingRejoinSession = null;
+    if(!session) return;
+    beginFreshPlayerJoin(session.room, session.token, session.name);
+  };
+
+  App.joinAsNewPlayer = function(){
+    const session = state.pendingRejoinSession;
+    const code = session ? session.room : state.room;
+    state.pendingRejoinSession = null;
+    clearPlayerSession();
+    if(!code){ showScreen('screen-player-join'); return; }
+    beginFreshPlayerJoin(code, generatePlayerToken(), null);
+  };
 
   // Fires when the data channel dies (screen lock, dropped WiFi, killed tab)
   // or when the tab becomes visible again after being backgrounded and the
