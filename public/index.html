@@ -889,7 +889,7 @@
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
       debugMafiaChatHeading: 'گفتگوی مافیا', mafiaChatTitle: 'گفتگوی مافیا', mafiaChatPlaceholder: 'پیام بنویسید…', btnSend: 'ارسال',
       debugNoActivity: 'هنوز فعالیتی ثبت نشده.', debugAlive: 'زنده', debugDead: 'مرده',
-      debugShieldOn: 'دارای شیلد', debugShieldOff: 'بدون شیلد', debugMafiaSharedLog: 'گزارش مشترک مافیا',
+      debugShieldOn: 'دارای شیلد', debugShieldOff: 'بدون شیلد', debugMafiaSharedLog: 'گزارش مشترک مافیا', debugOther: 'سایر',
       debugConnected: 'متصل', debugDisconnected: 'قطع شده',
       debugPhaseLabel: 'فاز', debugWinnerLabel: 'برنده', debugGunsRemainingLabel: 'اسلحه‌های باقی‌مانده',
       debugGunsCancelledLabel: 'اسلحه‌ها لغو شده', debugPendingGunLabel: 'اسلحه در دست', debugNone: 'هیچ‌کدام',
@@ -1055,7 +1055,7 @@
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
       debugMafiaChatHeading: 'Mafia Chat', mafiaChatTitle: 'Mafia Chat', mafiaChatPlaceholder: 'Type a message…', btnSend: 'Send',
       debugNoActivity: 'No activity logged yet.', debugAlive: 'Alive', debugDead: 'Dead',
-      debugShieldOn: 'Shielded', debugShieldOff: 'No shield', debugMafiaSharedLog: "Mafia's Shared Log",
+      debugShieldOn: 'Shielded', debugShieldOff: 'No shield', debugMafiaSharedLog: "Mafia's Shared Log", debugOther: 'Other',
       debugConnected: 'Connected', debugDisconnected: 'Disconnected',
       debugPhaseLabel: 'Phase', debugWinnerLabel: 'Winner', debugGunsRemainingLabel: 'Guns remaining',
       debugGunsCancelledLabel: 'Guns cancelled', debugPendingGunLabel: 'Gun currently held by', debugNone: 'None',
@@ -2249,10 +2249,11 @@
     if(!holders.length) return;
     const [actorId, actorEntry] = holders[0];
     if(eligible && !eligible(actorId)) return;
-    if(isBlockedTonight(actorId)){
-      sendToPlayer(actorEntry, { type: 'phase', phase: 'night', day: state.day, note: t('youWereBlocked') });
-      return;
-    }
+    // Blocked players are already told immediately when ماتادور's block is
+    // decided (see the 'matador' branch in handleNightAction) — that fires
+    // for anyone blocked, role or no role, so there's nothing more to send
+    // here; just skip the prompt.
+    if(isBlockedTonight(actorId)) return;
     const candidates = buildCandidates(actorId);
     if(!candidates.length) return;
     pendingSet.add(key);
@@ -2481,6 +2482,16 @@
       const text = prefix + (targetName ? t('actMatadorBlocked', { name: targetName }) : t('actMatadorNoBlock'));
       logActivity(voter, prefix + (targetName ? t('actYouBlocked', { name: targetName }) : t('actYouNoBlock')));
       logMafiaActivity(text);
+      // Tell the blocked player right away, regardless of whether they hold a
+      // role with an active ability tonight (or are even eligible to use it) —
+      // previously they only learned anything if their own role's turn came up
+      // during civilian-phase, so a blocked plain شهروند ساده, or e.g. a
+      // تفنگدار blocked on a night they were already out of guns, never found
+      // out anything happened to them at all.
+      if(targetId){
+        const blockedEntry = state.players.get(targetId);
+        if(blockedEntry) sendToPlayer(blockedEntry, { type: 'phase', phase: 'night', day: state.day, note: t('youWereBlocked') });
+      }
       state.night.mafiaPending.delete('matador');
       checkMafiaPhaseComplete();
     } else if(role === 'doctor'){
@@ -3264,18 +3275,33 @@
     const activityBox = $('debug-activity');
     if(activityBox){
       activityBox.innerHTML = '';
-      let anyLog = false;
+      // Grouped by day/night instead of by player — every entry already
+      // carries a "شب N:"/"روز N:" (or "Night N:"/"Day N:") prefix from
+      // nightLogPrefix/dayLogPrefix, so pull that back out to sort and
+      // bucket by when it happened, which is what actually matters when
+      // troubleshooting ("what happened Night 3") rather than who did it.
+      const allEntries = [];
       Array.from(state.players.values()).forEach(entry => {
-        if(entry.activityLog && entry.activityLog.length){
-          anyLog = true;
-          activityBox.appendChild(buildDebugLogSection(entry.name + ' (' + (entry.roleName || entry.role) + ')', entry.activityLog));
-        }
+        (entry.activityLog || []).forEach(text => allEntries.push({ name: entry.name, text }));
       });
-      if(state.mafiaActivityLog && state.mafiaActivityLog.length){
-        anyLog = true;
-        activityBox.appendChild(buildDebugLogSection(t('debugMafiaSharedLog'), state.mafiaActivityLog));
+      (state.mafiaActivityLog || []).forEach(text => allEntries.push({ name: t('debugMafiaSharedLog'), text }));
+
+      const groups = new Map(); // sortKey -> { label, lines[] }
+      allEntries.forEach(({ name, text }) => {
+        const meta = extractDebugTimelineMeta(text);
+        if(!groups.has(meta.sortKey)) groups.set(meta.sortKey, { label: meta.label, lines: [] });
+        groups.get(meta.sortKey).lines.push(name + ': ' + meta.rest);
+      });
+
+      const sortedKeys = Array.from(groups.keys()).sort((a, b) => a - b);
+      if(sortedKeys.length){
+        sortedKeys.forEach(k => {
+          const g = groups.get(k);
+          activityBox.appendChild(buildDebugLogSection(g.label, g.lines));
+        });
+      } else {
+        activityBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
       }
-      if(!anyLog) activityBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
     }
 
     const chatBox = $('debug-mafia-chat');
@@ -3287,6 +3313,19 @@
         chatBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
       }
     }
+  }
+
+  // Pulls the "شب N:"/"روز N:" (or "Night N:"/"Day N:") prefix back off an
+  // activity-log line — entries can be in either language depending on what
+  // state.lang was when they were logged, so both are matched. sortKey
+  // orders Day N before Night N before Day N+1, matching actual game flow.
+  function extractDebugTimelineMeta(text){
+    const m = /^(شب|روز|Night|Day)\s+(\d+):\s*/.exec(text);
+    if(!m) return { sortKey: 999999, label: t('debugOther'), rest: text };
+    const isNight = (m[1] === 'شب' || m[1] === 'Night');
+    const day = parseInt(m[2], 10) || 0;
+    const label = isNight ? t('nightLabel', { n: day }) : t('dayLabel', { n: day });
+    return { sortKey: day * 2 + (isNight ? 1 : 0), label, rest: text.slice(m[0].length) };
   }
 
   function buildDebugLogSection(heading, lines){
