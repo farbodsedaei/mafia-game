@@ -1070,7 +1070,7 @@
   const ROLE_DESC_EN = {
     'builtin-mafia': 'You know the other Mafia. Work in the dark, blend in by day.',
     'builtin-villager': 'You have no special knowledge. Watch closely, and vote wisely.',
-    'role-godfather': 'Each night you decide who Mafia will target.',
+    'role-godfather': "Each night you decide who Mafia will target. If کاراگاه investigates you, you always read as an innocent civilian.",
     'role-matador': "Each night you choose one civilian to block; they can't use their ability that night.",
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
     'role-detective': 'Each night you investigate someone and learn whether they are Mafia.',
@@ -1109,7 +1109,7 @@
   const HARDCODED_ROLES = [
     { id: 'builtin-mafia', team: 'mafia', name: 'مافیا ساده', description: 'شما سایر اعضای مافیا را می‌شناسید. در تاریکی کار کنید، در روز خودتان را پنهان کنید.', shield: false, independent: false, builtin: true },
     { id: 'builtin-villager', team: 'villager', name: ROLE_NAME_PLAIN_VILLAGER, description: 'شما اطلاعات خاصی ندارید. با دقت تماشا کنید و هوشمندانه رأی دهید.', shield: false, independent: false, builtin: true },
-    { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد.', shield: true, independent: false, builtin: false },
+    { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد. اگر کاراگاه شما را بررسی کند، همیشه به‌عنوان یک شهروند بی‌گناه دیده می‌شوید.', shield: true, independent: false, builtin: false },
     { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند.', shield: false, independent: false, builtin: false },
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
     { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و می‌فهمید که او مافیاست یا نه.', shield: false, independent: false, builtin: false },
@@ -1156,7 +1156,7 @@
     inquiriesRemaining: 0,  // (host) inquiries left to spend this game
     votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
-    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set() }, // (host) this night's decisions
+    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null }, // (host) this night's decisions
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
     constantineReviveUsed: false, // (host) whole-game limit — کنستانتین may only revive one person, ever
@@ -2193,7 +2193,7 @@
   }
 
   function startNight(){
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set() };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night');
@@ -2378,6 +2378,8 @@
       const aliveMafia = Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.role === 'mafia');
       killDeciders = aliveMafia.length ? [aliveMafia[Math.floor(Math.random() * aliveMafia.length)]] : [];
     }
+    const killDeciderIds = new Set(killDeciders.map(([id]) => id));
+
     if(killDeciders.length){
       state.night.mafiaPending.add('kill');
       const saulAlive = findAliveByRoleName(ROLE_NAME_SAUL).length > 0;
@@ -2405,7 +2407,18 @@
         .map(([id, e]) => ({ id, name: e.name }));
       if(candidates.length){
         state.night.mafiaPending.add('matador');
-        sendToPlayer(matadorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: t('chooseToBlock'), candidates, allowSkip: true });
+        // If this same person is also tonight's kill-decider (only possible
+        // when پدرخوانده is dead and the random fallback pick happens to be
+        // ماتادور), they can't answer two 'night-action' prompts at once — the
+        // second one silently overwrites the first on their single-prompt
+        // screen before they can respond to it. Hold the block prompt back
+        // and fire it right after their kill decision comes in instead (see
+        // the 'mafia' branch in handleNightAction).
+        if(killDeciderIds.has(matadorId)){
+          state.night.deferredMatadorPrompt = { entry: matadorEntry, candidates };
+        } else {
+          sendToPlayer(matadorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: t('chooseToBlock'), candidates, allowSkip: true });
+        }
       }
     }
 
@@ -2486,7 +2499,13 @@
       if(targetId){
         const target = state.players.get(targetId);
         if(target){
-          const isMafia = target.role === 'mafia';
+          // پدرخوانده has detective immunity: کاراگاه's personal investigation
+          // always reads them as an innocent civilian, even though they're
+          // genuinely Mafia. This is scoped ONLY to this one-on-one result —
+          // the morning inquiry's aggregate mafia/civilian/زودیاک counts (see
+          // App.closeInquiryVote) still count پدرخوانده as Mafia, since that
+          // reflects ground truth, not a personal read.
+          const isMafia = target.role === 'mafia' && target.roleName !== ROLE_NAME_GODFATHER;
           sendToPlayer(voter, { type: 'investigate-result', targetName: target.name, isMafia });
           logActivity(voter, prefix + t('actYouInvestigated', { name: target.name, result: isMafia ? t('actInvestigatedIsMafia') : t('actInvestigatedNotMafia') }));
         }
@@ -2538,12 +2557,20 @@
       if(recruit) state.night.mafiaRecruitId = targetId;
       else state.night.mafiaTargetId = targetId;
       state.night.mafiaPending.delete('kill');
+      // If this same player is also tonight's ماتادور, their block prompt was
+      // held back (see startMafiaPhaseStep) so it wouldn't collide with the
+      // kill prompt — send it now that they've answered the first one.
+      const deferred = state.night.deferredMatadorPrompt;
+      if(deferred && deferred.entry === voter){
+        state.night.deferredMatadorPrompt = null;
+        sendToPlayer(deferred.entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: t('chooseToBlock'), candidates: deferred.candidates, allowSkip: true });
+      }
       checkMafiaPhaseComplete(); // outcome (shot / recruited / failed) is logged once it resolves, in resolveNight()
     }
   }
 
   App.forceContinueNight = function(){
-    if(state.gamePhase === 'night-mafia-phase') state.night.mafiaPending.clear();
+    if(state.gamePhase === 'night-mafia-phase'){ state.night.mafiaPending.clear(); state.night.deferredMatadorPrompt = null; }
     else if(state.gamePhase === 'night-zodiac-phase') state.night.zodiacPending.clear();
     else if(state.gamePhase === 'night-civilian-phase') state.night.civilianPending.clear();
     advanceNight();
@@ -2691,7 +2718,7 @@
     state.votesInquiry = new Map();
     state.inquiriesRemaining = 0;
     state.winner = null;
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set() };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null };
     state.doctorSelfSaveUsed = false;
     state.constantineReviveUsed = false;
     state.mafiaActivityLog = [];
