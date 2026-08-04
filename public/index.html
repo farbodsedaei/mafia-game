@@ -146,6 +146,27 @@
   .mafia-chat-input-row input{flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:8px; padding:9px 11px; color:var(--text); font-family:inherit; font-size:13px; outline:none;}
   .mafia-chat-input-row input:focus{border-color:var(--red-bright);}
   .mafia-chat-input-row button{flex-shrink:0; appearance:none; border:none; background:var(--red-dim); color:var(--red-bright); font-weight:700; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px;}
+
+  /* اوشن's group chat — same fixed-drawer pattern as Mafia's, but with no
+     phase restriction at all: visible any time a living group member (اوشن
+     itself, or anyone it's recruited) is on any screen, day or night, until
+     they're eliminated or the game ends. Gold-accented instead of red so the
+     two are visually distinct in the rare case a player is somehow in both
+     (اوشن mistakenly recruiting a Mafia member). If both drawers are open at
+     once they stack instead of overlapping. */
+  body.ocean-chat-open #app{ padding-bottom: calc(32vh + 12px + max(28px, env(safe-area-inset-bottom))); }
+  body.mafia-chat-open.ocean-chat-open #app{ padding-bottom: calc(64vh + 12px + max(28px, env(safe-area-inset-bottom))); }
+  .ocean-chat-panel{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column; height:32vh; background:rgba(9,8,4,0.97); border-top:1px solid var(--gold-dim); box-shadow:0 -6px 24px rgba(0,0,0,0.45); padding-bottom:env(safe-area-inset-bottom);}
+  .ocean-chat-panel.open{display:flex;}
+  body.mafia-chat-open.ocean-chat-open .ocean-chat-panel{ bottom:32vh; box-shadow:none; }
+  .ocean-chat-header{padding:8px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
+  .ocean-chat-messages{flex:1; overflow-y:auto; padding:8px 14px; display:flex; flex-direction:column; gap:6px;}
+  .ocean-chat-msg{font-size:13px; line-height:1.4; color:var(--text-muted); word-break:break-word;}
+  .ocean-chat-sender{color:var(--gold); font-weight:700;}
+  .ocean-chat-input-row{display:flex; gap:8px; padding:10px 14px; border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
+  .ocean-chat-input-row input{flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:8px; padding:9px 11px; color:var(--text); font-family:inherit; font-size:13px; outline:none;}
+  .ocean-chat-input-row input:focus{border-color:var(--gold);}
+  .ocean-chat-input-row button{flex-shrink:0; appearance:none; border:none; background:var(--gold-dim); color:var(--gold); font-weight:700; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px;}
 </style>
 </head>
 <body>
@@ -688,6 +709,8 @@
   <div id="debug-activity"></div>
   <h3 data-i18n="debugMafiaChatHeading"></h3>
   <div id="debug-mafia-chat"></div>
+  <h3 data-i18n="debugOceanChatHeading"></h3>
+  <div id="debug-ocean-chat"></div>
 </div>
 
 <!-- Mafia-only chat: visible only to an alive Mafia-team player, during any
@@ -699,6 +722,17 @@
   <div class="mafia-chat-input-row">
     <input type="text" id="mafia-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendMafiaChat();}">
     <button onclick="App.sendMafiaChat()" data-i18n="btnSend"></button>
+  </div>
+</div>
+
+<!-- اوشن's group chat: visible any time — day or night — to a living اوشن or
+     anyone it's recruited. See updateOceanChatVisibility(). -->
+<div id="ocean-chat-panel" class="ocean-chat-panel">
+  <div class="ocean-chat-header" data-i18n="oceanChatTitle"></div>
+  <div id="ocean-chat-messages" class="ocean-chat-messages"></div>
+  <div class="ocean-chat-input-row">
+    <input type="text" id="ocean-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendOceanChat();}">
+    <button onclick="App.sendOceanChat()" data-i18n="btnSend"></button>
   </div>
 </div>
 
@@ -888,6 +922,7 @@
       debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
       debugMafiaChatHeading: 'گفتگوی مافیا', mafiaChatTitle: 'گفتگوی مافیا', mafiaChatPlaceholder: 'پیام بنویسید…', btnSend: 'ارسال',
+      debugOceanChatHeading: 'گفتگوی اوشن', oceanChatTitle: 'گفتگوی اوشن',
       debugNoActivity: 'هنوز فعالیتی ثبت نشده.', debugAlive: 'زنده', debugDead: 'مرده',
       debugShieldOn: 'دارای شیلد', debugShieldOff: 'بدون شیلد', debugMafiaSharedLog: 'گزارش مشترک مافیا', debugOther: 'سایر',
       debugConnected: 'متصل', debugDisconnected: 'قطع شده',
@@ -1054,6 +1089,7 @@
       debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
       debugMafiaChatHeading: 'Mafia Chat', mafiaChatTitle: 'Mafia Chat', mafiaChatPlaceholder: 'Type a message…', btnSend: 'Send',
+      debugOceanChatHeading: 'اوشن Chat', oceanChatTitle: 'اوشن Chat',
       debugNoActivity: 'No activity logged yet.', debugAlive: 'Alive', debugDead: 'Dead',
       debugShieldOn: 'Shielded', debugShieldOff: 'No shield', debugMafiaSharedLog: "Mafia's Shared Log", debugOther: 'Other',
       debugConnected: 'Connected', debugDisconnected: 'Disconnected',
@@ -1162,6 +1198,7 @@
     constantineReviveUsed: false, // (host) whole-game limit — کنستانتین may only revive one person, ever
     mafiaActivityLog: [],   // (host) shared night-by-night log of mafia shots + blocks, sent to every mafia member
     mafiaChatLog: [],       // (host: authoritative log; player: local copy) {name, text}[] — Mafia-only night chat
+    oceanChatLog: [],       // (host: authoritative log; player: local copy) {name, text}[] — اوشن group chat
     oceanTeam: new Set(),   // (host) player ids اوشن has recruited so far (not including اوشن themselves)
     gunsRemaining: GUNNER_MAX_GUNS, // (host) how many more times تفنگدار may hand over the gun this game
     gunsCancelled: false,   // (host) true once the gun has been fired at a civilian — no more handovers
@@ -1179,7 +1216,8 @@
     activityReturnScreen: null,  // (player) screen to return to after viewing activity log
     lastPhaseMsg: null,          // (player) most recent 'phase' message, for re-rendering on language switch
     amAlive: true,                // (player) tracks eliminated/revived so the mafia chat drawer hides once out
-    gameEnded: false             // (player) true once game-over arrives, so a stale night phase can't keep the chat drawer open
+    gameEnded: false,            // (player) true once game-over arrives, so a stale night phase can't keep the chat drawer open
+    inOceanGroup: false          // (player) true if I'm اوشن or someone it's recruited — gates the اوشن chat drawer
   };
 
   function $(id){ return document.getElementById(id); }
@@ -1620,7 +1658,7 @@
       if(entry){
         entry.connected = true;
         renderLobby();
-        if(isReconnect) resyncPlayer(entry);
+        if(isReconnect) resyncPlayer(entry, playerId);
       }
     };
     dc.onmessage = (e) => {
@@ -1644,6 +1682,8 @@
           handleDayGunAction(playerId, msg.targetId);
         } else if(msg.type === 'mafia-chat'){
           handleMafiaChat(playerId, msg.text);
+        } else if(msg.type === 'ocean-chat'){
+          handleOceanChat(playerId, msg.text);
         }
       }catch(err){}
     };
@@ -1714,7 +1754,7 @@
   // matters gets replayed: their role (if assigned), their personal activity
   // log, and — most importantly — whatever they're currently supposed to be
   // looking at (game-over, eliminated, or their last cached phase/prompt).
-  function resyncPlayer(entry){
+  function resyncPlayer(entry, playerId){
     if(entry.role){
       sendToPlayer(entry, { type: 'role', role: entry.role, roleId: entry.roleId, name: entry.roleName, description: entry.roleDesc, shield: !!entry.roleShield });
     }
@@ -1723,6 +1763,10 @@
     }
     if(entry.role === 'mafia' && state.mafiaChatLog.length){
       sendToPlayer(entry, { type: 'mafia-chat-log', log: state.mafiaChatLog });
+    }
+    if(getOceanGroupIds().has(playerId)){
+      sendToPlayer(entry, { type: 'ocean-group-status', inGroup: true });
+      if(state.oceanChatLog.length) sendToPlayer(entry, { type: 'ocean-chat-log', log: state.oceanChatLog });
     }
     if(state.winner){
       const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role, independent: !!e.independent }));
@@ -2463,6 +2507,36 @@
     logMafiaChat(voter.name, trimmed);
   }
 
+  // اوشن's group is dynamic — it's اوشن itself plus whoever it's recruited
+  // into state.oceanTeam so far (which only grows over the game) — so unlike
+  // Mafia's fixed team, membership has to be recomputed on demand rather than
+  // read off a static team field. Alive-only, since membership (and chat
+  // access) ends the moment someone's eliminated.
+  function getOceanGroupIds(){
+    const ids = new Set();
+    Array.from(state.players.entries()).forEach(([id, e]) => {
+      if(!e.alive) return;
+      if(e.roleName === ROLE_NAME_OCEAN || state.oceanTeam.has(id)) ids.add(id);
+    });
+    return ids;
+  }
+
+  function logOceanChat(senderName, text){
+    state.oceanChatLog.push({ name: senderName, text });
+    getOceanGroupIds().forEach(id => {
+      const entry = state.players.get(id);
+      if(entry) sendToPlayer(entry, { type: 'ocean-chat-log', log: state.oceanChatLog });
+    });
+  }
+
+  function handleOceanChat(voterId, text){
+    const voter = state.players.get(voterId);
+    if(!voter || !voter.alive || !getOceanGroupIds().has(voterId)) return;
+    const trimmed = String(text || '').trim().slice(0, 300);
+    if(!trimmed) return;
+    logOceanChat(voter.name, trimmed);
+  }
+
   function handleNightAction(voterId, role, targetId, recruit){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
@@ -2550,6 +2624,8 @@
         // (ocean-talk), not here — but the recruit's own activity record starts now.
         if(target){
           logActivity(target, prefix + t('actYouWereAddedToGroup'));
+          sendToPlayer(target, { type: 'ocean-group-status', inGroup: true });
+          if(state.oceanChatLog.length) sendToPlayer(target, { type: 'ocean-chat-log', log: state.oceanChatLog });
           if(target.role === 'mafia') state.night.extraDeathIds.push(voterId);
         }
         logActivity(voter, prefix + t('actYouAddedToGroup', { name: targetName }));
@@ -2734,6 +2810,7 @@
     state.constantineReviveUsed = false;
     state.mafiaActivityLog = [];
     state.mafiaChatLog = [];
+    state.oceanChatLog = [];
     state.oceanTeam = new Set();
     state.gunsRemaining = GUNNER_MAX_GUNS;
     state.gunsCancelled = false;
@@ -2860,16 +2937,22 @@
         if(msg.type === 'role'){
           state.myRole = msg;
           state.amAlive = true;
+          // Only ever SET this true here (never false) — a later 'role'
+          // message can arrive for an unrelated reason (getting recruited
+          // into Mafia), and that shouldn't wipe out group membership اوشن
+          // itself already granted earlier via 'ocean-group-status'.
+          if(msg.name === ROLE_NAME_OCEAN) state.inOceanGroup = true;
           state.hasActivityLog = msg.role === 'mafia' ||
             [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN, ROLE_NAME_GUNNER, ROLE_NAME_ZODIAC].includes(msg.name);
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = state.hasActivityLog ? 'block' : 'none'; });
           renderRole(msg);
           showScreen('screen-player-role');
           updateMafiaChatVisibility();
+          updateOceanChatVisibility();
         }
         else if(msg.type === 'phase'){ handlePhaseMessage(msg); }
         else if(msg.type === 'day-result'){ handleDayResult(msg); }
-        else if(msg.type === 'eliminated'){ state.amAlive = false; updateMafiaChatVisibility(); showScreen('screen-player-eliminated'); }
+        else if(msg.type === 'eliminated'){ state.amAlive = false; updateMafiaChatVisibility(); updateOceanChatVisibility(); showScreen('screen-player-eliminated'); }
         else if(msg.type === 'inquiry-result'){ handleInquiryResult(msg); }
         else if(msg.type === 'game-over'){ handleGameOver(msg); }
         else if(msg.type === 'night-result'){ handleNightResult(msg); }
@@ -2887,6 +2970,14 @@
         else if(msg.type === 'mafia-chat-log'){
           state.mafiaChatLog = msg.log || [];
           renderMafiaChat();
+        }
+        else if(msg.type === 'ocean-group-status'){
+          state.inOceanGroup = !!msg.inGroup;
+          updateOceanChatVisibility();
+        }
+        else if(msg.type === 'ocean-chat-log'){
+          state.oceanChatLog = msg.log || [];
+          renderOceanChat();
         }
       }catch(err){}
     };
@@ -2951,6 +3042,7 @@
       showScreen('screen-player-night-announcement');
     }
     updateMafiaChatVisibility();
+    updateOceanChatVisibility();
   }
 
   // The Mafia chat drawer (see #mafia-chat-panel) is a single global element,
@@ -3000,6 +3092,41 @@
     const text = input.value.trim();
     if(!text) return;
     try{ state.playerDC.send(JSON.stringify({ type: 'mafia-chat', text })); }catch(e){ toast(t('lostHostConnection')); return; }
+    input.value = '';
+  };
+
+  // اوشن's chat has no phase restriction at all — unlike Mafia's, it's meant
+  // to stay available the whole game, day or night, for as long as this
+  // player is alive and actually in the group (either اوشن itself, or
+  // someone it's recruited — see 'ocean-group-status' / the 'role' handler).
+  function updateOceanChatVisibility(){
+    const panel = $('ocean-chat-panel');
+    if(!panel) return;
+    const show = !!(state.inOceanGroup && state.amAlive && !state.gameEnded);
+    panel.classList.toggle('open', show);
+    document.body.classList.toggle('ocean-chat-open', show);
+    if(show) renderOceanChat();
+  }
+
+  function renderOceanChat(){
+    const list = $('ocean-chat-messages');
+    if(!list) return;
+    list.innerHTML = '';
+    (state.oceanChatLog || []).forEach(m => {
+      const row = document.createElement('div');
+      row.className = 'ocean-chat-msg';
+      row.innerHTML = '<span class="ocean-chat-sender">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
+      list.appendChild(row);
+    });
+    list.scrollTop = list.scrollHeight;
+  }
+
+  App.sendOceanChat = function(){
+    const input = $('ocean-chat-input');
+    if(!input) return;
+    const text = input.value.trim();
+    if(!text) return;
+    try{ state.playerDC.send(JSON.stringify({ type: 'ocean-chat', text })); }catch(e){ toast(t('lostHostConnection')); return; }
     input.value = '';
   };
 
@@ -3070,6 +3197,7 @@
   function handleGameOver(msg){
     state.gameEnded = true;
     updateMafiaChatVisibility();
+    updateOceanChatVisibility();
     $('game-over-title-player').textContent = winnerLabel(msg.winner);
     const box = $('game-over-roster-player');
     box.innerHTML = '';
@@ -3181,6 +3309,7 @@
     toast(t('backInGame'));
     state.amAlive = true;
     updateMafiaChatVisibility();
+    updateOceanChatVisibility();
     $('night-waiting-title').textContent = t('morningHasCome');
     $('night-waiting-note').textContent = nightResultText(msg.deadNames, null);
     $('night-waiting-note').style.display = 'block';
@@ -3311,6 +3440,16 @@
         chatBox.appendChild(buildDebugLogSection(t('debugMafiaChatHeading'), state.mafiaChatLog.map(m => m.name + ': ' + m.text)));
       } else {
         chatBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
+      }
+    }
+
+    const oceanChatBox = $('debug-ocean-chat');
+    if(oceanChatBox){
+      oceanChatBox.innerHTML = '';
+      if(state.oceanChatLog.length){
+        oceanChatBox.appendChild(buildDebugLogSection(t('debugOceanChatHeading'), state.oceanChatLog.map(m => m.name + ': ' + m.text)));
+      } else {
+        oceanChatBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
       }
     }
   }
