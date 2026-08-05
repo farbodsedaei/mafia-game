@@ -2127,7 +2127,16 @@
   function closeVotingRound1(){
     const counts = new Map();
     state.votesRound1.forEach(ids => ids.forEach(id => counts.set(id, (counts.get(id) || 0) + 1)));
-    const threshold = Math.floor(state.votesRound1.size / 2);
+    // Majority has to be measured against every alive player who was
+    // ELIGIBLE to vote, not just however many actually tapped submit before
+    // the host closed the round (the host can close early — see
+    // App.closeVoting — and plenty of players may never submit at all,
+    // which never even adds them to state.votesRound1). Basing the
+    // threshold on votesRound1.size instead of the alive count let a
+    // single vote "win" outright whenever most of the table stayed silent,
+    // since Math.floor(1/2) collapses to zero.
+    const eligibleVoters = aliveEntries().length;
+    const threshold = Math.floor(eligibleVoters / 2);
     const defendingIds = Array.from(counts.entries()).filter(([id, c]) => c >= threshold).map(([id]) => id);
 
     if(!defendingIds.length){
@@ -2167,7 +2176,12 @@
     state.votesRound2.forEach(ids => {
       ids.forEach(id => { if(counts.has(id)) counts.set(id, counts.get(id) + 1); });
     });
-    const threshold = Math.floor(state.votesRound2.size / 2);
+    // Same fix as round 1: measure against everyone who COULD have voted,
+    // not just however many did. For a single defendant that's every other
+    // alive player — the defendant themselves can't vote (see
+    // App.startFinalVote, where their own candidate list is always empty).
+    const eligibleVoters = state.defendingIds.length === 1 ? aliveEntries().length - 1 : aliveEntries().length;
+    const threshold = Math.floor(eligibleVoters / 2);
 
     let eliminatedId = null;
     let note = '';
@@ -3269,13 +3283,17 @@
     input.value = '';
   };
 
-  // زودیاک's chat: same "no phase restriction" rule as اوشن's — available any
-  // time this player is alive, in the group (زودیاک or زودیاک پسر — see the
-  // 'role' handler), and the game hasn't ended.
+  // زودیاک's chat: same "no phase restriction" rule as اوشن's once the game
+  // is under way — available any time this player is alive, in the group
+  // (زودیاک or زودیاک پسر — see the 'role' handler), and the game hasn't
+  // ended. But like Mafia's chat, it shouldn't appear before the game has
+  // actually started — state.lastPhaseMsg is only ever set once the first
+  // 'phase' message arrives, which happens right as Night 1 opens, so this
+  // keeps the panel from popping up during the pre-game role-reveal screen.
   function updateZodiacChatVisibility(){
     const panel = $('zodiac-chat-panel');
     if(!panel) return;
-    const show = !!(state.inZodiacGroup && state.amAlive && !state.gameEnded);
+    const show = !!(state.inZodiacGroup && state.amAlive && !state.gameEnded && state.lastPhaseMsg);
     panel.classList.toggle('open', show);
     document.body.classList.toggle('zodiac-chat-open', show);
     if(show) renderZodiacChat();
