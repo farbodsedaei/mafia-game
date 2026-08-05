@@ -132,10 +132,7 @@
 
   /* Mafia-only chat — a fixed bottom drawer, present on every night and
      daytime-conversation screen a living Mafia member sees, so they can
-     coordinate without leaving whatever they're doing. body.mafia-chat-open
-     pushes #app's bottom padding out to make room so it never covers the
-     action buttons above it. */
-  body.mafia-chat-open #app{ padding-bottom: calc(32vh + 12px + max(28px, env(safe-area-inset-bottom))); }
+     coordinate without leaving whatever they're doing. */
   .mafia-chat-panel{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column; height:32vh; background:rgba(10,7,8,0.97); border-top:1px solid var(--red-dim); box-shadow:0 -6px 24px rgba(0,0,0,0.45); padding-bottom:env(safe-area-inset-bottom);}
   .mafia-chat-panel.open{display:flex;}
   .mafia-chat-header{padding:8px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--red-bright); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
@@ -152,13 +149,9 @@
      itself, or anyone it's recruited) is on any screen, day or night, until
      they're eliminated or the game ends. Gold-accented instead of red so the
      two are visually distinct in the rare case a player is somehow in both
-     (اوشن mistakenly recruiting a Mafia member). If both drawers are open at
-     once they stack instead of overlapping. */
-  body.ocean-chat-open #app{ padding-bottom: calc(32vh + 12px + max(28px, env(safe-area-inset-bottom))); }
-  body.mafia-chat-open.ocean-chat-open #app{ padding-bottom: calc(64vh + 12px + max(28px, env(safe-area-inset-bottom))); }
+     (اوشن mistakenly recruiting a Mafia member). */
   .ocean-chat-panel{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column; height:32vh; background:rgba(9,8,4,0.97); border-top:1px solid var(--gold-dim); box-shadow:0 -6px 24px rgba(0,0,0,0.45); padding-bottom:env(safe-area-inset-bottom);}
   .ocean-chat-panel.open{display:flex;}
-  body.mafia-chat-open.ocean-chat-open .ocean-chat-panel{ bottom:32vh; box-shadow:none; }
   .ocean-chat-header{padding:8px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
   .ocean-chat-messages{flex:1; overflow-y:auto; padding:8px 14px; display:flex; flex-direction:column; gap:6px;}
   .ocean-chat-msg{font-size:13px; line-height:1.4; color:var(--text-muted); word-break:break-word;}
@@ -167,6 +160,46 @@
   .ocean-chat-input-row input{flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:8px; padding:9px 11px; color:var(--text); font-family:inherit; font-size:13px; outline:none;}
   .ocean-chat-input-row input:focus{border-color:var(--gold);}
   .ocean-chat-input-row button{flex-shrink:0; appearance:none; border:none; background:var(--gold-dim); color:var(--gold); font-weight:700; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px;}
+
+  /* زودیاک + زودیاک پسر's private chat — same pattern again, no phase
+     restriction, slate-accented (villager-tag color) to stay distinct from
+     both Mafia (red) and اوشن (gold), since اوشن could in principle recruit
+     either of them into ITS group too, stacking all three at once. */
+  .zodiac-chat-panel{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column; height:32vh; background:rgba(7,9,10,0.97); border-top:1px solid var(--slate-dim); box-shadow:0 -6px 24px rgba(0,0,0,0.45); padding-bottom:env(safe-area-inset-bottom);}
+  .zodiac-chat-panel.open{display:flex;}
+  .zodiac-chat-header{padding:8px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--slate); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
+  .zodiac-chat-messages{flex:1; overflow-y:auto; padding:8px 14px; display:flex; flex-direction:column; gap:6px;}
+  .zodiac-chat-msg{font-size:13px; line-height:1.4; color:var(--text-muted); word-break:break-word;}
+  .zodiac-chat-sender{color:var(--slate); font-weight:700;}
+  .zodiac-chat-input-row{display:flex; gap:8px; padding:10px 14px; border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
+  .zodiac-chat-input-row input{flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:8px; padding:9px 11px; color:var(--text); font-family:inherit; font-size:13px; outline:none;}
+  .zodiac-chat-input-row input:focus{border-color:var(--slate);}
+  .zodiac-chat-input-row button{flex-shrink:0; appearance:none; border:none; background:var(--slate-dim); color:var(--slate); font-weight:700; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px;}
+
+  /* Stacking for however many of the three drawers are open at once, in a
+     fixed priority order — Mafia lowest, then اوشن, then زودیاک — so any
+     combination lands cleanly with no overlap. Overlap between all three is
+     realistically only Mafia+اوشن or اوشن+زودیاک (a Mafia player can never
+     also be زودیاک/زودیاک پسر — they're mutually exclusive role slots — but
+     اوشن could recruit either into its own group), yet every combination is
+     covered here regardless. */
+  body.mafia-chat-open:not(.ocean-chat-open):not(.zodiac-chat-open) #app,
+  body.ocean-chat-open:not(.mafia-chat-open):not(.zodiac-chat-open) #app,
+  body.zodiac-chat-open:not(.mafia-chat-open):not(.ocean-chat-open) #app
+  { padding-bottom: calc(32vh + 12px + max(28px, env(safe-area-inset-bottom))); }
+
+  body.mafia-chat-open.ocean-chat-open:not(.zodiac-chat-open) #app,
+  body.mafia-chat-open.zodiac-chat-open:not(.ocean-chat-open) #app,
+  body.ocean-chat-open.zodiac-chat-open:not(.mafia-chat-open) #app
+  { padding-bottom: calc(64vh + 12px + max(28px, env(safe-area-inset-bottom))); }
+
+  body.mafia-chat-open.ocean-chat-open.zodiac-chat-open #app
+  { padding-bottom: calc(96vh + 12px + max(28px, env(safe-area-inset-bottom))); }
+
+  body.mafia-chat-open.ocean-chat-open .ocean-chat-panel{ bottom:32vh; box-shadow:none; }
+  body.mafia-chat-open:not(.ocean-chat-open) .zodiac-chat-panel{ bottom:32vh; box-shadow:none; }
+  body.ocean-chat-open:not(.mafia-chat-open) .zodiac-chat-panel{ bottom:32vh; box-shadow:none; }
+  body.mafia-chat-open.ocean-chat-open .zodiac-chat-panel{ bottom:64vh; box-shadow:none; }
 </style>
 </head>
 <body>
@@ -711,6 +744,8 @@
   <div id="debug-mafia-chat"></div>
   <h3 data-i18n="debugOceanChatHeading"></h3>
   <div id="debug-ocean-chat"></div>
+  <h3 data-i18n="debugZodiacChatHeading"></h3>
+  <div id="debug-zodiac-chat"></div>
 </div>
 
 <!-- Mafia-only chat: visible only to an alive Mafia-team player, during any
@@ -736,6 +771,17 @@
   </div>
 </div>
 
+<!-- زودیاک + زودیاک پسر's private chat: up to 2 participants, no phase
+     restriction. See updateZodiacChatVisibility(). -->
+<div id="zodiac-chat-panel" class="zodiac-chat-panel">
+  <div class="zodiac-chat-header" data-i18n="zodiacChatTitle"></div>
+  <div id="zodiac-chat-messages" class="zodiac-chat-messages"></div>
+  <div class="zodiac-chat-input-row">
+    <input type="text" id="zodiac-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendZodiacChat();}">
+    <button onclick="App.sendZodiacChat()" data-i18n="btnSend"></button>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -758,6 +804,7 @@
   const ROLE_NAME_OCEAN = 'اوشن';
   const ROLE_NAME_GUNNER = 'تفنگدار';
   const ROLE_NAME_ZODIAC = 'زودیاک';
+  const ROLE_NAME_ZODIAC_SON = 'زودیاک پسر';
   const ROLE_NAME_PLAIN_VILLAGER = 'شهروند ساده';
   const GUNNER_MAX_GUNS = 2; // whole-game limit on how many times تفنگدار may hand over the gun
 
@@ -873,7 +920,7 @@
       mafiaTalkNow: 'بقیه چشمانشان را بستند. حالا آرام با هم‌تیمی‌های مافیای خود صحبت کنید.',
       youWereBlocked: 'امشب مسدود شدید — کاری برای شما نیست.',
       oceanGroupJoinTalk: 'شما به یک گروه مخفی اضافه شدید. حالا می‌توانید چشمانتان را باز کنید و آرام با آن‌ها صحبت کنید.',
-      investigationResult: 'نتیجه تحقیق', isMafia: '{name} مافیا است.', isNotMafia: '{name} مافیا نیست.',
+      investigationResult: 'نتیجه تحقیق', isPositive: '{name} مثبت است.', isNegative: '{name} منفی است.',
       youreOut: 'شما خارج شدید', youveBeenEliminated: 'شما حذف شدید',
       thanksForPlaying: 'ممنون از بازی — بمانید و حضوری تماشا کنید.',
       backInGame: 'شما به بازی برگشتید!',
@@ -896,7 +943,8 @@
       actYouSaved: 'شما {name} را نجات دادید.', actYouNoSave: 'شما تصمیم گرفتید کسی را نجات ندهید.',
       actYouRevived: 'شما {name} را دوباره زنده کردید.', actYouNoRevive: 'شما تصمیم گرفتید کسی را زنده نکنید.',
       actYouInvestigated: 'شما {name} را بررسی کردید — {result}.',
-      actInvestigatedIsMafia: 'مافیا', actInvestigatedNotMafia: 'مافیا نیست',
+      actInvestigatedPositive: 'مثبت', actInvestigatedNegative: 'منفی',
+      actZodiacInherited: 'زودیاک از بازی خارج شد و تمام توانایی‌های او به شما منتقل شد — شما اکنون زودیاک هستید.',
       actYouNoInvestigate: 'شما تصمیم گرفتید کسی را بررسی نکنید.',
       actYouShot: 'شما به {name} شلیک کردید.', actYouNoShot: 'شما تصمیم گرفتید به کسی شلیک نکنید.',
       actYouWereAddedToGroup: 'شما به گروه اوشن اضافه شدید.',
@@ -923,6 +971,7 @@
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
       debugMafiaChatHeading: 'گفتگوی مافیا', mafiaChatTitle: 'گفتگوی مافیا', mafiaChatPlaceholder: 'پیام بنویسید…', btnSend: 'ارسال',
       debugOceanChatHeading: 'گفتگوی اوشن', oceanChatTitle: 'گفتگوی اوشن',
+      debugZodiacChatHeading: 'گفتگوی زودیاک', zodiacChatTitle: 'گفتگوی زودیاک',
       debugNoActivity: 'هنوز فعالیتی ثبت نشده.', debugAlive: 'زنده', debugDead: 'مرده',
       debugShieldOn: 'دارای شیلد', debugShieldOff: 'بدون شیلد', debugMafiaSharedLog: 'گزارش مشترک مافیا', debugOther: 'سایر',
       debugConnected: 'متصل', debugDisconnected: 'قطع شده',
@@ -1040,7 +1089,7 @@
       mafiaTalkNow: 'Everyone else has closed their eyes. Talk quietly with your fellow Mafia now.',
       youWereBlocked: 'You were blocked tonight — no action for you.',
       oceanGroupJoinTalk: "You've been added to a secret group. You may open your eyes and talk quietly with them now.",
-      investigationResult: 'Investigation Result', isMafia: '{name} is Mafia.', isNotMafia: '{name} is not Mafia.',
+      investigationResult: 'Investigation Result', isPositive: '{name} is positive.', isNegative: '{name} is negative.',
       youreOut: "You're Out", youveBeenEliminated: "You've been eliminated",
       thanksForPlaying: 'Thanks for playing — stick around and keep watching in person.',
       backInGame: "You're back in the game!",
@@ -1063,7 +1112,8 @@
       actYouSaved: 'You saved {name}.', actYouNoSave: 'You chose not to save anyone.',
       actYouRevived: 'You brought {name} back to life.', actYouNoRevive: 'You chose not to revive anyone.',
       actYouInvestigated: 'You investigated {name} — {result}.',
-      actInvestigatedIsMafia: 'Mafia', actInvestigatedNotMafia: 'not Mafia',
+      actInvestigatedPositive: 'positive', actInvestigatedNegative: 'negative',
+      actZodiacInherited: "زودیاک left the game and all of its abilities transferred to you — you're now زودیاک.",
       actYouNoInvestigate: 'You chose not to investigate anyone.',
       actYouShot: 'You shot {name}.', actYouNoShot: 'You chose not to shoot anyone.',
       actYouWereAddedToGroup: "You were added to اوشن's group.",
@@ -1090,6 +1140,7 @@
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
       debugMafiaChatHeading: 'Mafia Chat', mafiaChatTitle: 'Mafia Chat', mafiaChatPlaceholder: 'Type a message…', btnSend: 'Send',
       debugOceanChatHeading: 'اوشن Chat', oceanChatTitle: 'اوشن Chat',
+      debugZodiacChatHeading: 'زودیاک Chat', zodiacChatTitle: 'زودیاک Chat',
       debugNoActivity: 'No activity logged yet.', debugAlive: 'Alive', debugDead: 'Dead',
       debugShieldOn: 'Shielded', debugShieldOff: 'No shield', debugMafiaSharedLog: "Mafia's Shared Log", debugOther: 'Other',
       debugConnected: 'Connected', debugDisconnected: 'Disconnected',
@@ -1109,13 +1160,14 @@
     'role-godfather': "Each night you decide who Mafia will target. If کاراگاه investigates you, you always read as an innocent civilian.",
     'role-matador': "Each night you choose one civilian to block; they can't use their ability that night.",
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
-    'role-detective': 'Each night you investigate someone and learn whether they are Mafia.',
+    'role-detective': "Each night you investigate someone and get back a simple positive or negative — never a specific label like \"Mafia\" or anything else.",
     'role-professional': "Each night you may target someone. Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead.",
     'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish. This is only possible once in the whole game.',
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
     'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If the gun is fired at a civilian by mistake, any remaining guns are cancelled and won't be handed over again.",
-    'role-zodiac': "You're an independent role. Your goal is to get every Mafia member out of the game before Mafia eliminates all the civilians. Mafia, حرفه‌ای, and تفنگدار can all target you, but none of them can ever actually kill you — the only way you can be removed is a day vote. As long as you're alive, Mafia can never win, even if civilians drop below Mafia's own count. Each night (every night or every other night, depending on the game's settings), after Mafia's turn and before the civilian roles act, you may target one person and shoot them."
+    'role-zodiac': "You're an independent role. Your goal is to get every Mafia member out of the game before Mafia eliminates all the civilians. Mafia, حرفه‌ای, and تفنگدار can all target you, but none of them can ever actually kill you — the only way you can be removed is a day vote. As long as you're alive, Mafia can never win, even if civilians drop below Mafia's own count. Each night (every night or every other night, depending on the game's settings), after Mafia's turn and before the civilian roles act, you may target one person and shoot them.",
+    'role-zodiac-son': "You're زودیاک's companion. While زودیاک is still in the game, you count as a regular civilian — you can be targeted and killed at night, and if کاراگاه investigates you, the result reads positive, indistinguishable from a real Mafia hit. If زودیاک leaves the game (only possible by a day vote), all of its abilities — including immunity to night kills and its own nightly shot — transfer to you, and you become the new زودیاک."
   };
 
   function t(key, vars){
@@ -1148,13 +1200,14 @@
     { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد. اگر کاراگاه شما را بررسی کند، همیشه به‌عنوان یک شهروند بی‌گناه دیده می‌شوید.', shield: true, independent: false, builtin: false },
     { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند.', shield: false, independent: false, builtin: false },
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
-    { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و می‌فهمید که او مافیاست یا نه.', shield: false, independent: false, builtin: false },
+    { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و فقط یک نتیجهٔ مثبت یا منفی می‌گیرید — نه چیزی مشخص مثل «مافیا» یا هر برچسب دیگر.', shield: false, independent: false, builtin: false },
     { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید. اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید.', shield: true, independent: false, builtin: false },
     { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید. این کار فقط یک‌بار در کل بازی ممکن است.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
     { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد.', shield: false, independent: false, builtin: false },
-    { id: 'role-zodiac', team: 'villager', name: 'زودیاک', description: 'شما یک نقش مستقل هستید. هدف شما این است که همه اعضای مافیا از بازی خارج شوند، پیش از آنکه مافیا همه شهروندان را از بین ببرد. مافیا، حرفه‌ای و تفنگدار می‌توانند شما را هدف بگیرند، اما هیچ‌کدام هرگز نمی‌توانند واقعاً شما را بکشند — تنها راه حذف شما رأی‌گیری روز است. تا وقتی شما زنده‌اید، حتی اگر تعداد شهروندان از مافیا کمتر شود، مافیا برنده بازی نمی‌شود. هر شب (بسته به تنظیمات بازی، هر شب یا یک شب در میان)، بعد از نوبت مافیا و پیش از نوبت نقش‌های شهروندی، می‌توانید یک نفر را هدف بگیرید و به او شلیک کنید.', shield: false, independent: true, builtin: false }
+    { id: 'role-zodiac', team: 'villager', name: 'زودیاک', description: 'شما یک نقش مستقل هستید. هدف شما این است که همه اعضای مافیا از بازی خارج شوند، پیش از آنکه مافیا همه شهروندان را از بین ببرد. مافیا، حرفه‌ای و تفنگدار می‌توانند شما را هدف بگیرند، اما هیچ‌کدام هرگز نمی‌توانند واقعاً شما را بکشند — تنها راه حذف شما رأی‌گیری روز است. تا وقتی شما زنده‌اید، حتی اگر تعداد شهروندان از مافیا کمتر شود، مافیا برنده بازی نمی‌شود. هر شب (بسته به تنظیمات بازی، هر شب یا یک شب در میان)، بعد از نوبت مافیا و پیش از نوبت نقش‌های شهروندی، می‌توانید یک نفر را هدف بگیرید و به او شلیک کنید.', shield: false, independent: true, builtin: false },
+    { id: 'role-zodiac-son', team: 'villager', name: 'زودیاک پسر', description: 'شما همراه زودیاک هستید. تا وقتی زودیاک در بازی است، شما یک شهروند عادی محسوب می‌شوید — می‌توان شما را شب‌ها هدف قرار داد و کشت، و اگر کاراگاه شما را بررسی کند، نتیجه مثبت می‌شود، درست مثل یک اصابت واقعی به مافیا. اگر زودیاک از بازی خارج شود (که فقط با رأی‌گیری روز ممکن است)، تمام توانایی‌های او — از جمله مصونیت در برابر شلیک شبانه و شلیک شبانهٔ خودش — به شما منتقل می‌شود و شما زودیاک جدید می‌شوید.', shield: false, independent: false, builtin: false }
   ];
 
   const state = {
@@ -1199,6 +1252,7 @@
     mafiaActivityLog: [],   // (host) shared night-by-night log of mafia shots + blocks, sent to every mafia member
     mafiaChatLog: [],       // (host: authoritative log; player: local copy) {name, text}[] — Mafia-only night chat
     oceanChatLog: [],       // (host: authoritative log; player: local copy) {name, text}[] — اوشن group chat
+    zodiacChatLog: [],      // (host: authoritative log; player: local copy) {name, text}[] — زودیاک + زودیاک پسر chat
     oceanTeam: new Set(),   // (host) player ids اوشن has recruited so far (not including اوشن themselves)
     gunsRemaining: GUNNER_MAX_GUNS, // (host) how many more times تفنگدار may hand over the gun this game
     gunsCancelled: false,   // (host) true once the gun has been fired at a civilian — no more handovers
@@ -1217,7 +1271,8 @@
     lastPhaseMsg: null,          // (player) most recent 'phase' message, for re-rendering on language switch
     amAlive: true,                // (player) tracks eliminated/revived so the mafia chat drawer hides once out
     gameEnded: false,            // (player) true once game-over arrives, so a stale night phase can't keep the chat drawer open
-    inOceanGroup: false          // (player) true if I'm اوشن or someone it's recruited — gates the اوشن chat drawer
+    inOceanGroup: false,         // (player) true if I'm اوشن or someone it's recruited — gates the اوشن chat drawer
+    inZodiacGroup: false         // (player) true if I'm زودیاک or زودیاک پسر — gates the زودیاک chat drawer
   };
 
   function $(id){ return document.getElementById(id); }
@@ -1684,6 +1739,8 @@
           handleMafiaChat(playerId, msg.text);
         } else if(msg.type === 'ocean-chat'){
           handleOceanChat(playerId, msg.text);
+        } else if(msg.type === 'zodiac-chat'){
+          handleZodiacChat(playerId, msg.text);
         }
       }catch(err){}
     };
@@ -1767,6 +1824,9 @@
     if(getOceanGroupIds().has(playerId)){
       sendToPlayer(entry, { type: 'ocean-group-status', inGroup: true });
       if(state.oceanChatLog.length) sendToPlayer(entry, { type: 'ocean-chat-log', log: state.oceanChatLog });
+    }
+    if(getZodiacGroupIds().has(playerId) && state.zodiacChatLog.length){
+      sendToPlayer(entry, { type: 'zodiac-chat-log', log: state.zodiacChatLog });
     }
     if(state.winner){
       const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role, independent: !!e.independent }));
@@ -2141,6 +2201,30 @@
     const entry = state.players.get(id);
     entry.alive = false;
     sendToPlayer(entry, { type: 'eliminated' });
+    transferZodiacLegacy(entry);
+  }
+
+  // If the just-eliminated player was the MAIN زودیاک, everything about the
+  // role — independence (immunity to night kills), the nightly shot, and its
+  // very identity — passes to زودیاک پسر, if one is alive. Renaming پسر's
+  // roleName to ROLE_NAME_ZODIAC means every existing زودیاک-keyed mechanic
+  // (night step, win condition, detective's decoy check) picks them up
+  // automatically, with no further special-casing needed anywhere else. Day
+  // votes are the only way the main زودیاک can ever die (see the immunity in
+  // resolveNight/resolveDayGunAction), so eliminatePlayer is the only call
+  // site that needs this check.
+  function transferZodiacLegacy(diedEntry){
+    if(diedEntry.roleName !== ROLE_NAME_ZODIAC) return;
+    const heirs = findAliveByRoleName(ROLE_NAME_ZODIAC_SON);
+    if(!heirs.length) return;
+    const [heirId, heir] = heirs[0];
+    const zodiacRoleDef = state.roles.find(r => r.id === 'role-zodiac');
+    heir.roleId = 'role-zodiac';
+    heir.roleName = ROLE_NAME_ZODIAC;
+    heir.roleDesc = zodiacRoleDef ? zodiacRoleDef.description : heir.roleDesc;
+    heir.independent = true;
+    sendToPlayer(heir, { type: 'role', role: heir.role, roleId: heir.roleId, name: heir.roleName, description: heir.roleDesc, shield: !!heir.roleShield });
+    logActivity(heir, t('actZodiacInherited'));
   }
 
   function checkWinner(){
@@ -2537,6 +2621,37 @@
     logOceanChat(voter.name, trimmed);
   }
 
+  // زودیاک's little "family" chat — at most two people, ever: زودیاک and
+  // زودیاک پسر. Unlike اوشن's group this never grows, and unlike Mafia's team
+  // it isn't fixed by team either — it's whoever currently holds either of
+  // these two specific role names. After succession (see transferZodiacLegacy)
+  // the heir's roleName becomes ROLE_NAME_ZODIAC, so this naturally narrows
+  // to just them once the original زودیاک is gone.
+  function getZodiacGroupIds(){
+    const ids = new Set();
+    Array.from(state.players.entries()).forEach(([id, e]) => {
+      if(!e.alive) return;
+      if(e.roleName === ROLE_NAME_ZODIAC || e.roleName === ROLE_NAME_ZODIAC_SON) ids.add(id);
+    });
+    return ids;
+  }
+
+  function logZodiacChat(senderName, text){
+    state.zodiacChatLog.push({ name: senderName, text });
+    getZodiacGroupIds().forEach(id => {
+      const entry = state.players.get(id);
+      if(entry) sendToPlayer(entry, { type: 'zodiac-chat-log', log: state.zodiacChatLog });
+    });
+  }
+
+  function handleZodiacChat(voterId, text){
+    const voter = state.players.get(voterId);
+    if(!voter || !voter.alive || !getZodiacGroupIds().has(voterId)) return;
+    const trimmed = String(text || '').trim().slice(0, 300);
+    if(!trimmed) return;
+    logZodiacChat(voter.name, trimmed);
+  }
+
   function handleNightAction(voterId, role, targetId, recruit){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
@@ -2584,15 +2699,27 @@
       if(targetId){
         const target = state.players.get(targetId);
         if(target){
-          // پدرخوانده has detective immunity: کاراگاه's personal investigation
-          // always reads them as an innocent civilian, even though they're
-          // genuinely Mafia. This is scoped ONLY to this one-on-one result —
-          // the morning inquiry's aggregate mafia/civilian/زودیاک counts (see
-          // App.closeInquiryVote) still count پدرخوانده as Mafia, since that
-          // reflects ground truth, not a personal read.
-          const isMafia = target.role === 'mafia' && target.roleName !== ROLE_NAME_GODFATHER;
-          sendToPlayer(voter, { type: 'investigate-result', targetName: target.name, isMafia });
-          logActivity(voter, prefix + t('actYouInvestigated', { name: target.name, result: isMafia ? t('actInvestigatedIsMafia') : t('actInvestigatedNotMafia') }));
+          // The read is deliberately just a hit/no-hit signal — never a
+          // specific label like "Mafia" or "suspicious" — so a positive
+          // result can never be pinned to one explanation. Two things can
+          // trigger a positive:
+          // - Genuine Mafia, EXCEPT پدرخوانده: detective immunity makes
+          //   پدرخوانده always read negative, even though genuinely Mafia.
+          //   Scoped ONLY to this one-on-one read — the morning inquiry's
+          //   aggregate counts (see App.closeInquiryVote) still count
+          //   پدرخوانده as Mafia, since that reflects ground truth, not a
+          //   personal read.
+          // - زودیاک پسر, while the main زودیاک is still alive: an
+          //   intentional decoy, indistinguishable from a real Mafia hit,
+          //   that stops applying once succession actually happens (see
+          //   eliminatePlayer, where پسر inherits زودیاک's identity and this
+          //   branch no longer matches their roleName).
+          const isZodiacSonDecoy = target.roleName === ROLE_NAME_ZODIAC_SON && findAliveByRoleName(ROLE_NAME_ZODIAC).length;
+          const isRealMafiaHit = target.role === 'mafia' && target.roleName !== ROLE_NAME_GODFATHER;
+          const outcome = (isZodiacSonDecoy || isRealMafiaHit) ? 'positive' : 'negative';
+          sendToPlayer(voter, { type: 'investigate-result', targetName: target.name, outcome });
+          const resultLabel = outcome === 'positive' ? t('actInvestigatedPositive') : t('actInvestigatedNegative');
+          logActivity(voter, prefix + t('actYouInvestigated', { name: target.name, result: resultLabel }));
         }
       } else {
         logActivity(voter, prefix + t('actYouNoInvestigate'));
@@ -2811,6 +2938,7 @@
     state.mafiaActivityLog = [];
     state.mafiaChatLog = [];
     state.oceanChatLog = [];
+    state.zodiacChatLog = [];
     state.oceanTeam = new Set();
     state.gunsRemaining = GUNNER_MAX_GUNS;
     state.gunsCancelled = false;
@@ -2942,17 +3070,23 @@
           // into Mafia), and that shouldn't wipe out group membership اوشن
           // itself already granted earlier via 'ocean-group-status'.
           if(msg.name === ROLE_NAME_OCEAN) state.inOceanGroup = true;
+          // Same "only ever set true" logic as اوشن above — a later 'role'
+          // message (e.g. succession renaming پسر to ROLE_NAME_ZODIAC) should
+          // never turn this off, and both names belong to the same 2-person
+          // group anyway.
+          if(msg.name === ROLE_NAME_ZODIAC || msg.name === ROLE_NAME_ZODIAC_SON) state.inZodiacGroup = true;
           state.hasActivityLog = msg.role === 'mafia' ||
-            [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN, ROLE_NAME_GUNNER, ROLE_NAME_ZODIAC].includes(msg.name);
+            [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN, ROLE_NAME_GUNNER, ROLE_NAME_ZODIAC, ROLE_NAME_ZODIAC_SON].includes(msg.name);
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = state.hasActivityLog ? 'block' : 'none'; });
           renderRole(msg);
           showScreen('screen-player-role');
           updateMafiaChatVisibility();
           updateOceanChatVisibility();
+          updateZodiacChatVisibility();
         }
         else if(msg.type === 'phase'){ handlePhaseMessage(msg); }
         else if(msg.type === 'day-result'){ handleDayResult(msg); }
-        else if(msg.type === 'eliminated'){ state.amAlive = false; updateMafiaChatVisibility(); updateOceanChatVisibility(); showScreen('screen-player-eliminated'); }
+        else if(msg.type === 'eliminated'){ state.amAlive = false; updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility(); showScreen('screen-player-eliminated'); }
         else if(msg.type === 'inquiry-result'){ handleInquiryResult(msg); }
         else if(msg.type === 'game-over'){ handleGameOver(msg); }
         else if(msg.type === 'night-result'){ handleNightResult(msg); }
@@ -2978,6 +3112,10 @@
         else if(msg.type === 'ocean-chat-log'){
           state.oceanChatLog = msg.log || [];
           renderOceanChat();
+        }
+        else if(msg.type === 'zodiac-chat-log'){
+          state.zodiacChatLog = msg.log || [];
+          renderZodiacChat();
         }
       }catch(err){}
     };
@@ -3043,6 +3181,7 @@
     }
     updateMafiaChatVisibility();
     updateOceanChatVisibility();
+    updateZodiacChatVisibility();
   }
 
   // The Mafia chat drawer (see #mafia-chat-panel) is a single global element,
@@ -3130,6 +3269,40 @@
     input.value = '';
   };
 
+  // زودیاک's chat: same "no phase restriction" rule as اوشن's — available any
+  // time this player is alive, in the group (زودیاک or زودیاک پسر — see the
+  // 'role' handler), and the game hasn't ended.
+  function updateZodiacChatVisibility(){
+    const panel = $('zodiac-chat-panel');
+    if(!panel) return;
+    const show = !!(state.inZodiacGroup && state.amAlive && !state.gameEnded);
+    panel.classList.toggle('open', show);
+    document.body.classList.toggle('zodiac-chat-open', show);
+    if(show) renderZodiacChat();
+  }
+
+  function renderZodiacChat(){
+    const list = $('zodiac-chat-messages');
+    if(!list) return;
+    list.innerHTML = '';
+    (state.zodiacChatLog || []).forEach(m => {
+      const row = document.createElement('div');
+      row.className = 'zodiac-chat-msg';
+      row.innerHTML = '<span class="zodiac-chat-sender">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
+      list.appendChild(row);
+    });
+    list.scrollTop = list.scrollHeight;
+  }
+
+  App.sendZodiacChat = function(){
+    const input = $('zodiac-chat-input');
+    if(!input) return;
+    const text = input.value.trim();
+    if(!text) return;
+    try{ state.playerDC.send(JSON.stringify({ type: 'zodiac-chat', text })); }catch(e){ toast(t('lostHostConnection')); return; }
+    input.value = '';
+  };
+
   function renderVoteScreen(){
     $('vote-title').textContent = state.voteRound === 1 ? t('whoSuspect') : t('finalVoteTitle');
     const list = $('vote-candidate-list');
@@ -3198,6 +3371,7 @@
     state.gameEnded = true;
     updateMafiaChatVisibility();
     updateOceanChatVisibility();
+    updateZodiacChatVisibility();
     $('game-over-title-player').textContent = winnerLabel(msg.winner);
     const box = $('game-over-roster-player');
     box.innerHTML = '';
@@ -3310,6 +3484,7 @@
     state.amAlive = true;
     updateMafiaChatVisibility();
     updateOceanChatVisibility();
+    updateZodiacChatVisibility();
     $('night-waiting-title').textContent = t('morningHasCome');
     $('night-waiting-note').textContent = nightResultText(msg.deadNames, null);
     $('night-waiting-note').style.display = 'block';
@@ -3317,7 +3492,8 @@
   }
 
   function handleInvestigateResult(msg){
-    $('investigate-result-title').textContent = msg.isMafia ? t('isMafia', { name: msg.targetName }) : t('isNotMafia', { name: msg.targetName });
+    const text = msg.outcome === 'positive' ? t('isPositive', { name: msg.targetName }) : t('isNegative', { name: msg.targetName });
+    $('investigate-result-title').textContent = text;
     showScreen('screen-player-investigate-result');
   }
 
@@ -3450,6 +3626,16 @@
         oceanChatBox.appendChild(buildDebugLogSection(t('debugOceanChatHeading'), state.oceanChatLog.map(m => m.name + ': ' + m.text)));
       } else {
         oceanChatBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
+      }
+    }
+
+    const zodiacChatBox = $('debug-zodiac-chat');
+    if(zodiacChatBox){
+      zodiacChatBox.innerHTML = '';
+      if(state.zodiacChatLog.length){
+        zodiacChatBox.appendChild(buildDebugLogSection(t('debugZodiacChatHeading'), state.zodiacChatLog.map(m => m.name + ': ' + m.text)));
+      } else {
+        zodiacChatBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
       }
     }
   }
