@@ -1779,14 +1779,19 @@
     // From here on the room is locked — see hostBeginConnectionTo — so anyone
     // who joins after this point doesn't end up connected with no role to show.
     state.rolesAssigned = true;
-    // Only actually-ready players (connected AND named) get dealt in — a
-    // connection that was still mid-handshake, or someone who never got to
-    // typing their name, would otherwise eat a Mafia/villager slot and never
-    // receive their 'role' message at all. This matches the same "ready"
-    // definition renderLobby already uses for the joined-count and the
-    // Assign Roles button's enable check, so by the time this runs there's
-    // always at least minToStart of them.
-    const ids = Array.from(state.players.entries()).filter(([id, e]) => e.connected && e.name).map(([id]) => id);
+    // Only players who actually got as far as picking a name are dealt in —
+    // a connection stuck mid-handshake that never reached the name screen
+    // has no seat to speak of. Deliberately NOT requiring .connected too: a
+    // named player who happens to be mid-reconnect (dropped WiFi, screen
+    // lock) right as the host taps this button still has a real seat and
+    // must still get a role — it's just recorded here and delivered the
+    // moment they reconnect (see resyncPlayer's `if(entry.role)` branch),
+    // exactly like every other post-assignment reconnect already works.
+    // Requiring .connected here used to silently skip them forever, leaving
+    // entry.role/roleName null — which is why they'd show up as the literal
+    // string "null" in the God's dossier (renderDossier) and never receive
+    // anything on reconnect (resyncPlayer's role check never fires without it).
+    const ids = Array.from(state.players.entries()).filter(([id, e]) => !!e.name).map(([id]) => id);
     shuffle(ids);
     const idsByTeam = { mafia: ids.slice(0, state.numMafia), villager: ids.slice(state.numMafia) };
 
