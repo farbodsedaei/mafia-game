@@ -303,6 +303,7 @@
     </div>
     <div id="slot-list"></div>
     <div class="grow"></div>
+    <p class="hint" id="lobby-min-hint" style="text-align:center; margin-bottom:8px;"></p>
     <button class="btn btn-primary" id="btn-assign" onclick="App.assignRoles()" disabled data-i18n="btnAssignRoles"></button>
   </div>
 
@@ -835,6 +836,8 @@
       lobbyEyebrow: 'میزبان · اتاق انتظار', lobbyJoinedCount: 'میزبان · اتاق انتظار · {n}/{total} پیوسته',
       lobbyTitle: 'بازیکنان خود را دعوت کنید', labelRoomCode: 'کد اتاق', generatingLink: 'در حال ساخت لینک…',
       btnCopy: 'کپی', btnShareInvite: 'اشتراک‌گذاری لینک دعوت', btnAssignRoles: 'تخصیص نقش‌ها',
+      lobbyNeedMoreHint: 'برای شروع حداقل به {n} بازیکن آماده نیاز دارید.',
+      lobbyMinReadyHint: 'نیازی نیست منتظر پیوستن همه بمانید — هر وقت خواستید می‌توانید نقش‌ها را تخصیص دهید. هر کس بعداً بپیوندد، باید منتظر بازی بعدی بماند.',
       statusConnecting: 'در حال اتصال…', statusWaitingForPlayer: 'منتظر پیوستن بازیکن با لینک…',
       toastPlayerJoined: '{name} به بازی پیوست.', toastPlayerReconnected: '{name} دوباره وصل شد.',
       rolesAssignedEyebrow: 'نقش‌ها تخصیص یافت', rolesDealtTitle: 'نقش‌ها پخش شدند',
@@ -968,6 +971,8 @@
       gunNotFired: 'امروز اسلحه‌ای شلیک نشد.',
       btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
       debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
+      btnKickPlayer: 'اخراج از بازی', confirmKickPlayer: 'آیا مطمئن هستید که می‌خواهید {name} را از بازی اخراج کنید؟ این کار قابل بازگشت نیست.',
+      actKickedByGod: 'شما توسط گاد از بازی اخراج شدید.', playerKicked: '{name} از بازی اخراج شد.',
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
       debugMafiaChatHeading: 'گفتگوی مافیا', mafiaChatTitle: 'گفتگوی مافیا', mafiaChatPlaceholder: 'پیام بنویسید…', btnSend: 'ارسال',
       debugOceanChatHeading: 'گفتگوی اوشن', oceanChatTitle: 'گفتگوی اوشن',
@@ -1004,6 +1009,8 @@
       lobbyEyebrow: 'Host · Lobby', lobbyJoinedCount: 'Host · Lobby · {n}/{total} joined',
       lobbyTitle: 'Invite your players', labelRoomCode: 'Room code', generatingLink: 'generating link…',
       btnCopy: 'Copy', btnShareInvite: 'Share Invite Link', btnAssignRoles: 'Assign Roles',
+      lobbyNeedMoreHint: 'You need at least {n} players ready before you can start.',
+      lobbyMinReadyHint: "You don't have to wait for everyone — you can assign roles whenever you're ready. Anyone who joins later will have to wait for the next game.",
       statusConnecting: 'Connecting…', statusWaitingForPlayer: 'Waiting for player to join with the link…',
       toastPlayerJoined: '{name} joined the game.', toastPlayerReconnected: '{name} reconnected.',
       rolesAssignedEyebrow: 'Roles Assigned', rolesDealtTitle: 'Roles have been dealt',
@@ -1137,6 +1144,8 @@
       gunNotFired: 'No shot was fired today.',
       btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
       debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
+      btnKickPlayer: 'Kick from Game', confirmKickPlayer: "Are you sure you want to kick {name} from the game? This can't be undone.",
+      actKickedByGod: 'You were kicked from the game by the God.', playerKicked: '{name} was kicked from the game.',
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
       debugMafiaChatHeading: 'Mafia Chat', mafiaChatTitle: 'Mafia Chat', mafiaChatPlaceholder: 'Type a message…', btnSend: 'Send',
       debugOceanChatHeading: 'اوشن Chat', oceanChatTitle: 'اوشن Chat',
@@ -1221,6 +1230,7 @@
     numOceanSlots: 2,      // how many members اوشن can recruit into their group
     zodiacShootsEveryNight: true, // false = زودیاک only shoots on odd nights (Night 1, 3, 5…)
     room: null,
+    rolesAssigned: false,  // (host) true from App.assignRoles() onward — locks the room to new joiners (see hostBeginConnectionTo), since a latecomer past this point would connect but never get a role
     players: new Map(),   // playerId -> {name, connected, pc, dc, role}
     ws: null,
     playerPC: null,
@@ -1655,7 +1665,16 @@
       row.innerHTML = '<div class="num">' + i + '</div><div class="status">' + escapeHtml(t('statusWaitingForPlayer')) + '</div>';
       list.appendChild(row);
     }
-    $('btn-assign').disabled = connectedCount < state.numPlayers;
+    // Don't force the host to wait for every declared seat to fill — that
+    // left the game unstartable if even one invited player couldn't get
+    // online (see App.assignRoles for the corresponding room-lock once this
+    // is clicked). The only real requirement is enough people for at least
+    // one Mafia and one villager to actually exist.
+    const minToStart = Math.max(2, state.numMafia + 1);
+    $('btn-assign').disabled = connectedCount < minToStart;
+    $('lobby-min-hint').textContent = connectedCount < minToStart
+      ? t('lobbyNeedMoreHint', { n: minToStart })
+      : (connectedCount < state.numPlayers ? t('lobbyMinReadyHint') : '');
   }
 
   /* ---------------- Host: WebRTC per player ---------------- */
@@ -1665,7 +1684,12 @@
     // treating them as a new joiner, and let them back in even if the room
     // is otherwise "full" (they already have a seat).
     const existing = state.players.get(playerId);
-    if(!existing && state.players.size >= state.numPlayers){
+    // Reject brand-new joiners once the room is full OR roles have already
+    // been assigned — a latecomer past that point would connect but never
+    // receive a role (see App.assignRoles). An existing entry (same
+    // persisted token reconnecting) is always let back in regardless — they
+    // already have a seat.
+    if(!existing && (state.rolesAssigned || state.players.size >= state.numPlayers)){
       return;
     }
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -1752,7 +1776,17 @@
 
   /* ---------------- Role assignment ---------------- */
   App.assignRoles = function(){
-    const ids = Array.from(state.players.keys());
+    // From here on the room is locked — see hostBeginConnectionTo — so anyone
+    // who joins after this point doesn't end up connected with no role to show.
+    state.rolesAssigned = true;
+    // Only actually-ready players (connected AND named) get dealt in — a
+    // connection that was still mid-handshake, or someone who never got to
+    // typing their name, would otherwise eat a Mafia/villager slot and never
+    // receive their 'role' message at all. This matches the same "ready"
+    // definition renderLobby already uses for the joined-count and the
+    // Assign Roles button's enable check, so by the time this runs there's
+    // always at least minToStart of them.
+    const ids = Array.from(state.players.entries()).filter(([id, e]) => e.connected && e.name).map(([id]) => id);
     shuffle(ids);
     const idsByTeam = { mafia: ids.slice(0, state.numMafia), villager: ids.slice(state.numMafia) };
 
@@ -2938,6 +2972,7 @@
     for(const entry of state.players.values()){ try{ entry.pc && entry.pc.close(); }catch(e){} }
     state.players = new Map();
     state.room = null;
+    state.rolesAssigned = false;
     state.day = 1;
     state.gamePhase = null;
     state.votesRound1 = new Map();
@@ -3566,6 +3601,32 @@
     panel.classList.add('open');
   };
 
+  // The God can remove any player from the game at any time — day or
+  // night, mid-phase or not — for real-world situations no in-game rule
+  // anticipates (someone has to leave, a phone is unrecoverable, they're
+  // disrupting the game, etc.). This calls eliminatePlayer directly, so
+  // unlike an in-game night kill or gun shot it's NOT blocked by a shield,
+  // a Doctor's save, or زودیاک's independence — those protections exist to
+  // resist another ROLE's attack, and a God kick isn't one; it should
+  // always go through. If the kicked player still owed a pending night
+  // decision, the existing "Force Continue" / "Force Skip Gun" controls
+  // (App.forceContinueNight / App.forceSkipGunDecision) are what unstick
+  // that step afterward — kicking doesn't try to auto-resolve it itself.
+  App.kickPlayer = function(id){
+    const entry = state.players.get(id);
+    if(!entry || !entry.alive) return;
+    if(!confirm(t('confirmKickPlayer', { name: entry.name }))) return;
+    const prefix = (state.gamePhase && state.gamePhase.indexOf('night') === 0)
+      ? t('nightLogPrefix', { day: state.day })
+      : t('dayLogPrefix', { day: state.day });
+    logActivity(entry, prefix + t('actKickedByGod'));
+    eliminatePlayer(id);
+    state.winner = checkWinner();
+    toast(t('playerKicked', { name: entry.name }));
+    if(state.winner){ App.showGameOver(); return; }
+    renderDebugPanel();
+  };
+
   function renderDebugPanel(){
     const stateBox = $('debug-state');
     if(stateBox){
@@ -3582,7 +3643,7 @@
     const rolesBox = $('debug-roles');
     if(rolesBox){
       rolesBox.innerHTML = '';
-      Array.from(state.players.values()).forEach(entry => {
+      Array.from(state.players.entries()).forEach(([id, entry]) => {
         const row = document.createElement('div');
         row.className = 'debug-row';
         row.innerHTML =
@@ -3591,6 +3652,16 @@
           (entry.alive ? escapeHtml(t('debugAlive')) : escapeHtml(t('debugDead'))) + ' · ' +
           (entry.roleShield ? escapeHtml(t('debugShieldOn')) : escapeHtml(t('debugShieldOff'))) + ' · ' +
           (entry.connected ? escapeHtml(t('debugConnected')) : escapeHtml(t('debugDisconnected')));
+        // The God can remove anyone still alive right from this row, any
+        // time — see App.kickPlayer. Nothing to kick once they're already out.
+        if(entry.alive){
+          const kickBtn = document.createElement('button');
+          kickBtn.className = 'btn btn-ghost';
+          kickBtn.style.cssText = 'margin-top:6px; padding:5px 12px; font-size:12px; color:var(--red-bright); border-color:var(--red-dim);';
+          kickBtn.textContent = t('btnKickPlayer');
+          kickBtn.onclick = () => App.kickPlayer(id);
+          row.appendChild(kickBtn);
+        }
         rolesBox.appendChild(row);
       });
     }
