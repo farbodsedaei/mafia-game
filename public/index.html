@@ -837,7 +837,7 @@
       lobbyTitle: 'بازیکنان خود را دعوت کنید', labelRoomCode: 'کد اتاق', generatingLink: 'در حال ساخت لینک…',
       btnCopy: 'کپی', btnShareInvite: 'اشتراک‌گذاری لینک دعوت', btnAssignRoles: 'تخصیص نقش‌ها',
       lobbyNeedMoreHint: 'برای شروع حداقل به {n} بازیکن آماده نیاز دارید.',
-      lobbyMinReadyHint: 'نیازی نیست منتظر پیوستن همه بمانید — هر وقت خواستید می‌توانید نقش‌ها را تخصیص دهید. هر کس بعداً بپیوندد، باید منتظر بازی بعدی بماند.',
+      lobbyMinReadyHint: 'نیازی نیست منتظر پیوستن همه بمانید — هر وقت خواستید می‌توانید نقش‌ها را تخصیص دهید. هر کس بعداً بپیوندد، به‌محض ورود نقش خودش را دریافت می‌کند.',
       statusConnecting: 'در حال اتصال…', statusWaitingForPlayer: 'منتظر پیوستن بازیکن با لینک…',
       toastPlayerJoined: '{name} به بازی پیوست.', toastPlayerReconnected: '{name} دوباره وصل شد.',
       rolesAssignedEyebrow: 'نقش‌ها تخصیص یافت', rolesDealtTitle: 'نقش‌ها پخش شدند',
@@ -1010,7 +1010,7 @@
       lobbyTitle: 'Invite your players', labelRoomCode: 'Room code', generatingLink: 'generating link…',
       btnCopy: 'Copy', btnShareInvite: 'Share Invite Link', btnAssignRoles: 'Assign Roles',
       lobbyNeedMoreHint: 'You need at least {n} players ready before you can start.',
-      lobbyMinReadyHint: "You don't have to wait for everyone — you can assign roles whenever you're ready. Anyone who joins later will have to wait for the next game.",
+      lobbyMinReadyHint: "You don't have to wait for everyone — you can assign roles whenever you're ready. Anyone who joins later gets their role the moment they do.",
       statusConnecting: 'Connecting…', statusWaitingForPlayer: 'Waiting for player to join with the link…',
       toastPlayerJoined: '{name} joined the game.', toastPlayerReconnected: '{name} reconnected.',
       rolesAssignedEyebrow: 'Roles Assigned', rolesDealtTitle: 'Roles have been dealt',
@@ -1230,7 +1230,9 @@
     numOceanSlots: 2,      // how many members اوشن can recruit into their group
     zodiacShootsEveryNight: true, // false = زودیاک only shoots on odd nights (Night 1, 3, 5…)
     room: null,
-    rolesAssigned: false,  // (host) true from App.assignRoles() onward — locks the room to new joiners (see hostBeginConnectionTo), since a latecomer past this point would connect but never get a role
+    rolesAssigned: false,  // (host) true from App.assignRoles() onward — once true, a brand-new joiner draws from state.pendingRoleSlots instead of just sitting in the lobby (see the 'name' handler)
+    pendingRoleSlots: [],  // (host) role defs reserved for seats not yet filled at assignRoles() time, drawn from as latecomers join
+    currentPhaseSnapshot: null, // (host) most recent broadcast-style 'phase' message sent to anyone — lets a brand-new latecomer resync to what's currently happening
     players: new Map(),   // playerId -> {name, connected, pc, dc, role}
     ws: null,
     playerPC: null,
@@ -1667,9 +1669,10 @@
     }
     // Don't force the host to wait for every declared seat to fill — that
     // left the game unstartable if even one invited player couldn't get
-    // online (see App.assignRoles for the corresponding room-lock once this
-    // is clicked). The only real requirement is enough people for at least
-    // one Mafia and one villager to actually exist.
+    // online. The only real requirement is enough people for at least one
+    // Mafia and one villager to actually exist; anyone still joining after
+    // that gets folded in automatically once they do (see App.assignRoles'
+    // state.pendingRoleSlots and the 'name' handler in setupHostDataChannel).
     const minToStart = Math.max(2, state.numMafia + 1);
     $('btn-assign').disabled = connectedCount < minToStart;
     $('lobby-min-hint').textContent = connectedCount < minToStart
@@ -1684,12 +1687,15 @@
     // treating them as a new joiner, and let them back in even if the room
     // is otherwise "full" (they already have a seat).
     const existing = state.players.get(playerId);
-    // Reject brand-new joiners once the room is full OR roles have already
-    // been assigned — a latecomer past that point would connect but never
-    // receive a role (see App.assignRoles). An existing entry (same
+    // Reject brand-new joiners only once every declared seat is actually
+    // filled. Assigning roles does NOT close the room — App.assignRoles
+    // reserves a role for every seat up front (state.pendingRoleSlots), so a
+    // brand-new joiner arriving after that point still gets dealt a real
+    // role the moment they pick a name (see the 'name' handler below), the
+    // same as everyone who was already in. An existing entry (same
     // persisted token reconnecting) is always let back in regardless — they
     // already have a seat.
-    if(!existing && (state.rolesAssigned || state.players.size >= state.numPlayers)){
+    if(!existing && state.players.size >= state.numPlayers){
       return;
     }
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -1748,6 +1754,20 @@
           if(entry){
             const wasReconnect = entry.name === msg.name;
             entry.name = msg.name;
+            // Roles were already handed out, but this is someone who wasn't
+            // connected yet at the time — draw their reserved role now (see
+            // App.assignRoles' state.pendingRoleSlots) instead of leaving
+            // them stuck with no role forever. Then fold them into whatever
+            // the group is currently doing, exactly like a reconnect would
+            // (resyncPlayer) — they have no lastPhase of their own yet, so
+            // borrow the last broadcast-style phase everyone else got.
+            if(state.rolesAssigned && !entry.role && state.pendingRoleSlots && state.pendingRoleSlots.length){
+              const roleDef = state.pendingRoleSlots.shift();
+              applyRoleToEntry(entry, roleDef);
+              if(!entry.lastPhase && state.currentPhaseSnapshot) entry.lastPhase = state.currentPhaseSnapshot;
+              resyncPlayer(entry, playerId);
+              renderDossier();
+            }
             renderLobby();
             toast(t(wasReconnect ? 'toastPlayerReconnected' : 'toastPlayerJoined', {name: msg.name}));
           }
@@ -1775,43 +1795,62 @@
   }
 
   /* ---------------- Role assignment ---------------- */
+  // One team's worth of role definitions, sized to that team's full slot
+  // count regardless of how many people have actually joined yet — custom
+  // roles land on a random subset of the slots, everyone else gets the
+  // team's default role, and the whole thing is shuffled so which SPECIFIC
+  // slot gets a custom role is random. Building this at full size (instead
+  // of only as many as are currently connected) is what lets latecomers
+  // draw a real, already-decided role later instead of the game "running
+  // out" of roles once assignRoles() has been clicked once — see
+  // state.pendingRoleSlots below.
+  function buildTeamRoleDeck(team, slotCount){
+    const customRoles = state.roles.filter(r => r.team === team && !r.builtin && state.selectedRoleIds.has(r.id));
+    const defaultRole = state.roles.find(r => r.team === team && r.builtin) ||
+      { team, name: team === 'mafia' ? t('tagMafia') : t('tagVillage'), description: '', shield: false };
+    const deck = [];
+    for(let i = 0; i < slotCount; i++) deck.push(i < customRoles.length ? customRoles[i] : defaultRole);
+    return shuffle(deck);
+  }
+
+  function applyRoleToEntry(entry, roleDef){
+    entry.role = roleDef.team;
+    entry.roleId = roleDef.id;
+    entry.roleName = roleDef.name;
+    entry.roleDesc = roleDef.description;
+    entry.roleShield = !!roleDef.shield;
+    entry.independent = !!roleDef.independent;
+  }
+
   App.assignRoles = function(){
-    // From here on the room is locked — see hostBeginConnectionTo — so anyone
-    // who joins after this point doesn't end up connected with no role to show.
     state.rolesAssigned = true;
-    // Only players who actually got as far as picking a name are dealt in —
-    // a connection stuck mid-handshake that never reached the name screen
-    // has no seat to speak of. Deliberately NOT requiring .connected too: a
-    // named player who happens to be mid-reconnect (dropped WiFi, screen
-    // lock) right as the host taps this button still has a real seat and
-    // must still get a role — it's just recorded here and delivered the
-    // moment they reconnect (see resyncPlayer's `if(entry.role)` branch),
-    // exactly like every other post-assignment reconnect already works.
-    // Requiring .connected here used to silently skip them forever, leaving
-    // entry.role/roleName null — which is why they'd show up as the literal
-    // string "null" in the God's dossier (renderDossier) and never receive
-    // anything on reconnect (resyncPlayer's role check never fires without it).
-    const ids = Array.from(state.players.entries()).filter(([id, e]) => !!e.name).map(([id]) => id);
-    shuffle(ids);
-    const idsByTeam = { mafia: ids.slice(0, state.numMafia), villager: ids.slice(state.numMafia) };
 
-    ['mafia', 'villager'].forEach(team => {
-      const customRoles = state.roles.filter(r => r.team === team && !r.builtin && state.selectedRoleIds.has(r.id));
-      const defaultRole = state.roles.find(r => r.team === team && r.builtin) ||
-        { team, name: team === 'mafia' ? t('tagMafia') : t('tagVillage'), description: '', shield: false };
+    // A full numPlayers-sized deck: numMafia mafia-team slots plus the rest
+    // villager-team, in a randomly interleaved order — so team membership
+    // AND which slot gets a custom role are both decided right now for
+    // EVERY declared seat, not just the ones filled so far.
+    const mafiaDeck = buildTeamRoleDeck('mafia', state.numMafia);
+    const villagerDeck = buildTeamRoleDeck('villager', state.numPlayers - state.numMafia);
+    const teamOrder = shuffle(
+      Array(state.numMafia).fill('mafia').concat(Array(state.numPlayers - state.numMafia).fill('villager'))
+    );
+    let mafiaIdx = 0, villagerIdx = 0;
+    const fullDeck = teamOrder.map(team => team === 'mafia' ? mafiaDeck[mafiaIdx++] : villagerDeck[villagerIdx++]);
 
-      idsByTeam[team].forEach((id, idx) => {
-        const roleDef = idx < customRoles.length ? customRoles[idx] : defaultRole;
-        const entry = state.players.get(id);
-        entry.role = roleDef.team;
-        entry.roleId = roleDef.id;
-        entry.roleName = roleDef.name;
-        entry.roleDesc = roleDef.description;
-        entry.roleShield = !!roleDef.shield;
-        entry.independent = !!roleDef.independent;
-        sendToPlayer(entry, { type: 'role', role: roleDef.team, roleId: roleDef.id, name: roleDef.name, description: roleDef.description, shield: !!roleDef.shield });
-      });
+    // Deal to whoever's already picked a name right now...
+    const joinedIds = shuffle(Array.from(state.players.entries()).filter(([id, e]) => !!e.name).map(([id]) => id));
+    joinedIds.forEach((id, idx) => {
+      const entry = state.players.get(id);
+      const roleDef = fullDeck[idx];
+      applyRoleToEntry(entry, roleDef);
+      sendToPlayer(entry, { type: 'role', role: roleDef.team, roleId: roleDef.id, name: roleDef.name, description: roleDef.description, shield: !!roleDef.shield });
     });
+
+    // ...and reserve the rest for anyone who's still fumbling with their
+    // phone — they draw from this the moment they actually join (see the
+    // 'name' handler in setupHostDataChannel), instead of being turned away
+    // just because they were slower to connect than everyone else.
+    state.pendingRoleSlots = fullDeck.slice(joinedIds.length);
 
     renderDossier();
     showScreen('screen-host-summary');
@@ -1836,12 +1875,22 @@
   function aliveEntries(){
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive);
   }
+  // Broadcast-style phases only — every recipient gets the identical
+  // payload, unlike 'night-action' (role-specific candidate lists) or
+  // 'day-gun-action' (aimed at one specific gun holder), which must NEVER
+  // be handed to someone else. Used to resync a brand-new latecomer (see
+  // the 'name' handler) to whatever the group is currently doing, since
+  // they have no lastPhase of their own yet.
+  const GLOBAL_SNAPSHOT_PHASES = ['day', 'inquiry-vote', 'voting1', 'voting2', 'defense', 'night'];
   function sendToPlayer(entry, obj){
     // Cache the most recent 'phase' message per player — this is what lets a
     // reconnecting player pick up exactly where they left off (see
     // resyncPlayer), including any role-specific night-action prompt they
     // hadn't answered yet, without having to special-case every phase kind.
-    if(obj && obj.type === 'phase') entry.lastPhase = obj;
+    if(obj && obj.type === 'phase'){
+      entry.lastPhase = obj;
+      if(GLOBAL_SNAPSHOT_PHASES.indexOf(obj.phase) !== -1) state.currentPhaseSnapshot = obj;
+    }
     try{ entry.dc.send(JSON.stringify(obj)); }catch(e){}
   }
 
@@ -2978,6 +3027,8 @@
     state.players = new Map();
     state.room = null;
     state.rolesAssigned = false;
+    state.pendingRoleSlots = [];
+    state.currentPhaseSnapshot = null;
     state.day = 1;
     state.gamePhase = null;
     state.votesRound1 = new Map();
