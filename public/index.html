@@ -312,6 +312,13 @@
     <div class="eyebrow" data-i18n="rolesAssignedEyebrow"></div>
     <h2 style="font-size:26px; margin:10px 0 20px;" data-i18n="rolesDealtTitle"></h2>
     <div class="card"><table class="dossier" id="dossier-table"></table></div>
+    <!-- Only shown while someone declared at setup hasn't joined yet — see
+         renderDossier(), which keeps this live as latecomers draw their
+         reserved role (state.pendingRoleSlots). -->
+    <div class="card" id="pending-roles-card" style="margin-top:16px; display:none;">
+      <div class="eyebrow" style="margin-bottom:8px;" id="pending-roles-heading"></div>
+      <div id="pending-roles-list" class="hint"></div>
+    </div>
     <p class="hint" style="margin-top:16px;" data-i18n="rolesDealtHint"></p>
     <div class="grow"></div>
     <div class="stack">
@@ -842,6 +849,7 @@
       toastPlayerJoined: '{name} به بازی پیوست.', toastPlayerReconnected: '{name} دوباره وصل شد.',
       rolesAssignedEyebrow: 'نقش‌ها تخصیص یافت', rolesDealtTitle: 'نقش‌ها پخش شدند',
       rolesDealtHint: 'نقش‌ها به‌صورت خصوصی به هر گوشی ارسال شد — از جمله گوشی شما اگر شما هم بازی می‌کنید. در حال حاضر، تا وقتی بازی در حال ساخته‌شدن است، این نقش‌ها پایین همین صفحه هم به شما نشان داده می‌شوند.',
+      pendingRolesCount: '{n} نقش هنوز منتظر پیوستن صاحبشان است',
       roleSentPrivately: 'نقش به‌صورت خصوصی ارسال شد',
       btnBeginGame: 'شروع بازی ←', btnStartOverInstead: 'در عوض از نو شروع کن',
       dayLabel: 'روز {n}', dayTitle: 'گفتگوی روز',
@@ -982,6 +990,7 @@
       debugConnected: 'متصل', debugDisconnected: 'قطع شده',
       debugPhaseLabel: 'فاز', debugWinnerLabel: 'برنده', debugGunsRemainingLabel: 'اسلحه‌های باقی‌مانده',
       debugGunsCancelledLabel: 'اسلحه‌ها لغو شده', debugPendingGunLabel: 'اسلحه در دست', debugNone: 'هیچ‌کدام',
+      debugPendingRolesLabel: 'نقش‌های توزیع‌نشده',
       dayGunReturnedWaitHint: '{name} که اسلحه دستش بود، شب گذشته جان خود را از دست داد. اسلحه به تفنگدار برگشته و او باید تصمیم بگیرد.',
       gunDecisionReturnedHint: '{name}، کسی که اسلحه را به او داده بودید، شب گذشته جان خود را از دست داد. اسلحه به شما برگشته — می‌توانید به کسی شلیک کنید، یا کاری نکنید.',
       actGunReturned: '{name}، کسی که اسلحه را به او داده بودید، جان باخت و اسلحه به شما برگشت.',
@@ -1015,6 +1024,7 @@
       toastPlayerJoined: '{name} joined the game.', toastPlayerReconnected: '{name} reconnected.',
       rolesAssignedEyebrow: 'Roles Assigned', rolesDealtTitle: 'Roles have been dealt',
       rolesDealtHint: "Roles were sent privately to each phone — including yours if you're playing too. For now, while the game is still being built, they're also listed below on this screen.",
+      pendingRolesCount: "{n} role(s) still haven't been claimed",
       roleSentPrivately: 'Role sent privately',
       btnBeginGame: 'Begin the Game →', btnStartOverInstead: 'Start Over Instead',
       dayLabel: 'Day {n}', dayTitle: 'Daytime discussion',
@@ -1155,6 +1165,7 @@
       debugConnected: 'Connected', debugDisconnected: 'Disconnected',
       debugPhaseLabel: 'Phase', debugWinnerLabel: 'Winner', debugGunsRemainingLabel: 'Guns remaining',
       debugGunsCancelledLabel: 'Guns cancelled', debugPendingGunLabel: 'Gun currently held by', debugNone: 'None',
+      debugPendingRolesLabel: 'Undistributed roles',
       dayGunReturnedWaitHint: "{name}, who was holding the gun, didn't survive the night. The gun has returned to تفنگدار, who must now decide.",
       gunDecisionReturnedHint: "{name}, who you handed the gun to, didn't survive the night. It's back with you — you may shoot someone, or do nothing.",
       actGunReturned: "{name}, who you gave the gun to, died and the gun came back to you.",
@@ -1869,6 +1880,44 @@
         '<td style="text-align:right;" class="hint">' + escapeHtml(entry.roleName || entry.role) + '</td>';
       table.appendChild(tr);
     }
+    renderPendingRolesSummary();
+  }
+
+  // Groups state.pendingRoleSlots by role name ("شهروند ساده ×3، کاراگاه")
+  // for display — shared by the summary screen and the God's debug console
+  // so both read the exact same reserved pool the exact same way.
+  function pendingRolesSummaryText(){
+    const pending = state.pendingRoleSlots || [];
+    if(!pending.length) return '';
+    const counts = new Map();
+    pending.forEach(r => counts.set(r.name, (counts.get(r.name) || 0) + 1));
+    const sep = state.lang === 'en' ? ', ' : '، ';
+    return Array.from(counts.entries())
+      .map(([name, n]) => n > 1 ? name + ' ×' + n : name)
+      .join(sep);
+  }
+
+  // Lets the God see, at a glance, whether everyone declared at setup has
+  // actually joined yet — and if not, exactly which roles are still sitting
+  // in the reserved pool, waiting for a latecomer to draw them. Called from
+  // renderDossier, which already re-runs both at App.assignRoles() time and
+  // every time a latecomer joins and draws one (see the 'name' handler in
+  // setupHostDataChannel), so this count is always live on this screen —
+  // see renderDebugPanel for the same info surfaced persistently, since the
+  // host is usually long past this screen by the time someone's still missing.
+  function renderPendingRolesSummary(){
+    const card = $('pending-roles-card');
+    const heading = $('pending-roles-heading');
+    const list = $('pending-roles-list');
+    if(!card || !heading || !list) return;
+    const pending = state.pendingRoleSlots || [];
+    if(!pending.length){
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    heading.textContent = t('pendingRolesCount', { n: pending.length });
+    list.textContent = pendingRolesSummaryText();
   }
 
   /* ---------------- Phase 2: running the game ---------------- */
@@ -3688,12 +3737,14 @@
     if(stateBox){
       const winnerText = state.winner ? winnerLabel(state.winner) : t('debugNone');
       const pendingHolder = state.pendingGun ? state.players.get(state.pendingGun.holderId) : null;
+      const pendingRoles = state.pendingRoleSlots || [];
       stateBox.innerHTML =
         escapeHtml(t('dayLabel', { n: state.day })) + ' · ' + escapeHtml(t('debugPhaseLabel')) + ': ' + escapeHtml(state.gamePhase || '—') + '<br>' +
         escapeHtml(t('debugWinnerLabel')) + ': ' + escapeHtml(winnerText) + '<br>' +
         escapeHtml(t('debugGunsRemainingLabel')) + ': ' + state.gunsRemaining + ' · ' +
         escapeHtml(t('debugGunsCancelledLabel')) + ': ' + escapeHtml(state.gunsCancelled ? t('yes') : t('no')) + '<br>' +
-        escapeHtml(t('debugPendingGunLabel')) + ': ' + (pendingHolder ? escapeHtml(pendingHolder.name) : escapeHtml(t('debugNone')));
+        escapeHtml(t('debugPendingGunLabel')) + ': ' + (pendingHolder ? escapeHtml(pendingHolder.name) : escapeHtml(t('debugNone'))) + '<br>' +
+        escapeHtml(t('debugPendingRolesLabel')) + ': ' + (pendingRoles.length ? (pendingRoles.length + ' — ' + escapeHtml(pendingRolesSummaryText())) : escapeHtml(t('debugNone')));
     }
 
     const rolesBox = $('debug-roles');
