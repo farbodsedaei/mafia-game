@@ -563,6 +563,16 @@
     <button class="btn btn-ghost" onclick="App.closeMyActivity()" data-i18n="back"></button>
   </div>
 
+  <!-- PLAYER: VOTE HISTORY — who voted for whom, every completed round,
+       visible to every player (alive or eliminated) at any later point.
+       See recordVoteHistory (host) / renderVoteHistory (player). -->
+  <div class="screen" id="screen-player-vote-history">
+    <div class="eyebrow" style="margin-bottom:16px;" data-i18n="voteHistory"></div>
+    <div id="vote-history-list" class="stack" style="overflow-y:auto;"></div>
+    <div class="grow"></div>
+    <button class="btn btn-ghost" onclick="App.closeVoteHistory()" data-i18n="back"></button>
+  </div>
+
   <!-- PLAYER: DAY GUN ACTION -->
   <div class="screen" id="screen-player-day-gun-action">
     <div class="eyebrow" id="day-gun-action-day"></div>
@@ -601,6 +611,7 @@
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: INQUIRY VOTE -->
@@ -661,6 +672,7 @@
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: DAY RESULT -->
@@ -671,6 +683,7 @@
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: NIGHT WAITING -->
@@ -682,6 +695,7 @@
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: NIGHT ACTION -->
@@ -902,6 +916,10 @@
       yourRoleKeepSecret: 'نقش شما · مخفی نگه دارید', tapToReveal: 'برای نمایش لمس کنید', caseFile: 'پرونده',
       shielded: 'دارای شیلد', tapCardHide: 'دوباره روی کارت بزنید تا پنهان شود.', back: 'بازگشت →',
       myActivity: 'فعالیت من', nothingYet: 'هنوز چیزی نیست.',
+      voteHistory: 'تاریخچه رأی‌گیری', voteHistoryEmpty: 'هنوز رأی‌گیری‌ای انجام نشده است.',
+      voteHistoryVotedFor: '{voter} به {targets} رأی داد.',
+      voteHistoryAbstained: '{voter} رأی سفید داد (به کسی رأی نداد).',
+      voteHistoryDidNotVote: '{voter} اصلاً رأی نداد.',
       talkItOut: 'صحبت کنید',
       shareNoticed: 'چیزهایی که متوجه شدید را به اشتراک بگذارید. گاد در زمان مناسب رأی‌گیری را شروع می‌کند.',
       viewMyRole: 'دیدن نقش من',
@@ -929,6 +947,8 @@
       chooseToShoot: 'کسی را برای شلیک انتخاب کنید', chooseToAddGroup: 'کسی را برای اضافه‌کردن به گروه انتخاب کنید',
       closeYourEyes: 'چشمانتان را ببندید.',
       mafiaTalkNow: 'بقیه چشمانشان را بستند. حالا آرام با هم‌تیمی‌های مافیای خود صحبت کنید.',
+      mafiaTalkNowNight1: 'بقیه چشمانشان را بستند. امشب فقط برای این است که اعضای مافیا یکدیگر را بشناسند — امشب هیچ شلیکی وجود نخواهد داشت. آرام با هم‌تیمی‌های خود صحبت کنید.',
+      mafiaOnlyNightResult: 'امشب فقط برای آشنایی اعضای مافیا با یکدیگر بود — کسی صدمه ندید.',
       youWereBlocked: 'امشب مسدود شدید — کاری برای شما نیست.',
       oceanGroupJoinTalk: 'شما به یک گروه مخفی اضافه شدید. حالا می‌توانید چشمانتان را باز کنید و آرام با آن‌ها صحبت کنید.',
       investigationResult: 'نتیجه تحقیق', isPositive: '{name} مثبت است.', isNegative: '{name} منفی است.',
@@ -938,6 +958,8 @@
       lostServerConnection: 'اتصال به سرور قطع شد.',
       roomNotFound: 'این کد اتاق پیدا نشد. با میزبان خود چک کنید.',
       hostEndedSession: 'میزبان بازی را تمام کرد.',
+      hostReconnected: 'دوباره به سرور وصل شدید.',
+      hostSessionLost: 'مدت زیادی قطع بودید و این اتاق دیگر در دسترس نیست. لطفاً یک بازی تازه شروع کنید.',
       linkCopied: 'لینک کپی شد.', linkCopiedPaste: 'لینک کپی شد — برای بازیکنان خود بفرستید.',
       enterRoomCode: 'کد اتاق را از میزبان خود وارد کنید.', enterNameFirst: 'ابتدا یک نام وارد کنید.',
       lostHostConnection: 'اتصال به میزبان قطع شد.', pickSomeoneFirst: 'ابتدا یک نفر را انتخاب کنید.',
@@ -1077,6 +1099,10 @@
       yourRoleKeepSecret: 'Your Role · Keep it secret', tapToReveal: 'Tap to Reveal', caseFile: 'Case File',
       shielded: 'Shielded', tapCardHide: 'Tap the card again to hide it.', back: '← Back',
       myActivity: 'My Activity', nothingYet: 'Nothing yet.',
+      voteHistory: 'Voting History', voteHistoryEmpty: 'No votes yet.',
+      voteHistoryVotedFor: '{voter} voted for {targets}.',
+      voteHistoryAbstained: '{voter} abstained (voted for no one).',
+      voteHistoryDidNotVote: '{voter} did not vote at all.',
       talkItOut: 'Talk it out',
       shareNoticed: "Share what you've noticed. The God will start a vote when it's time.",
       viewMyRole: 'View My Role',
@@ -1104,6 +1130,8 @@
       chooseToShoot: 'Choose someone to shoot', chooseToAddGroup: 'Choose someone to add to your group',
       closeYourEyes: 'Close your eyes.',
       mafiaTalkNow: 'Everyone else has closed their eyes. Talk quietly with your fellow Mafia now.',
+      mafiaTalkNowNight1: "Everyone else has closed their eyes. Tonight is just for Mafia members to learn who each other are — there will be no shot tonight. Talk quietly with your teammates.",
+      mafiaOnlyNightResult: 'Tonight was just for the Mafia to get acquainted with each other — no one was harmed.',
       youWereBlocked: 'You were blocked tonight — no action for you.',
       oceanGroupJoinTalk: "You've been added to a secret group. You may open your eyes and talk quietly with them now.",
       investigationResult: 'Investigation Result', isPositive: '{name} is positive.', isNegative: '{name} is negative.',
@@ -1113,6 +1141,8 @@
       lostServerConnection: 'Lost connection to the server.',
       roomNotFound: 'That room code wasn’t found. Double-check it with the host.',
       hostEndedSession: 'The host ended the session.',
+      hostReconnected: 'Reconnected to the server.',
+      hostSessionLost: "You were disconnected too long and this room is no longer available. Please start a new game.",
       linkCopied: 'Link copied.', linkCopiedPaste: 'Link copied — paste it to your players.',
       enterRoomCode: 'Enter the room code from your host.', enterNameFirst: 'Enter a name first.',
       lostHostConnection: 'Lost connection to the host.', pickSomeoneFirst: 'Pick someone first.',
@@ -1241,6 +1271,8 @@
     numOceanSlots: 2,      // how many members اوشن can recruit into their group
     zodiacShootsEveryNight: true, // false = زودیاک only shoots on odd nights (Night 1, 3, 5…)
     room: null,
+    hostToken: null,       // (host) secret generated at App.createLobby() time, proves a later 'reclaim-room' is really this same host (see server.js HOST_GRACE_MS)
+    hostReconnectInProgress: false, // (host) guards against overlapping reclaim attempts
     rolesAssigned: false,  // (host) true from App.assignRoles() onward — once true, a brand-new joiner draws from state.pendingRoleSlots instead of just sitting in the lobby (see the 'name' handler)
     pendingRoleSlots: [],  // (host) role defs reserved for seats not yet filled at assignRoles() time, drawn from as latecomers join
     currentPhaseSnapshot: null, // (host) most recent broadcast-style 'phase' message sent to anyone — lets a brand-new latecomer resync to what's currently happening
@@ -1267,6 +1299,7 @@
     defendingIds: [],       // (host) player ids on trial this round
     inquiriesRemaining: 0,  // (host) inquiries left to spend this game
     votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
+    voteHistory: [],        // (host: authoritative; player: local copy) every completed round ever — [{day, round, rows:[{voter, targets}]}], see recordVoteHistory
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
     night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null }, // (host) this night's decisions
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
@@ -1291,6 +1324,7 @@
     myActivityLog: [],           // (player) night-by-night history of this player's (or their mafia team's) actions
     hasActivityLog: false,       // (player) whether to show the "My Activity" link at all
     activityReturnScreen: null,  // (player) screen to return to after viewing activity log
+    voteHistoryReturnScreen: null, // (player) screen to return to after viewing vote history
     lastPhaseMsg: null,          // (player) most recent 'phase' message, for re-rendering on language switch
     amAlive: true,                // (player) tracks eliminated/revived so the mafia chat drawer hides once out
     gameEnded: false,            // (player) true once game-over arrives, so a stale night phase can't keep the chat drawer open
@@ -1366,7 +1400,14 @@
     const ws = new WebSocket(proto + '//' + location.host + '/ws');
     state.ws = ws;
     ws.onopen = () => { $('conn-indicator').textContent = t('connConnected'); if(onOpen) onOpen(); };
-    ws.onclose = () => { $('conn-indicator').textContent = t('connDisconnected'); toast(t('lostServerConnection')); };
+    ws.onclose = () => {
+      $('conn-indicator').textContent = t('connDisconnected');
+      toast(t('lostServerConnection'));
+      // The host relies on this socket for every future signal (new joins,
+      // player reconnects) — try to get it back and reclaim the room. See
+      // attemptHostReconnect / server.js's HOST_GRACE_MS.
+      if(state.role === 'host') attemptHostReconnect();
+    };
     ws.onerror = () => { $('conn-indicator').textContent = t('connError'); };
     ws.onmessage = (evt) => {
       let msg;
@@ -1406,6 +1447,14 @@
       return;
     }
     if(msg.type === 'room-not-found'){
+      // A host whose reclaim attempt (see attemptHostReconnect) arrived
+      // after the server's grace window already expired gets this too —
+      // the room is genuinely gone, not just this player's join attempt.
+      if(state.role === 'host'){
+        state.hostReconnectInProgress = false;
+        toast(t('hostSessionLost'));
+        return;
+      }
       clearPlayerSession();
       state.reconnectInProgress = false;
       state.pendingRejoinSession = null;
@@ -1419,6 +1468,20 @@
       state.pendingRejoinSession = null;
       toast(t('hostEndedSession'));
       showScreen('screen-player-join');
+      return;
+    }
+    if(msg.type === 'room-reclaimed'){
+      state.hostReconnectInProgress = false;
+      toast(t('hostReconnected'));
+      // Anyone who joined (or reconnected) while this host's socket was
+      // down never got their 'player-hello' — the server replays the full
+      // roster it knows about here so none of them are left stranded.
+      // Players already in state.players are left alone: if THEIR own
+      // connection also needs fixing, their own reconnect path (dc.onclose
+      // / visibilitychange) handles that independently.
+      (msg.playerIds || []).forEach(pid => {
+        if(!state.players.has(pid)) hostBeginConnectionTo(pid);
+      });
       return;
     }
   }
@@ -1626,7 +1689,8 @@
 
   App.createLobby = function(){
     state.players = new Map();
-    wsSend({ type: 'create-room' });
+    state.hostToken = generatePlayerToken();
+    wsSend({ type: 'create-room', hostToken: state.hostToken });
     showScreen('screen-host-lobby');
     renderLobby();
   };
@@ -1965,6 +2029,9 @@
     if(getZodiacGroupIds().has(playerId) && state.zodiacChatLog.length){
       sendToPlayer(entry, { type: 'zodiac-chat-log', log: state.zodiacChatLog });
     }
+    if(state.voteHistory.length){
+      sendToPlayer(entry, { type: 'vote-history', history: state.voteHistory });
+    }
     if(state.winner){
       const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role, independent: !!e.independent }));
       sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster });
@@ -2261,7 +2328,34 @@
     else if(state.gamePhase === 'voting2') closeVotingRound2();
   };
 
+  // Persists exactly who voted for whom this round, for the "Vote History"
+  // screen every player (alive or eliminated) can open at any later point —
+  // see broadcastVoteHistory. eligibleIds is everyone who COULD have voted
+  // this round, not just those who did, so a no-show reads as "didn't vote"
+  // rather than silently vanishing from the record; an explicit empty
+  // submission reads as "abstained" — the two are kept distinct.
+  function recordVoteHistory(round, votesMap, eligibleIds){
+    const rows = eligibleIds.map(id => {
+      const voter = state.players.get(id);
+      const ids = votesMap.get(id);
+      let targets = null; // undefined in the map = never submitted anything
+      if(ids !== undefined){
+        targets = ids.map(tid => { const target = state.players.get(tid); return target ? target.name : null; }).filter(Boolean);
+      }
+      return { voter: voter ? voter.name : t('playerLabel'), targets };
+    });
+    state.voteHistory.push({ day: state.day, round, rows });
+    broadcastVoteHistory();
+  }
+
+  function broadcastVoteHistory(){
+    Array.from(state.players.values()).forEach(entry => {
+      sendToPlayer(entry, { type: 'vote-history', history: state.voteHistory });
+    });
+  }
+
   function closeVotingRound1(){
+    recordVoteHistory(1, state.votesRound1, aliveEntries().map(([id]) => id));
     const counts = new Map();
     state.votesRound1.forEach(ids => ids.forEach(id => counts.set(id, (counts.get(id) || 0) + 1)));
     // Majority has to be measured against every alive player who was
@@ -2308,6 +2402,15 @@
   }
 
   function closeVotingRound2(){
+    // The sole defendant in a 1-person runoff has no candidates to vote for
+    // (see App.startFinalVote) and so was never eligible to vote at all —
+    // exclude them from the history record the same way the majority
+    // threshold below already excludes them from eligibleVoters.
+    const eligibleVoterIds = state.defendingIds.length === 1
+      ? aliveEntries().map(([id]) => id).filter(id => id !== state.defendingIds[0])
+      : aliveEntries().map(([id]) => id);
+    recordVoteHistory(2, state.votesRound2, eligibleVoterIds);
+
     const counts = new Map();
     state.defendingIds.forEach(id => counts.set(id, 0));
     state.votesRound2.forEach(ids => {
@@ -2481,6 +2584,17 @@
 
   function runNightStep(index){
     if(index >= NIGHT_STEP_ORDER.length){ showMorningReadyScreen(); return; }
+    // Night 1 exists only for Mafia to see who their teammates are — the
+    // eyes-closed step already covers that (mafiaTalkNow + the always-on
+    // Mafia chat). No kill, no ماتادور block, no زودیاک shot, no civilian
+    // ability of any kind that night — every other step is skipped, and
+    // resolveNight() naturally finds nothing to resolve since none of
+    // state.night's decision fields ever got populated. The real game
+    // begins Night 2.
+    if(state.day === 1 && NIGHT_STEP_ORDER[index] !== 'eyes-closed'){
+      showMorningReadyScreen();
+      return;
+    }
     state.nightStepIndex = index;
     const step = NIGHT_STEP_ORDER[index];
     state.gamePhase = 'night-' + step;
@@ -2626,7 +2740,7 @@
   function startEyesClosedStep(){
     aliveEntries().forEach(([id, entry]) => {
       const text = entry.role === 'mafia'
-        ? t('mafiaTalkNow')
+        ? (state.day === 1 ? t('mafiaTalkNowNight1') : t('mafiaTalkNow'))
         : t('closeYourEyes');
       sendToPlayer(entry, { type: 'phase', phase: 'night-announcement', day: state.day, text });
     });
@@ -3054,14 +3168,14 @@
     if(revivedEntry) sendToPlayer(revivedEntry, { type: 'revived', deadNames });
     aliveEntries().forEach(([id, entry]) => {
       if(id === state.night.revivedId) return; // already got their own 'revived' message
-      sendToPlayer(entry, { type: 'night-result', deadNames, revivedName });
+      sendToPlayer(entry, { type: 'night-result', deadNames, revivedName, day: state.day });
     });
 
     $('night-result-day').textContent = t('nightResultLabel', { n: state.day });
     const parts = [];
     if(deadNames.length) parts.push(t('foundDead', { names: deadNames.join(', ') }));
     if(revivedName) parts.push(t('backAmongLiving', { name: revivedName }));
-    $('night-result-title').textContent = parts.length ? parts.join(' ') : t('everyoneMadeIt');
+    $('night-result-title').textContent = parts.length ? parts.join(' ') : (state.day === 1 ? t('mafiaOnlyNightResult') : t('everyoneMadeIt'));
     $('night-result-continue-btn').textContent = state.winner ? t('seeResults') : t('continueToDay', { n: state.day + 1 });
     showScreen('screen-host-night-result');
   }
@@ -3084,6 +3198,7 @@
     state.votesRound2 = new Map();
     state.defendingIds = [];
     state.votesInquiry = new Map();
+    state.voteHistory = [];
     state.inquiriesRemaining = 0;
     state.winner = null;
     state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null };
@@ -3175,6 +3290,22 @@
         });
       }
     }, 1500);
+  }
+
+  // Same idea as attemptPlayerReconnect, but for the HOST — the host's own
+  // in-memory game state (state.players, roles, night/day progress) is
+  // untouched by a dropped WebSocket, since none of it lives on this
+  // connection; only the signaling relay itself needs reconnecting and the
+  // room reclaiming (see server.js's HOST_GRACE_MS) before new joins and
+  // player reconnects can work again. No screen change needed — the host
+  // isn't blocked from anything locally while this runs.
+  function attemptHostReconnect(){
+    if(state.role !== 'host' || !state.room || !state.hostToken) return;
+    if(state.hostReconnectInProgress) return;
+    state.hostReconnectInProgress = true;
+    const reclaim = () => { wsSend({ type: 'reclaim-room', room: state.room, hostToken: state.hostToken }); };
+    if(state.ws && state.ws.readyState === WebSocket.OPEN) reclaim();
+    else connectWS(reclaim);
   }
 
   function playerHandleSignal(payload){
@@ -3270,6 +3401,14 @@
         else if(msg.type === 'zodiac-chat-log'){
           state.zodiacChatLog = msg.log || [];
           renderZodiacChat();
+        }
+        else if(msg.type === 'vote-history'){
+          state.voteHistory = msg.history || [];
+          updateVoteHistoryLinkVisibility();
+          // Only redraw immediately if this screen happens to be open right
+          // now (e.g. a live update while browsing it) — otherwise it's
+          // just cached for whenever App.viewVoteHistory() is next opened.
+          if(document.getElementById('screen-player-vote-history').classList.contains('active')) renderVoteHistory();
         }
       }catch(err){}
     };
@@ -3623,16 +3762,17 @@
     showScreen('screen-player-day-gun-result');
   }
 
-  function nightResultText(deadNames, revivedName){
+  function nightResultText(deadNames, revivedName, day){
     const parts = [];
     if(deadNames && deadNames.length) parts.push(t('foundDead', { names: deadNames.join(', ') }));
     if(revivedName) parts.push(t('backAmongLiving', { name: revivedName }));
-    return parts.length ? parts.join(' ') : t('everyoneMadeIt');
+    if(parts.length) return parts.join(' ');
+    return day === 1 ? t('mafiaOnlyNightResult') : t('everyoneMadeIt');
   }
 
   function handleNightResult(msg){
     $('night-waiting-title').textContent = t('morningHasCome');
-    $('night-waiting-note').textContent = nightResultText(msg.deadNames, msg.revivedName);
+    $('night-waiting-note').textContent = nightResultText(msg.deadNames, msg.revivedName, msg.day);
     $('night-waiting-note').style.display = 'block';
     showScreen('screen-player-night-waiting');
   }
@@ -3690,6 +3830,55 @@
       row.className = 'slot';
       row.innerHTML = '<div class="name" style="white-space:normal;">' + escapeHtml(text) + '</div>';
       box.appendChild(row);
+    });
+  }
+
+  // Unlike .activity-link (role-dependent), this is visible to EVERY player —
+  // alive or eliminated — the moment there's at least one completed round to
+  // show. See recordVoteHistory (host) for what actually populates this.
+  function updateVoteHistoryLinkVisibility(){
+    const show = !!(state.voteHistory && state.voteHistory.length);
+    document.querySelectorAll('.vote-history-link').forEach(el => { el.style.display = show ? 'block' : 'none'; });
+  }
+
+  App.viewVoteHistory = function(){
+    const current = document.querySelector('.screen.active');
+    state.voteHistoryReturnScreen = current ? current.id : 'screen-player-day';
+    renderVoteHistory();
+    showScreen('screen-player-vote-history');
+  };
+  App.closeVoteHistory = function(){
+    showScreen(state.voteHistoryReturnScreen || 'screen-player-day');
+  };
+
+  function voteHistoryRowText(row){
+    if(row.targets === null) return t('voteHistoryDidNotVote', { voter: row.voter });
+    if(!row.targets.length) return t('voteHistoryAbstained', { voter: row.voter });
+    return t('voteHistoryVotedFor', { voter: row.voter, targets: row.targets.join(state.lang === 'en' ? ', ' : '، ') });
+  }
+
+  function renderVoteHistory(){
+    const box = $('vote-history-list');
+    box.innerHTML = '';
+    const history = state.voteHistory || [];
+    if(!history.length){
+      box.innerHTML = '<p class="hint">' + escapeHtml(t('voteHistoryEmpty')) + '</p>';
+      return;
+    }
+    // Most recent round first — what people usually want to check right
+    // after a vote just closed, without scrolling past every earlier one.
+    history.slice().reverse().forEach(entry => {
+      const heading = document.createElement('div');
+      heading.className = 'eyebrow';
+      heading.style.margin = '14px 0 6px';
+      heading.textContent = t('dayVoteEyebrow', { day: entry.day, round: entry.round === 1 ? t('firstVote') : t('finalVote') });
+      box.appendChild(heading);
+      entry.rows.forEach(row => {
+        const line = document.createElement('div');
+        line.className = 'slot';
+        line.innerHTML = '<div class="name" style="white-space:normal;">' + escapeHtml(voteHistoryRowText(row)) + '</div>';
+        box.appendChild(line);
+      });
     });
   }
 
@@ -3884,6 +4073,14 @@
   // whether the connection actually survived, and reconnect if not.
   document.addEventListener('visibilitychange', () => {
     if(document.visibilityState !== 'visible') return;
+    if(state.role === 'host'){
+      // Backup trigger for the same reason attemptPlayerReconnect needs
+      // one below: a dead WebSocket doesn't always fire onclose promptly
+      // (or at all) after a background suspension — checking readyState
+      // directly the moment the tab is foregrounded again catches that.
+      if(state.room && state.hostToken && (!state.ws || state.ws.readyState !== WebSocket.OPEN)) attemptHostReconnect();
+      return;
+    }
     if(state.role !== 'player' || !state.room || !state.myPlayerToken) return;
     const dcDead = !state.playerDC || state.playerDC.readyState !== 'open';
     const wsDead = !state.ws || state.ws.readyState !== WebSocket.OPEN;

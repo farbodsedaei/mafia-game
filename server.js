@@ -85,8 +85,18 @@ const httpServer = http.createServer(async (req, res) => {
 });
 
 /* ---------------- Signaling relay ---------------- */
-// rooms: Map(code -> { host: ws|null, players: Map(playerId -> ws) })
+// rooms: Map(code -> { host: ws, hostToken, players: Map(playerId -> ws), hostDeleteTimer })
 const rooms = new Map();
+
+// How long a room survives after its host's socket closes before being torn
+// down for good. Mobile browsers (iOS Safari especially) aggressively
+// suspend a backgrounded tab's network activity — screen lock, switching
+// apps for a moment, even just showing someone the room code — which drops
+// this WebSocket even though the tab itself is still alive. Without a grace
+// window, that single blip destroyed the room instantly and permanently for
+// every player still trying to join, which is the exact "room doesn't
+// exist" failure this grace period exists to prevent. See 'reclaim-room'.
+const HOST_GRACE_MS = process.env.HOST_GRACE_MS_OVERRIDE ? parseInt(process.env.HOST_GRACE_MS_OVERRIDE, 10) : 45000;
 
 function send(ws, obj) {
   if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
@@ -106,9 +116,31 @@ wss.on('connection', (ws) => {
     if (msg.type === 'create-room') {
       let code;
       do { code = randomRoomCode(); } while (rooms.has(code));
-      rooms.set(code, { host: ws, players: new Map() });
+      // hostToken is a client-generated secret (see App.createLobby) proving
+      // a later 'reclaim-room' request for this code really is the same
+      // host reconnecting, not some other tab guessing/hijacking the code.
+      const hostToken = typeof msg.hostToken === 'string' && msg.hostToken.length > 0 && msg.hostToken.length <= 64 ? msg.hostToken : null;
+      rooms.set(code, { host: ws, hostToken, players: new Map(), hostDeleteTimer: null });
       ws._room = code; ws._role = 'host';
       send(ws, { type: 'room-created', room: code });
+      return;
+    }
+
+    if (msg.type === 'reclaim-room') {
+      const room = rooms.get(msg.room);
+      if (!room || !room.hostToken || room.hostToken !== msg.hostToken) {
+        send(ws, { type: 'room-not-found' });
+        return;
+      }
+      if (room.hostDeleteTimer) { clearTimeout(room.hostDeleteTimer); room.hostDeleteTimer = null; }
+      room.host = ws;
+      ws._room = msg.room; ws._role = 'host';
+      // Anyone who tried to join (or reconnect) while the host was briefly
+      // offline is already sitting in room.players — but the one-shot
+      // 'player-hello' that would normally alert the host about them went
+      // nowhere, since there was no live host socket to receive it. Replay
+      // the full roster now so the host can catch up on all of them.
+      send(ws, { type: 'room-reclaimed', room: msg.room, playerIds: Array.from(room.players.keys()) });
       return;
     }
 
@@ -147,9 +179,19 @@ wss.on('connection', (ws) => {
     const room = rooms.get(ws._room);
     if (!room) return;
     if (ws._role === 'host') {
-      // Host left: let players know, then drop the room.
-      for (const p of room.players.values()) send(p, { type: 'host-left' });
-      rooms.delete(ws._room);
+      // Only the room's LIVE host socket closing starts the grace timer — if
+      // a reclaim already reassigned room.host to a newer socket before this
+      // stale close event arrived, this is that old socket catching up, and
+      // must not tear down the reclaim that already happened.
+      if (room.host === ws) {
+        room.hostDeleteTimer = setTimeout(() => {
+          const stillRoom = rooms.get(ws._room);
+          if (stillRoom && stillRoom.host === ws) {
+            for (const p of stillRoom.players.values()) send(p, { type: 'host-left' });
+            rooms.delete(ws._room);
+          }
+        }, HOST_GRACE_MS);
+      }
     } else if (ws._role === 'player') {
       // Only evict if this socket is still the live one for that player id —
       // if they already reconnected (a newer socket claimed the same id
