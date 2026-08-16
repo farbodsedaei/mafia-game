@@ -490,7 +490,13 @@
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
       <h3 style="font-size:20px; margin-bottom:8px;" id="connecting-title"></h3>
       <p class="hint" id="connecting-hint"></p>
+      <!-- Only shown once startConnectingTimeout's timer fires (or the
+           WebRTC handshake itself errors out) — silently hanging forever
+           here, with zero feedback, is the exact failure this exists to
+           prevent. See App.retryJoin. -->
+      <p class="hint" id="connecting-stuck-hint" style="display:none; margin-top:18px; max-width:300px;" data-i18n="connectingStuckHint"></p>
     </div>
+    <button class="btn btn-outline" id="connecting-retry-btn" style="display:none;" onclick="App.retryJoin()" data-i18n="btnTryAgain"></button>
   </div>
 
   <!-- PLAYER RECONNECTING -->
@@ -906,6 +912,8 @@
       connectingToHost: 'در حال اتصال به میزبان…', settingUpConnection: 'در حال برقراری یک اتصال مستقیم و خصوصی.',
       waitingForHost: 'منتظر میزبان…', hostWillConnect: 'میزبان به‌صورت خودکار به شما وصل می‌شود.',
       joiningRoom: 'در حال پیوستن به اتاق {code}…', contactingHost: 'در حال تماس با میزبان.',
+      connectingStuckHint: 'این کار بیشتر از حد معمول طول کشیده. اگر از آیفون استفاده می‌کنید: Private Relay آیکلاود را خاموش کنید (تنظیمات ← نام شما ← iCloud ← Private Relay)، مطمئن شوید به همان وای‌فای بقیه وصل هستید نه اینترنت همراه، و هر VPN فعالی را خاموش کنید. سپس دوباره امتحان کنید.',
+      btnTryAgain: 'تلاش دوباره',
       almostThere: 'تقریباً رسیدیم…', finalizingConnection: 'در حال نهایی‌کردن اتصال مستقیم.',
       connectedLabel: 'متصل شد', whatsYourName: 'اسم شما چیست؟', shownToHostOnly: 'این فقط به میزبان نشان داده می‌شود',
       reconnectingTitle: 'در حال اتصال دوباره…', reconnectingHint: 'اتصال شما قطع شده بود — در حال وصل‌شدن دوباره به بازی هستیم.',
@@ -1089,6 +1097,8 @@
       connectingToHost: 'Connecting to host…', settingUpConnection: 'Setting up a direct, private connection.',
       waitingForHost: 'Waiting for host…', hostWillConnect: 'The host will connect to you automatically.',
       joiningRoom: 'Joining room {code}…', contactingHost: 'Contacting the host.',
+      connectingStuckHint: "This is taking longer than usual. If you're on an iPhone: turn off iCloud Private Relay (Settings → your name → iCloud → Private Relay), make sure you're on the same WiFi as everyone else (not cellular data), and turn off any active VPN. Then try again.",
+      btnTryAgain: 'Try Again',
       almostThere: 'Almost there…', finalizingConnection: 'Finalizing a direct connection.',
       connectedLabel: 'Connected', whatsYourName: "What's your name?", shownToHostOnly: 'This is shown to the host only',
       reconnectingTitle: 'Reconnecting…', reconnectingHint: 'Your connection dropped — reconnecting you to the game.',
@@ -1286,6 +1296,7 @@
     myPlayerName: null,     // (player) name persisted alongside the token, resent automatically on reconnect
     isReconnecting: false,  // (player) true once we know this join is a reconnect, not a first-time join
     reconnectInProgress: false, // (player) guards against overlapping reconnect attempts
+    connectingTimeoutId: null, // (player) fires if the WebRTC handshake with the host never completes — see startConnectingTimeout
     pendingRejoinSession: null, // (player) session found on a fresh join, awaiting "continue as X" / "join as someone else"
     roles: HARDCODED_ROLES.map(r => Object.assign({}, r)), // per-session copy; only .shield is ever mutated
     selectedRoleIds: new Set(['builtin-mafia', 'builtin-villager']), // roles in play this game
@@ -1444,6 +1455,7 @@
       state.room = msg.room;
       $('connecting-title').textContent = t('waitingForHost');
       $('connecting-hint').textContent = t('hostWillConnect');
+      startConnectingTimeout();
       return;
     }
     if(msg.type === 'room-not-found'){
@@ -1455,6 +1467,7 @@
         toast(t('hostSessionLost'));
         return;
       }
+      clearConnectingTimeout();
       clearPlayerSession();
       state.reconnectInProgress = false;
       state.pendingRejoinSession = null;
@@ -1463,6 +1476,7 @@
       return;
     }
     if(msg.type === 'host-left'){
+      clearConnectingTimeout();
       clearPlayerSession();
       state.reconnectInProgress = false;
       state.pendingRejoinSession = null;
@@ -1799,6 +1813,10 @@
 
     pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
       wsSend({ type: 'signal', to: playerId, payload: { kind: 'offer', sdp: pc.localDescription } });
+    }).catch((err) => {
+      // Previously silent — a player stuck waiting for an offer that never
+      // got created has no way to know it's the HOST side that failed.
+      console.error('Failed to create WebRTC offer for player', playerId, err);
     });
   }
 
@@ -3253,6 +3271,41 @@
     wsSend({ type: 'join-room', room: code, token });
   }
 
+  // If the WebRTC handshake with the host never completes — no error, no
+  // timeout of its own, just silence — a player used to be stuck on this
+  // screen forever with zero feedback (the exact "waited forever, nothing
+  // happened" failure). This surfaces something actionable instead once
+  // enough time has passed without success. Cleared the moment the data
+  // channel actually opens (setupPlayerDataChannel) or the flow moves on to
+  // a terminal state (room-not-found / host-left).
+  function startConnectingTimeout(){
+    clearConnectingTimeout();
+    state.connectingTimeoutId = setTimeout(() => {
+      const hint = $('connecting-stuck-hint');
+      const btn = $('connecting-retry-btn');
+      if(hint) hint.style.display = 'block';
+      if(btn) btn.style.display = 'flex';
+    }, 18000);
+  }
+  function clearConnectingTimeout(){
+    if(state.connectingTimeoutId){ clearTimeout(state.connectingTimeoutId); state.connectingTimeoutId = null; }
+  }
+
+  // Manual escape hatch once the stuck-hint appears (or the handshake itself
+  // errors — see playerHandleSignal's .catch) — re-runs the same join from
+  // scratch with the same persisted token, so the host gets a fresh
+  // 'player-hello' and rebuilds the connection (hostBeginConnectionTo's
+  // existing-entry branch already handles tearing down a stale attempt)
+  // instead of leaving them stuck with no way out.
+  App.retryJoin = function(){
+    const hint = $('connecting-stuck-hint');
+    const btn = $('connecting-retry-btn');
+    if(hint) hint.style.display = 'none';
+    if(btn) btn.style.display = 'none';
+    if(!state.room || !state.myPlayerToken){ showScreen('screen-player-join'); return; }
+    beginFreshPlayerJoin(state.room, state.myPlayerToken, state.myPlayerName);
+  };
+
   App.continueAsReturningPlayer = function(){
     const session = state.pendingRejoinSession;
     state.pendingRejoinSession = null;
@@ -3308,6 +3361,23 @@
     else connectWS(reclaim);
   }
 
+  // Shows the same "stuck" hint + retry button startConnectingTimeout would
+  // eventually show, but immediately — for cases where WebRTC actually
+  // TELLS us it failed (a rejected offer/answer promise, or ICE reaching
+  // 'failed'/'disconnected') rather than just silently never finishing.
+  // Common real-world cause: no TURN server is configured (only STUN, see
+  // ICE_SERVERS), which works fine on typical WiFi but has no fallback when
+  // direct peer-to-peer can't be established — iCloud Private Relay,
+  // cellular data instead of WiFi, or a restrictive/guest network are the
+  // usual culprits, and the hint text says so.
+  function showConnectingStuck(){
+    clearConnectingTimeout();
+    const hint = $('connecting-stuck-hint');
+    const btn = $('connecting-retry-btn');
+    if(hint) hint.style.display = 'block';
+    if(btn) btn.style.display = 'flex';
+  }
+
   function playerHandleSignal(payload){
     if(payload.kind === 'offer'){
       if(state.playerPC){ try{ state.playerPC.close(); }catch(e){} }
@@ -3317,6 +3387,9 @@
       pc.onicecandidate = (e) => {
         if(e.candidate) wsSend({ type: 'signal', to: 'host', payload: { kind: 'candidate', candidate: e.candidate } });
       };
+      pc.oniceconnectionstatechange = () => {
+        if(pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') showConnectingStuck();
+      };
       pc.setRemoteDescription(payload.sdp)
         .then(() => pc.createAnswer())
         .then(answer => pc.setLocalDescription(answer))
@@ -3324,6 +3397,13 @@
           wsSend({ type: 'signal', to: 'host', payload: { kind: 'answer', sdp: pc.localDescription } });
           $('connecting-title').textContent = t('almostThere');
           $('connecting-hint').textContent = t('finalizingConnection');
+        })
+        .catch((err) => {
+          // Previously this silently died here forever with zero feedback —
+          // an unhandled rejection anywhere in the chain above just stopped,
+          // and the player never learned why.
+          console.error('WebRTC handshake failed:', err);
+          showConnectingStuck();
         });
     } else if(payload.kind === 'candidate'){
       if(state.playerPC) state.playerPC.addIceCandidate(payload.candidate).catch(()=>{});
@@ -3334,6 +3414,7 @@
     state.playerDC = dc;
     dc.onopen = () => {
       state.reconnectInProgress = false;
+      clearConnectingTimeout();
       if(state.isReconnecting && state.myPlayerName){
         // Re-announce our name so the host's roster stays accurate, then just
         // wait — the host will resync us with whatever's happening right now
