@@ -2513,12 +2513,16 @@
     if(round === 1) closeVotingRound1(); else closeVotingRound2();
   }
 
-  // Who's actually eligible to cast a vote this round — everyone alive in
-  // round 1, but in round 2 a SOLE defendant has no one to vote for (see
+  // Who's actually ABLE to cast a vote this round — everyone alive in round
+  // 1, but in round 2 a SOLE defendant has no one to vote for (see
   // App.startFinalVote's candidate filtering) and so isn't a voter this
-  // round either. Shared by the majority-threshold check, the vote-history
-  // record, and the host's live "who's voted" display, so all three always
-  // agree on exactly the same set of people.
+  // round either. Shared by the auto-advance "has everyone voted" check,
+  // the vote-history record, and the host's live "who's voted" display, so
+  // all three always agree on exactly the same set of people. Deliberately
+  // NOT used for the majority-THRESHOLD math in closeVotingRound2 — that's
+  // measured against the full alive headcount regardless of who can
+  // physically vote, so a lone accuser's single vote can never eliminate a
+  // sole defendant on its own (see the comment there).
   function eligibleVoterIdsForRound(round){
     if(round === 1) return aliveEntries().map(([id]) => id);
     return state.defendingIds.length === 1
@@ -2654,11 +2658,16 @@
     state.votesRound2.forEach(ids => {
       ids.forEach(id => { if(counts.has(id)) counts.set(id, counts.get(id) + 1); });
     });
-    // Same fix as round 1: measure against everyone who COULD have voted,
-    // not just however many did. For a single defendant that's every other
-    // alive player — the defendant themselves can't vote (see
+    // Majority is measured against EVERYONE currently alive — the full
+    // headcount, including the defendant themselves even though a sole
+    // defendant structurally can't cast their own vote (see
     // App.startFinalVote, where their own candidate list is always empty).
-    const eligibleVoters = state.defendingIds.length === 1 ? aliveEntries().length - 1 : aliveEntries().length;
+    // This intentionally does NOT shrink the threshold just because one
+    // fewer person is able to vote: with 4 alive and a single defendant, a
+    // single accuser's vote must never be enough on its own to eliminate
+    // someone — the threshold stays floor(4/2)=2, same as it would for any
+    // other day-1 vote with 4 people in the game, not floor(3/2)=1.
+    const eligibleVoters = aliveEntries().length;
     const threshold = Math.floor(eligibleVoters / 2);
 
     let eliminatedId = null;
@@ -3918,7 +3927,14 @@
     const phase = state.lastPhaseMsg.phase;
     if(phase === 'night' || phase === 'night-announcement') return true;
     if(phase === 'night-action') return state.nightActionRole === 'mafia' || state.nightActionRole === 'matador';
-    if(DAY_CHAT_PHASES.indexOf(phase) !== -1) return true;
+    // Night 1 is the mafia's actual introduction to each other (see
+    // mafiaTalkNowNight1) — before that's happened, i.e. still on Day 1,
+    // teammates don't know who else is Mafia yet, so the chat must stay
+    // closed even though 'day'/'voting1'/etc. are otherwise chat-visible
+    // phases. state.lastPhaseMsg.day (not state.day — that field is never
+    // updated on the player side, it only ever reflects the HOST's own
+    // game) carries the day number of whichever phase this actually was.
+    if(DAY_CHAT_PHASES.indexOf(phase) !== -1) return state.lastPhaseMsg.day > 1;
     return false;
   }
 
@@ -3992,14 +4008,19 @@
   // زودیاک's chat: same "no phase restriction" rule as اوشن's once the game
   // is under way — available any time this player is alive, in the group
   // (زودیاک or زودیاک پسر — see the 'role' handler), and the game hasn't
-  // ended. But like Mafia's chat, it shouldn't appear before the game has
-  // actually started — state.lastPhaseMsg is only ever set once the first
-  // 'phase' message arrives, which happens right as Night 1 opens, so this
-  // keeps the panel from popping up during the pre-game role-reveal screen.
+  // ended, INCLUDING their own night-action turn (unlike Mafia's chat,
+  // there's no "only certain roles" narrowing during a night-action phase —
+  // this group's own turn is exactly when they'd want to talk). But same as
+  // Mafia's chat, it must not reveal who's on the other end of this
+  // connection before Night 1 has actually happened — Day 1 comes first in
+  // the game's own timeline (see isChatVisiblePhase's day>1 check for the
+  // full reasoning), so hide it specifically through Day 1's own phases.
   function updateZodiacChatVisibility(){
     const panel = $('zodiac-chat-panel');
     if(!panel) return;
-    const show = !!(state.inZodiacGroup && state.amAlive && !state.gameEnded && state.lastPhaseMsg);
+    const msg = state.lastPhaseMsg;
+    const stillDayOne = msg && DAY_CHAT_PHASES.indexOf(msg.phase) !== -1 && msg.day === 1;
+    const show = !!(state.inZodiacGroup && state.amAlive && !state.gameEnded && msg && !stillDayOne);
     panel.classList.toggle('open', show);
     document.body.classList.toggle('zodiac-chat-open', show);
     if(show) renderZodiacChat();
