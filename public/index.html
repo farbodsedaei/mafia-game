@@ -391,6 +391,10 @@
     <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="votingInProgress"></h2>
     <div class="card"><div id="voting-tally" class="stack"></div></div>
     <p class="hint" id="voting-progress" style="margin-top:12px;"></p>
+    <div class="card" style="margin-top:14px;">
+      <div class="eyebrow" style="margin-bottom:8px;" data-i18n="votingRemainingHeading"></div>
+      <div id="voting-remaining-list" class="hint"></div>
+    </div>
     <div class="grow"></div>
     <button class="btn btn-primary" onclick="App.closeVoting()" data-i18n="btnCloseVoting"></button>
   </div>
@@ -519,6 +523,19 @@
       <button class="btn btn-primary" id="welcome-back-continue-btn" onclick="App.continueAsReturningPlayer()"></button>
       <button class="btn btn-ghost" onclick="App.joinAsNewPlayer()" data-i18n="btnJoinAsNewPlayer"></button>
     </div>
+  </div>
+
+  <!-- PLAYER RECLAIM SEAT (fresh connection, no persisted session) — the
+       host reports one or more NAMED seats are currently disconnected. Lets
+       someone who closed their browser / switched devices get straight back
+       into their own seat by name instead of being treated as brand new. -->
+  <div class="screen" id="screen-player-reclaim-seat">
+    <div class="eyebrow" data-i18n="reclaimSeatEyebrow"></div>
+    <h2 style="font-size:26px; margin:10px 0 8px;" data-i18n="reclaimSeatTitle"></h2>
+    <p class="hint" style="margin-bottom:18px;" data-i18n="reclaimSeatHint"></p>
+    <div id="reclaim-seat-list" class="stack"></div>
+    <div class="grow"></div>
+    <button class="btn btn-ghost" onclick="App.declineReclaim()" data-i18n="btnImNew"></button>
   </div>
 
   <!-- PLAYER NAME -->
@@ -764,10 +781,24 @@
   <button class="btn btn-ghost" style="margin-top:14px;" onclick="App.toggleDebugPanel()" data-i18n="btnCloseDebug"></button>
   <h3 data-i18n="debugStateHeading"></h3>
   <div id="debug-state" class="debug-row"></div>
+  <div class="debug-row" style="display:flex; align-items:center; gap:10px;">
+    <span data-i18n="debugInquiriesLabel"></span>
+    <button class="btn btn-ghost" style="padding:4px 12px;" onclick="App.adjustInquiriesRemaining(-1)">&minus;</button>
+    <span id="debug-inquiries-value" style="min-width:1.5em; text-align:center;"></span>
+    <button class="btn btn-ghost" style="padding:4px 12px;" onclick="App.adjustInquiriesRemaining(1)">&plus;</button>
+  </div>
+  <!-- Only populated during an active night phase — see renderNightStatus.
+       Lets the God see, live, who still owes a decision tonight and what
+       everyone who's already acted actually chose, without needing to
+       force-continue blind. -->
+  <h3 data-i18n="debugNightStatusHeading"></h3>
+  <div id="debug-night-status"></div>
   <h3 data-i18n="debugRolesHeading"></h3>
   <div id="debug-roles"></div>
   <h3 data-i18n="debugActivityHeading"></h3>
   <div id="debug-activity"></div>
+  <h3 data-i18n="voteHistory"></h3>
+  <div id="debug-vote-history"></div>
   <h3 data-i18n="debugMafiaChatHeading"></h3>
   <div id="debug-mafia-chat"></div>
   <h3 data-i18n="debugOceanChatHeading"></h3>
@@ -890,6 +921,7 @@
       morningInquiry: 'استعلام صبحگاهی', inquiryVoteTitle: 'رأی‌گیری: استعلام استفاده شود؟',
       yes: 'بله', no: 'خیر', btnCloseInquiryVote: 'پایان رأی‌گیری استعلام',
       votedProgress: '{n} از {total} رأی داده‌اند.',
+      votingRemainingHeading: 'وضعیت رأی‌گیری', votingVotedLabel: '{n} نفر رأی داده‌اند', votingRemainingLabel: '{n} نفر باقی‌مانده',
       inquiryResultLabel: 'نتیجه استعلام', inquiryGranted: 'استعلام تأیید شد', noInquiryToday: 'امروز استعلامی نیست',
       notEnoughVotes: 'رأی کافی موافق نبود.',
       inquiryDetail: '{mafiaOut} مافیا، {villagerOut} شهروند و {independentOut} زودیاک تا الان حذف شده‌اند. ({remaining} استعلام باقی‌مانده.)',
@@ -931,6 +963,10 @@
       reconnectingTitle: 'در حال اتصال دوباره…', reconnectingHint: 'اتصال شما قطع شده بود — در حال وصل‌شدن دوباره به بازی هستیم.',
       welcomeBackEyebrow: 'دوباره خوش آمدید', welcomeBackHint: 'به نظر می‌رسد قبلاً به این اتاق پیوسته بودید.',
       btnContinueAs: 'ادامه به‌عنوان {name} ←', btnJoinAsNewPlayer: 'شما نیستید؟ به‌عنوان بازیکن جدید بپیوندید',
+      reclaimSeatEyebrow: 'اتصال دوباره', reclaimSeatTitle: 'کدام‌یک از شما هستید؟',
+      reclaimSeatHint: 'این افراد در حال حاضر قطع شده‌اند. اگر یکی از آن‌ها شما هستید، اسمتان را بزنید تا به جایگاه خودتان برگردید.',
+      btnImNew: 'من جدیدم، اسم من در این لیست نیست', claimSeatFailed: 'آن جایگاه دیگر در دسترس نیست. لطفاً اسم خود را وارد کنید.',
+      roomFullCantJoin: 'اتاق پر است. اگر یکی از بازیکنانی هستید که قطع شده، اسمتان را از لیست انتخاب کنید.',
       namePlaceholder: 'مثلاً سارا',
       youreIn: '{name}، شما وارد شدید.', waitingForRoles: 'منتظر تخصیص نقش‌ها توسط میزبان…',
       yourRoleKeepSecret: 'نقش شما · مخفی نگه دارید', tapToReveal: 'برای نمایش لمس کنید', caseFile: 'پرونده',
@@ -1021,9 +1057,13 @@
       gunNotFired: 'امروز اسلحه‌ای شلیک نشد.',
       btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
       debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
-      btnKickPlayer: 'اخراج از بازی', confirmKickPlayer: 'آیا مطمئن هستید که می‌خواهید {name} را از بازی اخراج کنید؟ این کار قابل بازگشت نیست.',
+      btnKickPlayer: 'اخراج از بازی', confirmKickPlayer: 'آیا مطمئن هستید که می‌خواهید {name} را از بازی اخراج کنید؟',
       actKickedByGod: 'شما توسط گاد از بازی اخراج شدید.', playerKicked: '{name} از بازی اخراج شد.',
+      btnRevivePlayer: 'بازگرداندن به بازی', confirmRevivePlayer: 'آیا می‌خواهید {name} را دوباره به بازی بازگردانید؟',
+      actRevivedByGod: 'گاد شما را دوباره به بازی بازگرداند.', playerRevived: '{name} دوباره به بازی بازگشت.',
+      debugStillWaitingLabel: 'در انتظار تصمیم', debugDecidedLabel: 'تصمیم‌گیری‌شده',
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
+      debugInquiriesLabel: 'استعلام‌های باقی‌مانده', debugNightStatusHeading: 'وضعیت امشب',
       debugMafiaChatHeading: 'گفتگوی مافیا', mafiaChatTitle: 'گفتگوی مافیا', mafiaChatPlaceholder: 'پیام بنویسید…', btnSend: 'ارسال',
       debugOceanChatHeading: 'گفتگوی اوشن', oceanChatTitle: 'گفتگوی اوشن',
       debugZodiacChatHeading: 'گفتگوی زودیاک', zodiacChatTitle: 'گفتگوی زودیاک',
@@ -1075,6 +1115,7 @@
       morningInquiry: 'Morning Inquiry', inquiryVoteTitle: 'Vote: use an inquiry?',
       yes: 'Yes', no: 'No', btnCloseInquiryVote: 'Close Inquiry Vote',
       votedProgress: '{n} of {total} have voted.',
+      votingRemainingHeading: 'Voting Status', votingVotedLabel: '{n} voted', votingRemainingLabel: '{n} remaining',
       inquiryResultLabel: 'Inquiry Result', inquiryGranted: 'Inquiry granted', noInquiryToday: 'No inquiry today',
       notEnoughVotes: 'Not enough votes were in favor.',
       inquiryDetail: '{mafiaOut} Mafia, {villagerOut} civilian(s), and {independentOut} زودیاک eliminated so far. ({remaining} inquiries left.)',
@@ -1116,6 +1157,10 @@
       reconnectingTitle: 'Reconnecting…', reconnectingHint: 'Your connection dropped — reconnecting you to the game.',
       welcomeBackEyebrow: 'Welcome Back', welcomeBackHint: "Looks like you already joined this room before.",
       btnContinueAs: 'Continue as {name} →', btnJoinAsNewPlayer: 'Not you? Join as a new player',
+      reclaimSeatEyebrow: 'Reconnecting', reclaimSeatTitle: 'Which one of you is this?',
+      reclaimSeatHint: "These players are currently disconnected. If one of them is you, tap your name to get back into your seat.",
+      btnImNew: "I'm new, my name isn't in this list", claimSeatFailed: 'That seat is no longer available. Please enter your name.',
+      roomFullCantJoin: "This room is full. If you're one of the disconnected players, pick your name from the list instead.",
       namePlaceholder: 'e.g. Priya',
       youreIn: "You're in, {name}.", waitingForRoles: 'Waiting for the host to assign roles…',
       yourRoleKeepSecret: 'Your Role · Keep it secret', tapToReveal: 'Tap to Reveal', caseFile: 'Case File',
@@ -1206,9 +1251,13 @@
       gunNotFired: 'No shot was fired today.',
       btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
       debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
-      btnKickPlayer: 'Kick from Game', confirmKickPlayer: "Are you sure you want to kick {name} from the game? This can't be undone.",
+      btnKickPlayer: 'Kick from Game', confirmKickPlayer: "Are you sure you want to kick {name} from the game?",
       actKickedByGod: 'You were kicked from the game by the God.', playerKicked: '{name} was kicked from the game.',
+      btnRevivePlayer: 'Bring Back Into Game', confirmRevivePlayer: 'Bring {name} back into the game?',
+      actRevivedByGod: 'The God brought you back into the game.', playerRevived: '{name} is back in the game.',
+      debugStillWaitingLabel: 'Still Deciding', debugDecidedLabel: 'Decided',
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
+      debugInquiriesLabel: 'Inquiries remaining', debugNightStatusHeading: "Tonight's Status",
       debugMafiaChatHeading: 'Mafia Chat', mafiaChatTitle: 'Mafia Chat', mafiaChatPlaceholder: 'Type a message…', btnSend: 'Send',
       debugOceanChatHeading: 'اوشن Chat', oceanChatTitle: 'اوشن Chat',
       debugZodiacChatHeading: 'زودیاک Chat', zodiacChatTitle: 'زودیاک Chat',
@@ -1324,7 +1373,7 @@
     votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
     voteHistory: [],        // (host: authoritative; player: local copy) every completed round ever — [{day, round, rows:[{voter, targets}]}], see recordVoteHistory
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
-    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null }, // (host) this night's decisions
+    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] }, // (host) this night's decisions
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
     constantineReviveUsed: false, // (host) whole-game limit — کنستانتین may only revive one person, ever
@@ -1789,14 +1838,22 @@
     // is otherwise "full" (they already have a seat).
     const existing = state.players.get(playerId);
     // Reject brand-new joiners only once every declared seat is actually
-    // filled. Assigning roles does NOT close the room — App.assignRoles
-    // reserves a role for every seat up front (state.pendingRoleSlots), so a
-    // brand-new joiner arriving after that point still gets dealt a real
-    // role the moment they pick a name (see the 'name' handler below), the
-    // same as everyone who was already in. An existing entry (same
-    // persisted token reconnecting) is always let back in regardless — they
-    // already have a seat.
-    if(!existing && state.players.size >= state.numPlayers){
+    // filled AND there's no one currently disconnected — a full-looking
+    // room might just have a seat sitting disconnected (phone died, browser
+    // closed) that a fresh connection is about to reclaim by name (see the
+    // 'reclaimable-seats' offer in setupHostDataChannel and handleClaimSeat)
+    // instead of taking a NEW seat, so it shouldn't be turned away just
+    // because the declared headcount is nominally reached. Assigning roles
+    // does NOT close the room either way — App.assignRoles reserves a role
+    // for every seat up front (state.pendingRoleSlots), so a brand-new
+    // joiner arriving after that point still gets dealt a real role the
+    // moment they pick a name (see the 'name' handler below), the same as
+    // everyone who was already in. An existing entry (same persisted token
+    // reconnecting) is always let back in regardless — they already have a
+    // seat.
+    const anyDisconnected = Array.from(state.players.values()).some(e => !e.connected);
+    const overCapacity = !existing && state.players.size >= state.numPlayers;
+    if(overCapacity && !anyDisconnected){
       return;
     }
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -1811,6 +1868,14 @@
       entry = existing;
     } else {
       entry = { name: null, connected: false, pc, dc, role: null, roleId: null, alive: true, independent: false, activityLog: [] };
+      // This connection only got past the check above because SOME OTHER
+      // seat is disconnected, not because there's genuine free capacity —
+      // it must either claim that disconnected seat by name (handleClaimSeat
+      // clears this flag by deleting the entry outright) or get turned away
+      // once it tries to register as a brand-new name instead (see the
+      // 'name' handler), so the room never silently grows past the God's
+      // declared player count.
+      entry.overCapacityTemp = overCapacity;
       state.players.set(playerId, entry);
     }
     renderLobby();
@@ -1848,7 +1913,20 @@
       if(entry){
         entry.connected = true;
         renderLobby();
-        if(isReconnect) resyncPlayer(entry, playerId);
+        if(isReconnect){
+          resyncPlayer(entry, playerId);
+        } else {
+          // A genuinely fresh connection (new token — the player closed
+          // their browser and lost the persisted one that would have made
+          // this an automatic reconnect above). If any NAMED seat is
+          // currently sitting disconnected, offer them a chance to claim it
+          // by name before falling through to the normal "pick a name" flow
+          // — see handleClaimSeat and the 'claim-seat' branch below.
+          const reclaimable = Array.from(state.players.entries())
+            .filter(([pid, e]) => pid !== playerId && e.name && !e.connected)
+            .map(([, e]) => e.name);
+          if(reclaimable.length) sendToPlayer(entry, { type: 'reclaimable-seats', names: reclaimable });
+        }
       }
     };
     dc.onmessage = (e) => {
@@ -1857,6 +1935,21 @@
         if(msg.type === 'name'){
           const entry = state.players.get(playerId);
           if(entry){
+            // This connection was only admitted because some OTHER seat was
+            // disconnected (see hostBeginConnectionTo), not genuine free
+            // capacity — picking a brand-new name here instead of claiming
+            // that seat would silently exceed the declared player count.
+            // Re-check against the CURRENT roster (not the moment-of-
+            // connection snapshot) in case a slot has genuinely freed up
+            // since (the God kicked someone, say) before turning it away.
+            if(entry.overCapacityTemp && !entry.name){
+              const othersCount = Array.from(state.players.keys()).filter(pid => pid !== playerId).length;
+              if(othersCount >= state.numPlayers){
+                sendToPlayer(entry, { type: 'room-full' });
+                return;
+              }
+              entry.overCapacityTemp = false;
+            }
             const wasReconnect = entry.name === msg.name;
             entry.name = msg.name;
             // Roles were already handed out, but this is someone who wasn't
@@ -1890,6 +1983,8 @@
           handleOceanChat(playerId, msg.text);
         } else if(msg.type === 'zodiac-chat'){
           handleZodiacChat(playerId, msg.text);
+        } else if(msg.type === 'claim-seat'){
+          handleClaimSeat(playerId, msg.name);
         }
       }catch(err){}
     };
@@ -1897,6 +1992,52 @@
       const entry = state.players.get(playerId);
       if(entry){ entry.connected = false; renderLobby(); }
     };
+  }
+
+  // A brand-new connection (fresh id/token — the player lost whatever would
+  // normally let them reconnect automatically, e.g. they closed the browser
+  // or switched devices) asking to take over a specific named seat that's
+  // currently disconnected. Deliberately no host-confirmation gate: if a
+  // disconnected entry with that exact name exists, hand it the live
+  // connection outright. This is a casual in-person party game — everyone's
+  // in the same room and the God can see who's claiming what — so the
+  // low-friction reattach is worth more than guarding against someone
+  // typing a name that isn't theirs.
+  function handleClaimSeat(tempPlayerId, name){
+    const tempEntry = state.players.get(tempPlayerId);
+    if(!tempEntry) return;
+    const match = Array.from(state.players.entries())
+      .find(([pid, e]) => pid !== tempPlayerId && e.name === name && !e.connected);
+    if(!match){
+      sendToPlayer(tempEntry, { type: 'claim-failed' });
+      return;
+    }
+    const [targetId, targetEntry] = match;
+    // Move the live pc/dc off the throwaway temp entry onto the real one,
+    // closing out whatever stale connection the real entry still had first
+    // (shouldn't be an open one — it's marked disconnected — but be safe).
+    try{ targetEntry.dc && targetEntry.dc.close(); }catch(e){}
+    try{ targetEntry.pc && targetEntry.pc.close(); }catch(e){}
+    targetEntry.pc = tempEntry.pc;
+    targetEntry.dc = tempEntry.dc;
+    targetEntry.connected = true;
+    state.players.delete(tempPlayerId);
+    // Rebind the channel's handlers to close over targetId instead of
+    // tempPlayerId — every message from here on must be attributed to the
+    // real seat, not the throwaway one. The channel is already open, so
+    // its onopen won't refire; do what it would have done by hand below.
+    setupHostDataChannel(targetEntry.dc, targetId, true);
+    // Tell the player their real seat id, BEFORE anything else — they were
+    // signaling under the throwaway temp id this whole time (that's how the
+    // WebRTC handshake found its way to them at all), and need to switch
+    // their persisted session over to the real one so a FUTURE disconnect
+    // reconnects them automatically instead of landing back on this same
+    // reclaim screen every time (see the 'claim-accepted' handler).
+    sendToPlayer(targetEntry, { type: 'claim-accepted', playerId: targetId, name });
+    if(!targetEntry.lastPhase && state.currentPhaseSnapshot) targetEntry.lastPhase = state.currentPhaseSnapshot;
+    resyncPlayer(targetEntry, targetId);
+    renderLobby();
+    toast(t('toastPlayerReconnected', { name }));
   }
 
   /* ---------------- Role assignment ---------------- */
@@ -2326,6 +2467,19 @@
     }
   }
 
+  // Who's actually eligible to cast a vote this round — everyone alive in
+  // round 1, but in round 2 a SOLE defendant has no one to vote for (see
+  // App.startFinalVote's candidate filtering) and so isn't a voter this
+  // round either. Shared by the majority-threshold check, the vote-history
+  // record, and the host's live "who's voted" display, so all three always
+  // agree on exactly the same set of people.
+  function eligibleVoterIdsForRound(round){
+    if(round === 1) return aliveEntries().map(([id]) => id);
+    return state.defendingIds.length === 1
+      ? aliveEntries().map(([id]) => id).filter(id => id !== state.defendingIds[0])
+      : aliveEntries().map(([id]) => id);
+  }
+
   function renderVotingTally(round){
     const votes = round === 1 ? state.votesRound1 : state.votesRound2;
     const candidateIds = round === 1 ? aliveEntries().map(([id]) => id) : state.defendingIds;
@@ -2351,6 +2505,21 @@
     const totalAlive = aliveEntries().length;
     $('voting-progress').textContent = t('votedProgress', { n: votes.size, total: totalAlive });
     $('voting-eyebrow').textContent = t('dayVoteEyebrow', { day: state.day, round: round === 1 ? t('firstVote') : t('finalVote') });
+
+    // Named breakdown of who's voted vs who's still expected to — the raw
+    // n/total progress line above doesn't say WHO's holding things up.
+    const remainingBox = $('voting-remaining-list');
+    if(remainingBox){
+      const eligibleIds = eligibleVoterIdsForRound(round);
+      const votedNames = eligibleIds.filter(id => votes.has(id)).map(id => state.players.get(id).name);
+      const remainingNames = eligibleIds.filter(id => !votes.has(id)).map(id => state.players.get(id).name);
+      const sep = state.lang === 'en' ? ', ' : '، ';
+      const lines = [
+        t('votingVotedLabel', { n: votedNames.length }) + (votedNames.length ? ': ' + votedNames.join(sep) : ''),
+        t('votingRemainingLabel', { n: remainingNames.length }) + (remainingNames.length ? ': ' + remainingNames.join(sep) : ''),
+      ];
+      remainingBox.innerHTML = lines.map(l => '<div style="margin-bottom:4px;">' + escapeHtml(l) + '</div>').join('');
+    }
   }
 
   App.closeVoting = function(){
@@ -2432,14 +2601,7 @@
   }
 
   function closeVotingRound2(){
-    // The sole defendant in a 1-person runoff has no candidates to vote for
-    // (see App.startFinalVote) and so was never eligible to vote at all —
-    // exclude them from the history record the same way the majority
-    // threshold below already excludes them from eligibleVoters.
-    const eligibleVoterIds = state.defendingIds.length === 1
-      ? aliveEntries().map(([id]) => id).filter(id => id !== state.defendingIds[0])
-      : aliveEntries().map(([id]) => id);
-    recordVoteHistory(2, state.votesRound2, eligibleVoterIds);
+    recordVoteHistory(2, state.votesRound2, eligibleVoterIdsForRound(2));
 
     const counts = new Map();
     state.defendingIds.forEach(id => counts.set(id, 0));
@@ -2605,7 +2767,7 @@
   }
 
   function startNight(){
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night');
@@ -2633,6 +2795,10 @@
     else if(step === 'civilian-phase') startCivilianPhaseStep();
     else if(step === 'ocean-talk') startOceanTalkStep();
     else if(step === 'eyes-closed') startEyesClosedStep();
+    // Live-refresh the God's console if it's open, so a NEW step's pending
+    // role holders show up right away — not just whenever the next decision
+    // happens to come in (recordNightDecision already covers that half).
+    refreshDebugPanelIfOpen();
   }
 
   function advanceNight(){
@@ -2803,6 +2969,7 @@
       killDeciders = aliveMafia.length ? [aliveMafia[Math.floor(Math.random() * aliveMafia.length)]] : [];
     }
     const killDeciderIds = new Set(killDeciders.map(([id]) => id));
+    state.night.killDeciderIds = killDeciderIds; // so the God's live "who's still deciding" view can find them by id later — see renderNightStatus
 
     if(killDeciders.length){
       state.night.mafiaPending.add('kill');
@@ -2947,6 +3114,14 @@
     logZodiacChat(voter.name, trimmed);
   }
 
+  // Feeds the God's live "Tonight's Status" view (renderNightStatus) — one
+  // line per role decision, as it happens, so the console shows who's acted
+  // and what they chose without waiting for the night to fully resolve.
+  function recordNightDecision(voter, text){
+    state.night.decisionsLog.push({ role: voter.roleName || voter.role, player: voter.name, text });
+    refreshDebugPanelIfOpen();
+  }
+
   function handleNightAction(voterId, role, targetId, recruit){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
@@ -2957,6 +3132,21 @@
       : role === 'zodiac' ? 'night-zodiac-phase'
       : ('night-' + role);
     if(state.gamePhase !== expectedPhase) return;
+    // One decision per role per night, full stop — reject a second
+    // submission outright instead of reprocessing it (a reconnect replaying
+    // a stale message, a browser-back then re-tapping Confirm on the still-
+    // rendered candidate list, etc.). This is what كاراگاه investigating a
+    // second person the same night actually was: nothing stopped a repeat
+    // submission from being treated as a brand-new decision. The pending
+    // key for a role is only ever removed once — the first time its
+    // decision is processed, at the bottom of this function — so if it's
+    // already gone, this actor already acted tonight.
+    const pendingKey = role === 'mafia' ? 'kill' : role;
+    const pendingSet = isMafiaPhaseRole ? state.night.mafiaPending
+      : isCivilianPhaseRole ? state.night.civilianPending
+      : role === 'zodiac' ? state.night.zodiacPending
+      : null;
+    if(pendingSet && !pendingSet.has(pendingKey)) return;
     const targetName = targetId && state.players.get(targetId) ? state.players.get(targetId).name : null;
 
     const prefix = t('nightLogPrefix', { day: state.day });
@@ -2976,18 +3166,21 @@
         const blockedEntry = state.players.get(targetId);
         if(blockedEntry) sendToPlayer(blockedEntry, { type: 'phase', phase: 'night', day: state.day, note: t('youWereBlocked') });
       }
+      recordNightDecision(voter, targetName ? t('actYouBlocked', { name: targetName }) : t('actYouNoBlock'));
       state.night.mafiaPending.delete('matador');
       checkMafiaPhaseComplete();
     } else if(role === 'doctor'){
       state.night.savedId = targetId || null;
       if(targetId && targetId === voterId) state.doctorSelfSaveUsed = true;
       logActivity(voter, prefix + (targetName ? t('actYouSaved', { name: targetName }) : t('actYouNoSave')));
+      recordNightDecision(voter, targetName ? t('actYouSaved', { name: targetName }) : t('actYouNoSave'));
       state.night.civilianPending.delete('doctor');
       checkCivilianPhaseComplete();
     } else if(role === 'constantine'){
       state.night.revivedId = targetId || null;
       if(targetId) state.constantineReviveUsed = true; // whole-game limit — only one revival, ever
       logActivity(voter, prefix + (targetName ? t('actYouRevived', { name: targetName }) : t('actYouNoRevive')));
+      recordNightDecision(voter, targetName ? t('actYouRevived', { name: targetName }) : t('actYouNoRevive'));
       state.night.civilianPending.delete('constantine');
       checkCivilianPhaseComplete();
     } else if(role === 'detective'){
@@ -3015,15 +3208,18 @@
           sendToPlayer(voter, { type: 'investigate-result', targetName: target.name, outcome });
           const resultLabel = outcome === 'positive' ? t('actInvestigatedPositive') : t('actInvestigatedNegative');
           logActivity(voter, prefix + t('actYouInvestigated', { name: target.name, result: resultLabel }));
+          recordNightDecision(voter, t('actYouInvestigated', { name: target.name, result: resultLabel }));
         }
       } else {
         logActivity(voter, prefix + t('actYouNoInvestigate'));
+        recordNightDecision(voter, t('actYouNoInvestigate'));
       }
       state.night.civilianPending.delete('detective');
       checkCivilianPhaseComplete();
     } else if(role === 'professional'){
       state.night.professionalTargetId = targetId || null;
       logActivity(voter, prefix + (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
+      recordNightDecision(voter, targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot'));
       state.night.civilianPending.delete('professional');
       checkCivilianPhaseComplete();
     } else if(role === 'gunner'){
@@ -3033,8 +3229,10 @@
         // still changes hands, but it's quietly a dud — see resolveDayGunAction.
         state.pendingGun = { holderId: targetId, neutralized: targetId === state.night.blockedId };
         logActivity(voter, prefix + t('actYouHandedGun', { name: targetName }));
+        recordNightDecision(voter, t('actYouHandedGun', { name: targetName }));
       } else {
         logActivity(voter, prefix + t('actYouNoHandGun'));
+        recordNightDecision(voter, t('actYouNoHandGun'));
       }
       state.night.civilianPending.delete('gunner');
       checkCivilianPhaseComplete();
@@ -3051,20 +3249,34 @@
           if(target.role === 'mafia') state.night.extraDeathIds.push(voterId);
         }
         logActivity(voter, prefix + t('actYouAddedToGroup', { name: targetName }));
+        recordNightDecision(voter, t('actYouAddedToGroup', { name: targetName }));
       } else {
         logActivity(voter, prefix + t('actYouNoAdd'));
+        recordNightDecision(voter, t('actYouNoAdd'));
       }
       state.night.civilianPending.delete('ocean-recruit');
       checkCivilianPhaseComplete();
     } else if(role === 'zodiac'){
       state.night.zodiacTargetId = targetId || null;
       logActivity(voter, prefix + (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
+      recordNightDecision(voter, targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot'));
       state.night.zodiacPending.delete('zodiac');
       checkZodiacPhaseComplete();
     } else if(role === 'mafia'){
-      if(state.night.mafiaTargetId || state.night.mafiaRecruitId) return; // another mafia member already decided
+      // (The single kill-decider double-submitting is now caught by the
+      // pendingSet guard above, which also correctly covers the "first
+      // decision was a skip" case this used to miss — both mafiaTargetId
+      // and mafiaRecruitId stay falsy after a skip, so the old check here
+      // couldn't tell a skip apart from "not decided yet".)
       if(recruit) state.night.mafiaRecruitId = targetId;
       else state.night.mafiaTargetId = targetId;
+      // Unlike every other role, the actual outcome (shot / recruited /
+      // backfired) isn't known yet — that's only decided once resolveNight()
+      // runs — so this just records the raw DECISION for the God's live
+      // view, not a result.
+      recordNightDecision(voter, recruit
+        ? t('actYouAddedToGroup', { name: targetName })
+        : (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
       state.night.mafiaPending.delete('kill');
       // If this same player is also tonight's ماتادور, their block prompt was
       // held back (see startMafiaPhaseStep) so it wouldn't collide with the
@@ -3093,6 +3305,7 @@
     state.gamePhase = 'night-morning';
     $('night-morning-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night-morning');
+    refreshDebugPanelIfOpen();
   }
   App.announceMorning = function(){
     resolveNight();
@@ -3231,7 +3444,7 @@
     state.voteHistory = [];
     state.inquiriesRemaining = 0;
     state.winner = null;
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
     state.doctorSelfSaveUsed = false;
     state.constantineReviveUsed = false;
     state.mafiaActivityLog = [];
@@ -3503,6 +3716,35 @@
           // just cached for whenever App.viewVoteHistory() is next opened.
           if(document.getElementById('screen-player-vote-history').classList.contains('active')) renderVoteHistory();
         }
+        else if(msg.type === 'reclaimable-seats'){
+          // Only relevant while we're still an unnamed brand-new connection
+          // sitting on the name-entry screen — if we've already submitted a
+          // name (or are mid-reconnect with one), this is stale/irrelevant.
+          if(!state.myPlayerName) renderReclaimSeatScreen(msg.names || []);
+        }
+        else if(msg.type === 'claim-accepted'){
+          // The host just handed our connection over to a specific existing
+          // (disconnected) seat by name — adopt its real id as our own going
+          // forward so a FUTURE drop reconnects us automatically via the
+          // normal token-based flow instead of landing back on this same
+          // reclaim screen every time.
+          state.myPlayerToken = msg.playerId;
+          state.myPlayerName = msg.name;
+          savePlayerSession({ room: state.room, token: state.myPlayerToken, name: msg.name });
+          setDebugBadge(msg.name);
+        }
+        else if(msg.type === 'claim-failed'){
+          toast(t('claimSeatFailed'));
+          showScreen('screen-player-name');
+        }
+        else if(msg.type === 'room-full'){
+          // Only reachable via the rare edge case where this connection was
+          // let through solely because SOME OTHER seat was disconnected
+          // (see hostBeginConnectionTo/handleClaimSeat), and this device
+          // then declined to claim it and tried to register as a genuinely
+          // new player instead, with no free seat actually available.
+          toast(t('roomFullCantJoin'));
+        }
       }catch(err){}
     };
     dc.onclose = () => {
@@ -3510,6 +3752,39 @@
       attemptPlayerReconnect();
     };
   }
+
+  // Offered right after connecting, only when the host reports at least one
+  // NAMED seat currently sitting disconnected (see the 'reclaimable-seats'
+  // handler above) — lets someone who lost their persisted session (closed
+  // the browser, switched devices) get straight back into their own seat by
+  // tapping their name, instead of being funneled into "pick a name" and
+  // ending up as a brand-new extra player.
+  function renderReclaimSeatScreen(names){
+    const box = $('reclaim-seat-list');
+    box.innerHTML = '';
+    names.forEach(name => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-ghost';
+      btn.textContent = name;
+      btn.onclick = () => App.claimSeat(name);
+      box.appendChild(btn);
+    });
+    showScreen('screen-player-reclaim-seat');
+  }
+
+  App.claimSeat = function(name){
+    try{ state.playerDC.send(JSON.stringify({ type: 'claim-seat', name })); }
+    catch(e){ toast(t('lostHostConnection')); return; }
+    $('connecting-title').textContent = t('almostThere');
+    $('connecting-hint').textContent = t('finalizingConnection');
+    showScreen('screen-player-connecting');
+  };
+
+  // "That's not me" escape hatch — falls through to the normal fresh-name
+  // flow instead of claiming anyone else's seat.
+  App.declineReclaim = function(){
+    showScreen('screen-player-name');
+  };
 
   App.playerSubmitName = function(){
     const val = $('input-player-name').value.trim();
@@ -4012,7 +4287,110 @@
     toast(t('playerKicked', { name: entry.name }));
     if(state.winner){ App.showGameOver(); return; }
     renderDebugPanel();
+    // The debug panel is an overlay — whatever host screen is underneath
+    // (the day screen's alive/eliminated lists, most commonly) needs its
+    // own separate refresh or the kicked player stays looking alive there
+    // until the host happens to navigate away and back.
+    refreshCurrentHostScreen();
   };
+
+  // Undoes a kick (or any other death) in case it was a mistake — "just in
+  // case" is the whole point, so this stays available for as long as the
+  // player is dead, not just right after a kick. Drops them back into
+  // whatever's actually happening right now (resyncPlayer), exactly like a
+  // reconnect — not a "the night just ended" narrative message, since this
+  // can happen any time, day or night. Note: if the death/kick being undone
+  // is what already decided the game (state.winner got set and everyone's
+  // seen the game-over screen), this does NOT retroactively un-end it for
+  // them — there's no "actually, game's back on" message today. It's meant
+  // for the common case: catching a mistake while the game is still going.
+  App.revivePlayer = function(id){
+    const entry = state.players.get(id);
+    if(!entry || entry.alive) return;
+    if(!confirm(t('confirmRevivePlayer', { name: entry.name }))) return;
+    entry.alive = true;
+    const prefix = (state.gamePhase && state.gamePhase.indexOf('night') === 0)
+      ? t('nightLogPrefix', { day: state.day })
+      : t('dayLogPrefix', { day: state.day });
+    logActivity(entry, prefix + t('actRevivedByGod'));
+    toast(t('playerRevived', { name: entry.name }));
+    if(state.currentPhaseSnapshot) entry.lastPhase = state.currentPhaseSnapshot;
+    resyncPlayer(entry, id);
+    state.winner = checkWinner();
+    renderDebugPanel();
+    refreshCurrentHostScreen();
+  };
+
+  App.adjustInquiriesRemaining = function(delta){
+    state.inquiriesRemaining = Math.max(0, state.inquiriesRemaining + delta);
+    renderDebugPanel();
+  };
+
+  function refreshDebugPanelIfOpen(){
+    const panel = $('debug-panel');
+    if(panel && panel.classList.contains('open')) renderDebugPanel();
+  }
+
+  // Whichever host screen actually has live game-state content that a
+  // kick/revive could just have changed — the debug panel is an overlay,
+  // so it never implicitly refreshes what's underneath on its own.
+  function refreshCurrentHostScreen(){
+    const active = document.querySelector('.screen.active');
+    if(!active) return;
+    if(active.id === 'screen-host-day') renderDayScreen();
+    else if(active.id === 'screen-host-voting') renderVotingTally(state.gamePhase === 'voting1' ? 1 : 2);
+    else if(active.id === 'screen-host-defense') renderDefenseList();
+    else if(active.id === 'screen-host-lobby') renderLobby();
+    else if(active.id === 'screen-host-summary') renderDossier();
+  }
+
+  // Live "who's still deciding, who's already decided, and what they
+  // chose" for the CURRENT night — see recordNightDecision (pushed to as
+  // decisions land) and killDeciderIds (the kill-decider is picked at
+  // random each night, not a fixed role, so it can't be found the same way
+  // ماتادور/دکتر/etc. can via findAliveByRoleName). Empty outside an active
+  // night phase.
+  function renderNightStatus(){
+    const box = $('debug-night-status');
+    if(!box) return;
+    box.innerHTML = '';
+    if(!state.gamePhase || state.gamePhase.indexOf('night-') !== 0){
+      box.innerHTML = '<p class="hint">' + escapeHtml(t('debugNone')) + '</p>';
+      return;
+    }
+
+    const CIVILIAN_ROLE_NAMES = {
+      doctor: ROLE_NAME_DOCTOR, constantine: ROLE_NAME_CONSTANTINE, detective: ROLE_NAME_DETECTIVE,
+      professional: ROLE_NAME_PROFESSIONAL, gunner: ROLE_NAME_GUNNER, 'ocean-recruit': ROLE_NAME_OCEAN,
+    };
+    const waitingLines = [];
+    const collectWaiting = (pendingSet, roleNameFor) => {
+      pendingSet.forEach(key => {
+        if(key === 'kill'){
+          state.night.killDeciderIds.forEach(id => {
+            const p = state.players.get(id);
+            if(p) waitingLines.push((p.roleName || p.role) + ' — ' + p.name);
+          });
+          return;
+        }
+        const roleName = roleNameFor(key);
+        if(!roleName) return;
+        findAliveByRoleName(roleName).forEach(([id, p]) => waitingLines.push(p.roleName + ' — ' + p.name));
+      });
+    };
+    collectWaiting(state.night.mafiaPending, key => key === 'matador' ? ROLE_NAME_MATADOR : null);
+    collectWaiting(state.night.zodiacPending, key => key === 'zodiac' ? ROLE_NAME_ZODIAC : null);
+    collectWaiting(state.night.civilianPending, key => CIVILIAN_ROLE_NAMES[key] || null);
+
+    if(waitingLines.length) box.appendChild(buildDebugLogSection(t('debugStillWaitingLabel'), waitingLines));
+
+    const decidedLines = state.night.decisionsLog.map(d => d.role + ' — ' + d.player + ': ' + d.text);
+    if(decidedLines.length) box.appendChild(buildDebugLogSection(t('debugDecidedLabel'), decidedLines));
+
+    if(!waitingLines.length && !decidedLines.length){
+      box.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
+    }
+  }
 
   function renderDebugPanel(){
     const stateBox = $('debug-state');
@@ -4028,6 +4406,10 @@
         escapeHtml(t('debugPendingGunLabel')) + ': ' + (pendingHolder ? escapeHtml(pendingHolder.name) : escapeHtml(t('debugNone'))) + '<br>' +
         escapeHtml(t('debugPendingRolesLabel')) + ': ' + (pendingRoles.length ? (pendingRoles.length + ' — ' + escapeHtml(pendingRolesSummaryText())) : escapeHtml(t('debugNone')));
     }
+    const inquiriesValue = $('debug-inquiries-value');
+    if(inquiriesValue) inquiriesValue.textContent = state.inquiriesRemaining;
+
+    renderNightStatus();
 
     const rolesBox = $('debug-roles');
     if(rolesBox){
@@ -4042,7 +4424,9 @@
           (entry.roleShield ? escapeHtml(t('debugShieldOn')) : escapeHtml(t('debugShieldOff'))) + ' · ' +
           (entry.connected ? escapeHtml(t('debugConnected')) : escapeHtml(t('debugDisconnected')));
         // The God can remove anyone still alive right from this row, any
-        // time — see App.kickPlayer. Nothing to kick once they're already out.
+        // time — see App.kickPlayer. Anyone already out can be brought back
+        // just as easily — see App.revivePlayer — in case that kick (or an
+        // in-game death) turns out to have been a mistake.
         if(entry.alive){
           const kickBtn = document.createElement('button');
           kickBtn.className = 'btn btn-ghost';
@@ -4050,6 +4434,13 @@
           kickBtn.textContent = t('btnKickPlayer');
           kickBtn.onclick = () => App.kickPlayer(id);
           row.appendChild(kickBtn);
+        } else {
+          const reviveBtn = document.createElement('button');
+          reviveBtn.className = 'btn btn-ghost';
+          reviveBtn.style.cssText = 'margin-top:6px; padding:5px 12px; font-size:12px; color:var(--gold); border-color:var(--gold-dim);';
+          reviveBtn.textContent = t('btnRevivePlayer');
+          reviveBtn.onclick = () => App.revivePlayer(id);
+          row.appendChild(reviveBtn);
         }
         rolesBox.appendChild(row);
       });
@@ -4084,6 +4475,19 @@
         });
       } else {
         activityBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
+      }
+    }
+
+    const voteHistoryBox = $('debug-vote-history');
+    if(voteHistoryBox){
+      voteHistoryBox.innerHTML = '';
+      if(state.voteHistory.length){
+        state.voteHistory.forEach(entryLog => {
+          const heading = t('dayVoteEyebrow', { day: entryLog.day, round: entryLog.round === 1 ? t('firstVote') : t('finalVote') });
+          voteHistoryBox.appendChild(buildDebugLogSection(heading, entryLog.rows.map(voteHistoryRowText)));
+        });
+      } else {
+        voteHistoryBox.innerHTML = '<p class="hint">' + escapeHtml(t('debugNoActivity')) + '</p>';
       }
     }
 
