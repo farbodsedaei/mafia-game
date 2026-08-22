@@ -927,6 +927,8 @@
       notEnoughVotes: 'رأی کافی موافق نبود.',
       inquiryDetail: '{mafiaOut} مافیا، {villagerOut} شهروند و {independentOut} زودیاک تا الان حذف شده‌اند. ({remaining} استعلام باقی‌مانده.)',
       inquiryDetailPlayer: '{mafiaOut} مافیا، {villagerOut} شهروند و {independentOut} زودیاک تا الان حذف شده‌اند.',
+      inquiryDetailNoZodiac: '{mafiaOut} مافیا و {villagerOut} شهروند تا الان حذف شده‌اند. ({remaining} استعلام باقی‌مانده.)',
+      inquiryDetailPlayerNoZodiac: '{mafiaOut} مافیا و {villagerOut} شهروند تا الان حذف شده‌اند.',
       btnContinue: 'ادامه ←',
       firstVote: 'رأی‌گیری اول', finalVote: 'رأی‌گیری نهایی', votingInProgress: 'رأی‌گیری در حال انجام',
       btnCloseVoting: 'پایان رأی‌گیری', voteCount: '{n} رأی', dayVoteEyebrow: 'روز {day} · {round}',
@@ -1122,6 +1124,8 @@
       notEnoughVotes: 'Not enough votes were in favor.',
       inquiryDetail: '{mafiaOut} Mafia, {villagerOut} civilian(s), and {independentOut} زودیاک eliminated so far. ({remaining} inquiries left.)',
       inquiryDetailPlayer: '{mafiaOut} Mafia, {villagerOut} civilian(s), and {independentOut} زودیاک eliminated so far.',
+      inquiryDetailNoZodiac: '{mafiaOut} Mafia and {villagerOut} civilian(s) eliminated so far. ({remaining} inquiries left.)',
+      inquiryDetailPlayerNoZodiac: '{mafiaOut} Mafia and {villagerOut} civilian(s) eliminated so far.',
       btnContinue: 'Continue →',
       firstVote: 'First Vote', finalVote: 'Final Vote', votingInProgress: 'Voting in progress',
       btnCloseVoting: 'Close Voting', voteCount: '{n} vote(s)', dayVoteEyebrow: 'Day {day} · {round}',
@@ -2383,6 +2387,9 @@
     if(!voter || !voter.alive || state.gamePhase !== 'inquiry-vote') return;
     state.votesInquiry.set(voterId, choice === 'yes' ? 'yes' : 'no');
     renderInquiryTally();
+    // Same reasoning as maybeAutoCloseVoting for the day vote — once every
+    // alive player has actually voted, there's nothing left to wait for.
+    if(state.votesInquiry.size >= aliveEntries().length) App.closeInquiryVote();
   }
 
   App.closeInquiryVote = function(){
@@ -2390,6 +2397,11 @@
     let yes = 0;
     state.votesInquiry.forEach(choice => { if(choice === 'yes') yes++; });
     const granted = yes > 0 && yes >= threshold;
+    // زودیاک is its own team of one — mentioning "0 زودیاک eliminated" in a
+    // game that never had that role in play reads as "there IS a زودیاک,
+    // and they're still alive", not "this count doesn't apply here". Only
+    // ever mention it when the God actually put it in play this game.
+    const zodiacInPlay = state.selectedRoleIds.has('role-zodiac');
 
     $('inquiry-result-day').textContent = t('dayLabel', { n: state.day }) + ' · ' + t('inquiryResultLabel');
     if(granted){
@@ -2398,9 +2410,9 @@
       const mafiaOut = eliminated.filter(e => e.role === 'mafia').length;
       const villagerOut = eliminated.filter(e => e.role === 'villager' && !e.independent).length;
       const independentOut = eliminated.filter(e => e.independent).length;
-      aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: true, mafiaOut, villagerOut, independentOut }));
+      aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: true, mafiaOut, villagerOut, independentOut, zodiacInPlay }));
       $('inquiry-result-title').textContent = t('inquiryGranted');
-      $('inquiry-result-detail').textContent = t('inquiryDetail', { mafiaOut, villagerOut, independentOut, remaining: state.inquiriesRemaining });
+      $('inquiry-result-detail').textContent = t(zodiacInPlay ? 'inquiryDetail' : 'inquiryDetailNoZodiac', { mafiaOut, villagerOut, independentOut, remaining: state.inquiriesRemaining });
     } else {
       aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: false }));
       $('inquiry-result-title').textContent = t('noInquiryToday');
@@ -4071,7 +4083,7 @@
   function handleInquiryResult(msg){
     if(msg.granted){
       $('inquiry-result-title-player').textContent = t('inquiryGranted');
-      $('inquiry-result-detail-player').textContent = t('inquiryDetailPlayer', { mafiaOut: msg.mafiaOut, villagerOut: msg.villagerOut, independentOut: msg.independentOut });
+      $('inquiry-result-detail-player').textContent = t(msg.zodiacInPlay ? 'inquiryDetailPlayer' : 'inquiryDetailPlayerNoZodiac', { mafiaOut: msg.mafiaOut, villagerOut: msg.villagerOut, independentOut: msg.independentOut });
     } else {
       $('inquiry-result-title-player').textContent = t('noInquiryToday');
       $('inquiry-result-detail-player').textContent = t('notEnoughVotes');
