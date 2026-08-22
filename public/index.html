@@ -814,10 +814,22 @@
 (function(){
   "use strict";
 
-  const ICE_SERVERS = [
+  // STUN-only default — works for a direct peer-to-peer connection, but has
+  // no fallback when one isn't possible (iCloud Private Relay, cellular
+  // carrier NAT, a locked-down guest WiFi — the exact "waiting for host"
+  // hang some players hit with no way out). Upgraded at load time from
+  // /api/ice-config if the server has TURN credentials configured (see
+  // server.js's buildIceServers/TURN_URL) — this `let` starts as the same
+  // fallback the app always used, and gets replaced once that fetch
+  // resolves, well before any real user interaction (join, create lobby)
+  // could reach a new RTCPeerConnection() call.
+  let ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
   ];
+  fetch('/api/ice-config').then(r => r.json()).then(data => {
+    if(data && Array.isArray(data.iceServers) && data.iceServers.length) ICE_SERVERS = data.iceServers;
+  }).catch(() => { /* keep the STUN-only default above */ });
 
   // Night-action roles are identified by exact role name. Because the role
   // list below is hardcoded (not editable), these names can never drift out

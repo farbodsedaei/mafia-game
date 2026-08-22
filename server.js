@@ -50,6 +50,38 @@ function randomRoomCode(len) {
   return code;
 }
 
+// STUN alone only helps two peers find each other when a direct connection
+// is actually possible — it has no fallback when it isn't (iCloud Private
+// Relay, cellular carrier NAT, a locked-down guest WiFi, etc.), and that's
+// exactly the silent "waiting for host" hang some players hit. A TURN
+// server is the fix: it relays traffic when a direct path can't be found.
+// TURN credentials are read from environment variables rather than hardcoded
+// here so they never end up sitting in public/index.html, visible to
+// anyone — see the README-style comment where these are documented for
+// exactly what to set on the hosting platform (Render, etc.). Until they're
+// set, this silently falls back to the original STUN-only behavior — the
+// app still works exactly as before, just without the extra reliability.
+//   TURN_URL         one URL, or several comma-separated (e.g. a UDP one on
+//                     :80 and a TCP one on :443 — most providers give you
+//                     both; listing both gives WebRTC more chances to get
+//                     through a restrictive network)
+//   TURN_USERNAME     from your TURN provider
+//   TURN_CREDENTIAL   from your TURN provider
+function buildIceServers() {
+  const servers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ];
+  const turnUrl = process.env.TURN_URL;
+  const turnUsername = process.env.TURN_USERNAME;
+  const turnCredential = process.env.TURN_CREDENTIAL;
+  if (turnUrl && turnUsername && turnCredential) {
+    const urls = turnUrl.split(',').map(u => u.trim()).filter(Boolean);
+    if (urls.length) servers.push({ urls, username: turnUsername, credential: turnCredential });
+  }
+  return servers;
+}
+
 /* ---------------- Static file server ---------------- */
 const httpServer = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -57,6 +89,12 @@ const httpServer = http.createServer(async (req, res) => {
   if (url.pathname === '/api/lan-ips') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ips: lanAddresses(), port: PORT }));
+    return;
+  }
+
+  if (url.pathname === '/api/ice-config') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ iceServers: buildIceServers() }));
     return;
   }
 
