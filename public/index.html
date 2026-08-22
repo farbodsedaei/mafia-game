@@ -522,6 +522,7 @@
     <div class="stack">
       <button class="btn btn-primary" id="welcome-back-continue-btn" onclick="App.continueAsReturningPlayer()"></button>
       <button class="btn btn-ghost" onclick="App.joinAsNewPlayer()" data-i18n="btnJoinAsNewPlayer"></button>
+      <button class="btn btn-ghost" onclick="App.declineWelcomeBack()" data-i18n="btnBackToStart"></button>
     </div>
   </div>
 
@@ -963,6 +964,7 @@
       reconnectingTitle: 'در حال اتصال دوباره…', reconnectingHint: 'اتصال شما قطع شده بود — در حال وصل‌شدن دوباره به بازی هستیم.',
       welcomeBackEyebrow: 'دوباره خوش آمدید', welcomeBackHint: 'به نظر می‌رسد قبلاً به این اتاق پیوسته بودید.',
       btnContinueAs: 'ادامه به‌عنوان {name} ←', btnJoinAsNewPlayer: 'شما نیستید؟ به‌عنوان بازیکن جدید بپیوندید',
+      btnBackToStart: 'بازگشت به صفحه اصلی',
       reclaimSeatEyebrow: 'اتصال دوباره', reclaimSeatTitle: 'کدام‌یک از شما هستید؟',
       reclaimSeatHint: 'این افراد در حال حاضر قطع شده‌اند. اگر یکی از آن‌ها شما هستید، اسمتان را بزنید تا به جایگاه خودتان برگردید.',
       btnImNew: 'من جدیدم، اسم من در این لیست نیست', claimSeatFailed: 'آن جایگاه دیگر در دسترس نیست. لطفاً اسم خود را وارد کنید.',
@@ -1157,6 +1159,7 @@
       reconnectingTitle: 'Reconnecting…', reconnectingHint: 'Your connection dropped — reconnecting you to the game.',
       welcomeBackEyebrow: 'Welcome Back', welcomeBackHint: "Looks like you already joined this room before.",
       btnContinueAs: 'Continue as {name} →', btnJoinAsNewPlayer: 'Not you? Join as a new player',
+      btnBackToStart: 'Back to start',
       reclaimSeatEyebrow: 'Reconnecting', reclaimSeatTitle: 'Which one of you is this?',
       reclaimSeatHint: "These players are currently disconnected. If one of them is you, tap your name to get back into your seat.",
       btnImNew: "I'm new, my name isn't in this list", claimSeatFailed: 'That seat is no longer available. Please enter your name.',
@@ -1456,6 +1459,21 @@
       if(!raw) return null;
       const s = JSON.parse(raw);
       if(s && s.room === room && s.token) return s;
+    }catch(e){}
+    return null;
+  }
+  // Same idea as loadPlayerSession, but without needing to already know
+  // which room to check — used at page-load time (see the bottom of this
+  // script) when there's no '?join=' URL param to supply one, e.g. a
+  // reload/relaunch after the tab itself got killed (iOS Safari does this
+  // aggressively — backgrounding, low memory, or just a cold app-switcher
+  // relaunch), not just the WebRTC connection dropping.
+  function peekPlayerSession(){
+    try{
+      const raw = localStorage.getItem('mafia-player-session');
+      if(!raw) return null;
+      const s = JSON.parse(raw);
+      if(s && s.room && s.token) return s;
     }catch(e){}
     return null;
   }
@@ -2461,10 +2479,26 @@
     if(round === 1 && state.gamePhase === 'voting1'){
       state.votesRound1.set(voterId, ids);
       renderVotingTally(1);
+      maybeAutoCloseVoting(1);
     } else if(round === 2 && state.gamePhase === 'voting2'){
       state.votesRound2.set(voterId, ids.filter(id => state.defendingIds.includes(id)));
       renderVotingTally(2);
+      maybeAutoCloseVoting(2);
     }
+  }
+
+  // Once every eligible voter for this round has actually cast a vote,
+  // there's nothing left to wait for — advance immediately instead of
+  // leaving the God to notice everyone's done and tap "Close Voting"
+  // themselves. Does exactly what a manual App.closeVoting() click does;
+  // the button stays available for the God to close EARLY (someone AFK,
+  // wants to move on regardless), this only covers the "already unanimous
+  // in the sense that no one is left to hear from" case.
+  function maybeAutoCloseVoting(round){
+    const votes = round === 1 ? state.votesRound1 : state.votesRound2;
+    const eligibleIds = eligibleVoterIdsForRound(round);
+    if(!eligibleIds.length || !eligibleIds.every(id => votes.has(id))) return;
+    if(round === 1) closeVotingRound1(); else closeVotingRound2();
   }
 
   // Who's actually eligible to cast a vote this round — everyone alive in
@@ -3547,6 +3581,19 @@
     beginFreshPlayerJoin(code, generatePlayerToken(), null);
   };
 
+  // Escape hatch for when this screen fired from the page-load auto-resume
+  // (see peekPlayerSession at the bottom of this script) and it's simply the
+  // wrong guess — e.g. this device previously played a DIFFERENT, unrelated
+  // game and someone now wants to host, or just pick a room code manually,
+  // not reconnect as whoever last played here. Deliberately does NOT clear
+  // the persisted session (unlike App.joinAsNewPlayer, which is committing
+  // to a specific room) — if they really are that returning player, it'll
+  // simply offer this same confirmation again next time, harmless either way.
+  App.declineWelcomeBack = function(){
+    state.pendingRejoinSession = null;
+    App.goLanding();
+  };
+
   // Fires when the data channel dies (screen lock, dropped WiFi, killed tab)
   // or when the tab becomes visible again after being backgrounded and the
   // connection looks dead. Re-establishes the WebSocket if needed, then
@@ -4561,15 +4608,34 @@
       state.role = 'player';
       setDebugBadge('PLAYER');
       startPlayerJoin(joinCode.toUpperCase());
+    } else {
+      // No room code in the URL to go on — but if this browser is holding a
+      // persisted player session (see savePlayerSession), this is very
+      // likely the SAME player's tab coming back after being killed outright
+      // rather than a fresh visitor, and they shouldn't have to remember
+      // their room code and rejoin as a brand-new player just because the
+      // in-memory connection (and the URL's '?join=' param, if it even had
+      // one) didn't survive. Route into the exact same ambiguity-safe
+      // Welcome-Back confirmation a '?join=' link would have used — it still
+      // asks before actually reconnecting (see startPlayerJoin), so a
+      // different person sharing this browser is still asked, never
+      // silently logged in as someone else.
+      const resumable = peekPlayerSession();
+      if(resumable){
+        state.role = 'player';
+        setDebugBadge('PLAYER');
+        startPlayerJoin(resumable.room);
+      }
     }
   });
 
   // Mobile browsers suspend background tabs (screen lock, app-switch) and
   // silently drop the WebRTC connection — this is the #1 way a player used to
-  // get permanently kicked out. Whenever the tab becomes visible again, check
-  // whether the connection actually survived, and reconnect if not.
-  document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState !== 'visible') return;
+  // get permanently kicked out. Whenever the tab becomes visible/usable
+  // again (see the two listeners below, for the two different ways that
+  // happens), check whether the connection actually survived, and reconnect
+  // if not.
+  function checkConnectionAfterResume(){
     if(state.role === 'host'){
       // Backup trigger for the same reason attemptPlayerReconnect needs
       // one below: a dead WebSocket doesn't always fire onclose promptly
@@ -4582,6 +4648,21 @@
     const dcDead = !state.playerDC || state.playerDC.readyState !== 'open';
     const wsDead = !state.ws || state.ws.readyState !== WebSocket.OPEN;
     if(dcDead || wsDead) attemptPlayerReconnect();
+  }
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') checkConnectionAfterResume();
+  });
+  // Safari (iOS especially) aggressively restores a tab from its
+  // back-forward cache (bfcache) instead of re-running this script at all —
+  // tapping the browser's back/forward gesture, or the OS just resuming a
+  // suspended tab, can land here with `persisted: true`. Every live network
+  // object (the WebSocket, the RTCPeerConnection) was force-killed the
+  // moment the page froze into the cache, but NONE of their close/error
+  // handlers fire to say so — visibilitychange alone doesn't reliably catch
+  // this case since the page can already read as "visible" the instant it's
+  // restored, before this listener even runs. Explicitly re-check here too.
+  window.addEventListener('pageshow', (e) => {
+    if(e.persisted) checkConnectionAfterResume();
   });
 })();
 </script>
