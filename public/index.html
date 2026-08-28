@@ -360,7 +360,7 @@
   <div class="screen" id="screen-host-day">
     <div class="eyebrow" id="day-eyebrow"></div>
     <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="dayTitle"></h2>
-    <p class="hint" style="margin-bottom:18px;" data-i18n="dayHint"></p>
+    <p class="hint" style="margin-bottom:18px;" id="day-hint-text" data-i18n="dayHint"></p>
     <div class="card">
       <div class="eyebrow" style="margin-bottom:12px;" data-i18n="stillInGame"></div>
       <div id="alive-list" class="stack"></div>
@@ -370,7 +370,12 @@
       <div id="eliminated-list" class="stack"></div>
     </div>
     <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.startVoting()" data-i18n="btnStartVoting"></button>
+    <!-- Day 1 comes BEFORE Night 1 has even introduced Mafia to each other
+         (see mafiaTalkNowNight1) — nobody has anything to accuse anyone of
+         yet, so voting is off the table entirely today. See renderDayScreen
+         for the day===1 toggle between these two buttons. -->
+    <button class="btn btn-primary" id="btn-start-voting" onclick="App.startVoting()" data-i18n="btnStartVoting"></button>
+    <button class="btn btn-primary" id="btn-day1-continue" style="display:none;" onclick="App.continueToNight()" data-i18n="btnContinueToNight"></button>
   </div>
 
   <!-- HOST: DAY GUN WAIT -->
@@ -613,6 +618,7 @@
     <div class="eyebrow" style="margin-bottom:16px;" data-i18n="myActivity"></div>
     <div id="activity-log-list" class="stack"></div>
     <div class="grow"></div>
+    <button class="link-btn" style="margin:0 auto 6px;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="btn btn-ghost" onclick="App.closeMyActivity()" data-i18n="back"></button>
   </div>
 
@@ -623,6 +629,7 @@
     <div class="eyebrow" style="margin-bottom:16px;" data-i18n="voteHistory"></div>
     <div id="vote-history-list" class="stack" style="overflow-y:auto;"></div>
     <div class="grow"></div>
+    <button class="link-btn" style="margin:0 auto 6px;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="btn btn-ghost" onclick="App.closeVoteHistory()" data-i18n="back"></button>
   </div>
 
@@ -637,6 +644,7 @@
       <button class="btn btn-primary" onclick="App.submitDayGunAction()" data-i18n="btnFireGun"></button>
       <button class="btn btn-ghost" onclick="App.skipDayGunAction()" data-i18n="btnDoNothingToday"></button>
     </div>
+    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: DAY GUN WAITING -->
@@ -645,6 +653,7 @@
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
       <h3 style="font-size:20px; margin-bottom:8px;" data-i18n="decisionSubmittedWaiting"></h3>
     </div>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: DAY GUN RESULT -->
@@ -653,6 +662,7 @@
       <div class="eyebrow" style="margin-bottom:10px;" data-i18n="gunResultEyebrow"></div>
       <h2 style="font-size:24px;" id="day-gun-result-title-player">&mdash;</h2>
     </div>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: DAY -->
@@ -660,7 +670,7 @@
     <div class="eyebrow" id="day-title-player"></div>
     <div class="grow center">
       <h2 style="font-size:26px;" data-i18n="talkItOut"></h2>
-      <p class="hint" style="max-width:280px; margin-top:10px;" data-i18n="shareNoticed"></p>
+      <p class="hint" style="max-width:280px; margin-top:10px;" id="day-hint-player" data-i18n="shareNoticed"></p>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
@@ -678,6 +688,7 @@
       <button class="btn btn-primary" onclick="App.submitInquiryVote('yes')" data-i18n="yes"></button>
       <button class="btn btn-outline" onclick="App.submitInquiryVote('no')" data-i18n="no"></button>
     </div>
+    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: INQUIRY WAITING -->
@@ -686,6 +697,7 @@
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
       <h3 style="font-size:20px; margin-bottom:8px;" data-i18n="voteSubmittedWaiting"></h3>
     </div>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: INQUIRY RESULT -->
@@ -695,6 +707,7 @@
       <h2 style="font-size:24px;" id="inquiry-result-title-player">&mdash;</h2>
       <p class="hint" style="max-width:280px; margin-top:12px;" id="inquiry-result-detail-player"></p>
     </div>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: VOTE -->
@@ -706,6 +719,7 @@
     <p class="hint" id="vote-empty-hint" style="display:none; margin-top:10px;" data-i18n="noOneElseToVote"></p>
     <div class="grow"></div>
     <button class="btn btn-primary" id="vote-submit-btn" onclick="App.submitVote()" data-i18n="btnSubmitVote"></button>
+    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: VOTE WAITING -->
@@ -714,6 +728,7 @@
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
       <h3 style="font-size:20px; margin-bottom:8px;" id="vote-waiting-text" data-i18n="voteSubmittedWaiting"></h3>
     </div>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: DEFENSE -->
@@ -762,6 +777,7 @@
       <button class="btn btn-primary" onclick="App.submitNightAction()" data-i18n="btnConfirm"></button>
       <button class="btn btn-ghost" id="night-action-skip-btn" onclick="App.skipNightAction()" data-i18n="btnDoNothingTonight"></button>
     </div>
+    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: NIGHT ANNOUNCEMENT -->
@@ -770,6 +786,7 @@
     <div class="grow center">
       <h2 style="font-size:26px;" id="night-announcement-title"></h2>
     </div>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: INVESTIGATE RESULT -->
@@ -778,6 +795,7 @@
       <div class="eyebrow" style="margin-bottom:10px;" data-i18n="investigationResult"></div>
       <h2 style="font-size:24px;" id="investigate-result-title">&mdash;</h2>
     </div>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: ELIMINATED -->
@@ -787,6 +805,7 @@
       <h2 style="font-size:26px;" data-i18n="youveBeenEliminated"></h2>
       <p class="hint" style="max-width:280px; margin-top:12px;" data-i18n="thanksForPlaying"></p>
     </div>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: GAME OVER -->
@@ -794,6 +813,7 @@
     <div class="eyebrow" style="text-align:center; margin-bottom:16px;" data-i18n="gameOver"></div>
     <h2 style="font-size:28px; text-align:center; margin-bottom:20px;" id="game-over-title-player">&mdash;</h2>
     <div class="card"><div id="game-over-roster-player" class="stack"></div></div>
+    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
 </div>
@@ -952,6 +972,8 @@
       btnBeginGame: 'شروع بازی ←', btnStartOverInstead: 'در عوض از نو شروع کن',
       dayLabel: 'روز {n}', dayTitle: 'گفتگوی روز',
       dayHint: 'فعلاً کاری اینجا نیست — بگذارید گروه صحبت کند. وقتی آماده تصمیم‌گیری بودند رأی‌گیری را شروع کنید.',
+      day1Hint: 'روز اول هنوز رأی‌گیری وجود ندارد — اعضای مافیا هنوز امشب یکدیگر را نمی‌شناسند. بگذارید گروه با هم آشنا شوند، سپس به شب اول ادامه دهید.',
+      btnContinueToNight: 'ادامه به شب →',
       stillInGame: 'هنوز در بازی', eliminatedLabel: 'حذف‌شده‌ها', btnStartVoting: 'شروع رأی‌گیری',
       morningInquiry: 'استعلام صبحگاهی', inquiryVoteTitle: 'رأی‌گیری: استعلام استفاده شود؟',
       yes: 'بله', no: 'خیر', btnCloseInquiryVote: 'پایان رأی‌گیری استعلام',
@@ -1016,6 +1038,7 @@
       voteHistoryDidNotVote: '{voter} اصلاً رأی نداد.',
       talkItOut: 'صحبت کنید',
       shareNoticed: 'چیزهایی که متوجه شدید را به اشتراک بگذارید. گاد در زمان مناسب رأی‌گیری را شروع می‌کند.',
+      day1HintPlayer: 'امروز رأی‌گیری وجود ندارد — اعضای مافیا هنوز امشب یکدیگر را نمی‌شناسند. فقط با هم آشنا شوید.',
       viewMyRole: 'دیدن نقش من',
       useInquiryToday: 'امروز استعلام استفاده شود؟',
       inquiryExplain: 'اگر تعداد کافی بله بگویید، همه می‌فهمند تا الان چند مافیا و چند شهروند حذف شده‌اند.',
@@ -1154,6 +1177,8 @@
       btnBeginGame: 'Begin the Game →', btnStartOverInstead: 'Start Over Instead',
       dayLabel: 'Day {n}', dayTitle: 'Daytime discussion',
       dayHint: "Nothing to do here yet — let the group talk it out. Start voting once they're ready to decide.",
+      day1Hint: "There's no voting on Day 1 — Mafia don't even know who their teammates are yet, that only happens tonight. Let the group get acquainted, then continue on to Night 1.",
+      btnContinueToNight: 'Continue to Night →',
       stillInGame: 'Still in the game', eliminatedLabel: 'Eliminated', btnStartVoting: 'Start Voting',
       morningInquiry: 'Morning Inquiry', inquiryVoteTitle: 'Vote: use an inquiry?',
       yes: 'Yes', no: 'No', btnCloseInquiryVote: 'Close Inquiry Vote',
@@ -1218,6 +1243,7 @@
       voteHistoryDidNotVote: '{voter} did not vote at all.',
       talkItOut: 'Talk it out',
       shareNoticed: "Share what you've noticed. The God will start a vote when it's time.",
+      day1HintPlayer: "There's no voting today — Mafia don't know who their teammates are yet, that only happens tonight. Just get to know each other.",
       viewMyRole: 'View My Role',
       useInquiryToday: 'Use an inquiry today?',
       inquiryExplain: 'If enough of you say yes, everyone learns how many Mafia and civilians have been eliminated so far.',
@@ -1772,7 +1798,10 @@
     else if(id === 'screen-host-voting') renderVotingTally(state.gamePhase === 'voting1' ? 1 : 2);
     else if(id === 'screen-host-defense') renderDefenseList();
     else if(id === 'screen-player-role' && state.myRole) renderRole(state.myRole);
-    else if(id === 'screen-player-day' && state.lastPhaseMsg) $('day-title-player').textContent = t('dayLabel', { n: state.lastPhaseMsg.day });
+    else if(id === 'screen-player-day' && state.lastPhaseMsg){
+      $('day-title-player').textContent = t('dayLabel', { n: state.lastPhaseMsg.day });
+      $('day-hint-player').textContent = state.lastPhaseMsg.day === 1 ? t('day1HintPlayer') : t('shareNoticed');
+    }
     else if(id === 'screen-player-inquiry-vote' && state.lastPhaseMsg) $('inquiry-vote-day-player').textContent = t('dayLabel', { n: state.lastPhaseMsg.day }) + ' · ' + t('morningInquiry');
     else if(id === 'screen-player-vote') renderVoteScreen();
     else if(id === 'screen-player-defense' && state.lastPhaseMsg) renderDefenseScreen(state.lastPhaseMsg);
@@ -2563,7 +2592,13 @@
     // tap Start Voting, so voting opens right away instead — it doubles as
     // the group's discussion window (see armVoteDeadline's longer default),
     // rather than gating it behind a separate wait nobody would ever end.
-    if(state.noGodMode) App.startVoting();
+    // Day 1 is the one exception — there's never any voting to open (see
+    // App.continueToNight), so it just pauses briefly and heads straight
+    // into Night 1 instead.
+    if(state.noGodMode){
+      if(state.day === 1) armRevealPause(App.continueToNight);
+      else App.startVoting();
+    }
   }
 
   function broadcastDayPhase(){
@@ -2634,6 +2669,10 @@
 
   function renderDayScreen(){
     $('day-eyebrow').textContent = t('dayLabel', { n: state.day });
+    const isDay1 = state.day === 1;
+    $('day-hint-text').textContent = isDay1 ? t('day1Hint') : t('dayHint');
+    $('btn-start-voting').style.display = isDay1 ? 'none' : 'flex';
+    $('btn-day1-continue').style.display = isDay1 ? 'flex' : 'none';
 
     const aliveBox = $('alive-list');
     aliveBox.innerHTML = '';
@@ -2663,9 +2702,22 @@
 
   // If تفنگدار's gun is still pending, it fires (or is declined) right here —
   // after the day's conversation, before voting opens — not before either.
+  // Never reachable on Day 1 — see App.continueToNight and the day===1
+  // guard on the host's own screen (renderDayScreen swaps this button out
+  // entirely), but guarded here too since this is a public App.* entry
+  // point in its own right.
   App.startVoting = function(){
+    if(state.day === 1) return;
     if(state.pendingGun){ startDayGunStep(); return; }
     beginVotingRound1();
+  };
+
+  // Day 1 happens before Night 1 has even introduced Mafia to each other
+  // (see mafiaTalkNowNight1) — nobody has anything to go on yet, so voting
+  // never opens today at all; this is Day 1's only way forward.
+  App.continueToNight = function(){
+    if(state.day !== 1) return;
+    startNight();
   };
 
   function beginVotingRound1(){
@@ -4125,6 +4177,11 @@
     state.lastPhaseMsg = msg;
     if(msg.phase === 'day'){
       $('day-title-player').textContent = t('dayLabel', { n: msg.day });
+      // Day 1 comes before Night 1 has even introduced Mafia to each other
+      // — there's nothing to accuse anyone of yet, and (see goToDayScreen)
+      // no voting ever opens today, so the usual "share what you noticed"
+      // framing doesn't fit; say so plainly instead.
+      $('day-hint-player').textContent = msg.day === 1 ? t('day1HintPlayer') : t('shareNoticed');
       showScreen('screen-player-day');
     } else if(msg.phase === 'inquiry-vote'){
       $('inquiry-vote-day-player').textContent = t('dayLabel', { n: msg.day }) + ' · ' + t('morningInquiry');
