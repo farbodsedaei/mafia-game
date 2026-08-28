@@ -117,6 +117,11 @@
   .banner{background:var(--gold-dim); border:1px solid rgba(212,168,87,0.3); color:var(--gold); font-size:13px; padding:12px 14px; border-radius:12px; margin-bottom:16px; line-height:1.5;}
   .banner.warning{background:var(--red-dim); border-color:rgba(196,54,75,0.35); color:var(--red-bright); margin-bottom:0;}
   .link-btn{appearance:none; background:none; border:none; color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:13px; cursor:pointer; padding:8px 0;}
+  /* No God Mode's live countdown — floats above whatever screen is showing,
+     same idea as .lang-switch/.debug-toggle-btn, since the deadline isn't
+     tied to any one screen (see updateDeadlineBadge). Never shown in a
+     normally-hosted game. */
+  .deadline-badge{display:none; position:fixed; top:6px; left:50%; transform:translateX(-50%); z-index:1600; align-items:center; gap:6px; background:rgba(0,0,0,0.6); border:1px solid var(--line-strong); color:var(--gold); font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.03em; padding:5px 12px; border-radius:20px; pointer-events:none;}
   .lang-switch{position:fixed; top:6px; right:8px; z-index:1000; display:flex; gap:2px; background:rgba(0,0,0,0.55); border-radius:8px; padding:3px;}
   .lang-switch button{appearance:none; background:none; border:none; color:var(--text-faint); font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;}
   .lang-switch button.active{background:var(--gold-dim); color:var(--gold);}
@@ -262,6 +267,30 @@
     <div class="field">
       <label data-i18n="labelZodiacFrequency"></label>
       <label class="shield-toggle"><input type="checkbox" id="zodiac-every-night-toggle" checked onchange="App.setZodiacEveryNight(this.checked)"> <span data-i18n="zodiacEveryNightToggle"></span></label>
+    </div>
+    <div class="field">
+      <label class="shield-toggle"><input type="checkbox" id="no-god-mode-toggle" onchange="App.setNoGodMode(this.checked)"> <span data-i18n="noGodModeToggle"></span></label>
+      <div class="hint" data-i18n="hintNoGodMode"></div>
+    </div>
+    <div id="no-god-deadline-fields" style="display:none;">
+      <div class="field">
+        <label data-i18n="labelActDeadline"></label>
+        <div class="stepper">
+          <button onclick="App.stepActDeadline(-1)">&minus;</button>
+          <div class="val" id="val-act-deadline">2</div>
+          <button onclick="App.stepActDeadline(1)">&plus;</button>
+        </div>
+        <div class="hint" data-i18n="hintActDeadline"></div>
+      </div>
+      <div class="field">
+        <label data-i18n="labelVoteDeadline"></label>
+        <div class="stepper">
+          <button onclick="App.stepVoteDeadline(-1)">&minus;</button>
+          <div class="val" id="val-vote-deadline">5</div>
+          <button onclick="App.stepVoteDeadline(1)">&plus;</button>
+        </div>
+        <div class="hint" data-i18n="hintVoteDeadline"></div>
+      </div>
     </div>
     <div class="field">
       <label data-i18n="labelRolesInPlay"></label>
@@ -770,6 +799,7 @@
 </div>
 <div id="toast-host"></div>
 <div id="debug-badge" style="display:none; position:fixed; top:6px; left:8px; z-index:1000; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.05em; color:#EDEFF4; background:rgba(0,0,0,0.55); padding:3px 9px; border-radius:6px; pointer-events:none;"></div>
+<div id="deadline-badge" class="deadline-badge"></div>
 <div class="lang-switch">
   <button id="lang-btn-fa" onclick="App.setLanguage('fa')">فا</button>
   <button id="lang-btn-en" onclick="App.setLanguage('en')">EN</button>
@@ -898,6 +928,10 @@
       labelOceanSlots: 'اندازه گروه اوشن',
       hintOceanSlots: 'اوشن، اگر آن نقش در بازی باشد، چند نفر می‌تواند به گروه خود اضافه کند.',
       labelZodiacFrequency: 'شلیک زودیاک', zodiacEveryNightToggle: 'زودیاک، اگر آن نقش در بازی باشد، هر شب شلیک کند (در غیر این صورت یک شب در میان).',
+      noGodModeToggle: 'حالت بدون گاد (بدون میزبان فعال)',
+      hintNoGodMode: 'کل بازی خودش پیش می‌رود — هیچ‌کس نیازی نیست روی گوشی میزبان کلیک کند. هر تصمیمی (شبانه یا روزانه) و هر رأی‌گیری یک مهلت دارد؛ اگر کسی در آن زمان اقدام نکند، بازی خودش جلو می‌رود. (توجه: باز هم یک دستگاه باید نقش میزبان را اجرا کند و طول بازی روشن بماند — فقط لازم نیست کسی آن را دستی جلو ببرد.)',
+      labelActDeadline: 'مهلت هر تصمیم (دقیقه)', hintActDeadline: 'برای اقدامات شبانه، تصمیم روزانهٔ تفنگدار، رأی‌گیری استعلام، و هر صفحهٔ اطلاع‌رسانی صرف («ادامه»).',
+      labelVoteDeadline: 'مهلت رأی‌گیری روز (دقیقه)', hintVoteDeadline: 'برای هر دو دور رأی‌گیری روز — رأی‌گیری بلافاصله باز می‌شود تا هم زمان گفتگو باشد، هم زمان رأی دادن.',
       labelRolesInPlay: 'نقش‌های بازی',
       hintRolesInPlay: 'هر نقش ویژه‌ای که تیک بزنید، دقیقاً به یک بازیکن اختصاص داده می‌شود. بقیهٔ آن گروه، نقش پیش‌فرض را می‌گیرند.',
       linkAdjustShields: 'تنظیم شیلدها', btnCreateLobby: 'ایجاد اتاق', btnBack: 'بازگشت',
@@ -1077,6 +1111,7 @@
       debugPhaseLabel: 'فاز', debugWinnerLabel: 'برنده', debugGunsRemainingLabel: 'اسلحه‌های باقی‌مانده',
       debugGunsCancelledLabel: 'اسلحه‌ها لغو شده', debugPendingGunLabel: 'اسلحه در دست', debugNone: 'هیچ‌کدام',
       debugPendingRolesLabel: 'نقش‌های توزیع‌نشده',
+      debugNoGodModeLabel: 'حالت بدون گاد', debugDeadlineLabel: 'مهلت فعلی',
       dayGunReturnedWaitHint: '{name} که اسلحه دستش بود، شب گذشته جان خود را از دست داد. اسلحه به تفنگدار برگشته و او باید تصمیم بگیرد.',
       gunDecisionReturnedHint: '{name}، کسی که اسلحه را به او داده بودید، شب گذشته جان خود را از دست داد. اسلحه به شما برگشته — می‌توانید به کسی شلیک کنید، یا کاری نکنید.',
       actGunReturned: '{name}، کسی که اسلحه را به او داده بودید، جان باخت و اسلحه به شما برگشت.',
@@ -1095,6 +1130,10 @@
       labelOceanSlots: "اوشن's group size",
       hintOceanSlots: 'How many members اوشن can recruit into their group, if that role is in play.',
       labelZodiacFrequency: "زودیاک's Shooting", zodiacEveryNightToggle: 'زودیاک, if that role is in play, shoots every night (otherwise, every other night).',
+      noGodModeToggle: 'No God Mode (no active host)',
+      hintNoGodMode: "The whole game drives itself — nobody needs to tap anything on the host's phone. Every decision (night or day) and every vote gets a deadline; if nobody acts in time, the game moves on by itself. (Note: a device still needs to run the host role and stay open for the whole game — it just never needs a manual push.)",
+      labelActDeadline: 'Deadline per decision (minutes)', hintActDeadline: 'For night actions, the day-gun decision, the inquiry vote, and every plain informational "Continue" screen.',
+      labelVoteDeadline: 'Day voting deadline (minutes)', hintVoteDeadline: "For both day voting rounds — voting opens immediately, doubling as the group's discussion window.",
       labelRolesInPlay: 'Roles in play',
       hintRolesInPlay: 'Each checked special role goes to exactly one player. Everyone else on that side gets the default role.',
       linkAdjustShields: 'Adjust shields', btnCreateLobby: 'Create Lobby', btnBack: 'Back',
@@ -1274,6 +1313,7 @@
       debugPhaseLabel: 'Phase', debugWinnerLabel: 'Winner', debugGunsRemainingLabel: 'Guns remaining',
       debugGunsCancelledLabel: 'Guns cancelled', debugPendingGunLabel: 'Gun currently held by', debugNone: 'None',
       debugPendingRolesLabel: 'Undistributed roles',
+      debugNoGodModeLabel: 'No God Mode', debugDeadlineLabel: 'Current deadline',
       dayGunReturnedWaitHint: "{name}, who was holding the gun, didn't survive the night. The gun has returned to تفنگدار, who must now decide.",
       gunDecisionReturnedHint: "{name}, who you handed the gun to, didn't survive the night. It's back with you — you may shoot someone, or do nothing.",
       actGunReturned: "{name}, who you gave the gun to, died and the gun came back to you.",
@@ -1348,6 +1388,19 @@
     numInquiries: 1,
     numOceanSlots: 2,      // how many members اوشن can recruit into their group
     zodiacShootsEveryNight: true, // false = زودیاک only shoots on odd nights (Night 1, 3, 5…)
+    // "No God" mode — the whole game drives itself with no human moderator
+    // watching the host device at all: every step that would otherwise wait
+    // on a click (a player's decision, OR just someone tapping "Continue"
+    // once everyone's done) instead arms a countdown and pushes forward on
+    // its own once it expires. See armAutoDeadline. A host device still has
+    // to be running somewhere for the whole game (this app's whole
+    // architecture is host-authoritative — see the file-level notes) — this
+    // just means nobody has to actively watch or click through it.
+    noGodMode: false,
+    actDeadlineMinutes: 2,  // per-decision deadline: night actions, the day-gun decision, the morning inquiry vote, and every plain "continue when ready" reveal screen
+    voteDeadlineMinutes: 5, // day voting deadline (round 1 AND round 2/final) — longer than a single act, since this is also the group's discussion window (see beginVotingRound1/App.startFinalVote: voting opens immediately, no separate wait-for-discussion step, in No God mode)
+    deadlineExpiresAt: null, // (host: authoritative: when the CURRENT auto-deadline fires; player: mirrors the host's last broadcast 'deadlineAt' for the countdown badge — see updateDeadlineBadge)
+    deadlineTimer: null,    // (host only) the pending setTimeout handle for deadlineExpiresAt
     room: null,
     hostToken: null,       // (host) secret generated at App.createLobby() time, proves a later 'reclaim-room' is really this same host (see server.js HOST_GRACE_MS)
     hostReconnectInProgress: false, // (host) guards against overlapping reclaim attempts
@@ -1773,6 +1826,18 @@
   App.setZodiacEveryNight = function(checked){
     state.zodiacShootsEveryNight = !!checked;
   };
+  App.setNoGodMode = function(checked){
+    state.noGodMode = !!checked;
+    renderSetupValues();
+  };
+  App.stepActDeadline = function(delta){
+    state.actDeadlineMinutes = Math.max(1, Math.min(15, state.actDeadlineMinutes + delta));
+    renderSetupValues();
+  };
+  App.stepVoteDeadline = function(delta){
+    state.voteDeadlineMinutes = Math.max(1, Math.min(20, state.voteDeadlineMinutes + delta));
+    renderSetupValues();
+  };
   function renderSetupValues(){
     $('val-players').textContent = state.numPlayers;
     $('val-mafia').textContent = state.numMafia;
@@ -1781,6 +1846,12 @@
     $('val-ocean-slots').textContent = state.numOceanSlots;
     const zodiacToggle = $('zodiac-every-night-toggle');
     if(zodiacToggle) zodiacToggle.checked = state.zodiacShootsEveryNight;
+    const noGodToggle = $('no-god-mode-toggle');
+    if(noGodToggle) noGodToggle.checked = state.noGodMode;
+    const deadlineFields = $('no-god-deadline-fields');
+    if(deadlineFields) deadlineFields.style.display = state.noGodMode ? 'block' : 'none';
+    $('val-act-deadline').textContent = state.actDeadlineMinutes;
+    $('val-vote-deadline').textContent = state.voteDeadlineMinutes;
     renderRoleSummary();
   }
 
@@ -2181,6 +2252,71 @@
   function aliveEntries(){
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive);
   }
+  // ---------------- No God Mode: auto-deadlines ----------------
+  // Arms (or, with no onExpire reachable, simply clears) the one active
+  // countdown. A no-op whenever state.noGodMode is off, so a normally-hosted
+  // game is completely unaffected. Called at the START of every single step
+  // in the day/night cycle — decision-waiting AND plain "continue when
+  // ready" reveal screens alike — which means it's naturally self-cleaning:
+  // arming the NEXT step's deadline always clears whatever was left over
+  // from the previous one first, whether that previous one was resolved by
+  // an actual human click or by its own timer firing. See armActDeadline /
+  // armVoteDeadline below for the two durations in play, and the 16-ish
+  // call sites throughout the day/night functions (search "armAct" /
+  // "armVote") for where each phase arms its own.
+  function clearAutoDeadline(){
+    if(state.deadlineTimer){ clearTimeout(state.deadlineTimer); state.deadlineTimer = null; }
+    state.deadlineExpiresAt = null;
+  }
+  function armAutoDeadline(minutes, onExpire){
+    clearAutoDeadline();
+    if(!state.noGodMode) return;
+    // Test-only escape hatch, exactly like server.js's HOST_GRACE_MS_OVERRIDE
+    // — lets the automated test harness prove a real 2-15 minute deadline
+    // actually fires without a test needing to wait 2-15 real minutes.
+    // Never set by the app itself; a real game never has this key.
+    let ms = minutes * 60 * 1000;
+    try{
+      const override = localStorage.getItem('mafia-deadline-ms-override');
+      if(override) ms = parseInt(override, 10);
+    }catch(e){}
+    state.deadlineExpiresAt = Date.now() + ms;
+    state.deadlineTimer = setTimeout(() => {
+      state.deadlineTimer = null;
+      state.deadlineExpiresAt = null;
+      onExpire();
+    }, ms);
+    // See the matching .unref() on the countdown-badge interval at the
+    // bottom of this script for why — same reasoning, same Node/jsdom-only,
+    // real-browser-harmless guard.
+    if(state.deadlineTimer && typeof state.deadlineTimer.unref === 'function') state.deadlineTimer.unref();
+    refreshDebugPanelIfOpen();
+    updateDeadlineBadge();
+  }
+  function armActDeadline(onExpire){ armAutoDeadline(state.actDeadlineMinutes, onExpire); }
+  function armVoteDeadline(onExpire){ armAutoDeadline(state.voteDeadlineMinutes, onExpire); }
+
+  // Shared by both roles: the host reads state.deadlineExpiresAt directly
+  // (it's the authoritative clock — see armAutoDeadline); a player only
+  // ever gets it mirrored from the host's last DEADLINE_CARRYING_TYPES
+  // message (see setupPlayerDataChannel's onmessage). One floating badge,
+  // independent of whatever screen is showing (same pattern as the chat
+  // panels) — ticked every second by a setInterval started at script init,
+  // plus called immediately on every state change for instant feedback
+  // instead of waiting up to a second for the next tick.
+  function updateDeadlineBadge(){
+    const badge = $('deadline-badge');
+    if(!badge) return;
+    if(!state.deadlineExpiresAt){ badge.style.display = 'none'; return; }
+    const remainingMs = state.deadlineExpiresAt - Date.now();
+    if(remainingMs <= 0){ badge.style.display = 'none'; return; }
+    const totalSeconds = Math.ceil(remainingMs / 1000);
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    badge.textContent = '⏱ ' + m + ':' + String(s).padStart(2, '0');
+    badge.style.display = 'flex';
+  }
+
   // Broadcast-style phases only — every recipient gets the identical
   // payload, unlike 'night-action' (role-specific candidate lists) or
   // 'day-gun-action' (aimed at one specific gun holder), which must NEVER
@@ -2188,7 +2324,20 @@
   // the 'name' handler) to whatever the group is currently doing, since
   // they have no lastPhase of their own yet.
   const GLOBAL_SNAPSHOT_PHASES = ['day', 'inquiry-vote', 'voting1', 'voting2', 'defense', 'night'];
+  // Every message type that ever corresponds to "the group is currently
+  // waiting on something" — either a decision (via 'phase') or one of the
+  // plain reveal screens that only has a dedicated non-'phase' type of its
+  // own (results don't reuse 'phase' — see night-result/day-result/
+  // inquiry-result/day-gun-result below). Whatever auto-deadline is
+  // CURRENTLY armed (see armAutoDeadline) always applies to whichever of
+  // these is being sent right now — every step arms its own deadline before
+  // sending, so this is never stale — letting every player-side screen that
+  // cares render a live countdown with zero extra wiring at each site.
+  const DEADLINE_CARRYING_TYPES = ['phase', 'night-result', 'day-result', 'inquiry-result', 'day-gun-result'];
   function sendToPlayer(entry, obj){
+    if(obj && DEADLINE_CARRYING_TYPES.indexOf(obj.type) !== -1 && state.noGodMode && state.deadlineExpiresAt){
+      obj.deadlineAt = state.deadlineExpiresAt;
+    }
     // Cache the most recent 'phase' message per player — this is what lets a
     // reconnecting player pick up exactly where they left off (see
     // resyncPlayer), including any role-specific night-action prompt they
@@ -2287,6 +2436,7 @@
       return;
     }
     state.gamePhase = 'day-gun';
+    armActDeadline(App.forceSkipGunDecision);
     sendToPlayer(holderEntry, { type: 'phase', phase: 'day-gun-action', day: state.day, candidates, returned, diedName });
     $('day-gun-wait-day').textContent = t('dayLabel', { n: state.day });
     $('day-gun-wait-hint').textContent = returned ? t('dayGunReturnedWaitHint', { name: diedName }) : t('dayGunWaitHint');
@@ -2342,6 +2492,7 @@
   }
 
   function announceDayGunOutcome(text){
+    armActDeadline(App.continueAfterDayGunResult);
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'day-gun-result', text }));
 
     $('day-gun-result-day').textContent = t('dayLabel', { n: state.day });
@@ -2359,6 +2510,11 @@
     broadcastDayPhase();
     renderDayScreen();
     showScreen('screen-host-day');
+    // No God Mode: there's no one to judge when discussion is "done" and
+    // tap Start Voting, so voting opens right away instead — it doubles as
+    // the group's discussion window (see armVoteDeadline's longer default),
+    // rather than gating it behind a separate wait nobody would ever end.
+    if(state.noGodMode) App.startVoting();
   }
 
   function broadcastDayPhase(){
@@ -2368,6 +2524,7 @@
   function startInquiryVote(){
     state.gamePhase = 'inquiry-vote';
     state.votesInquiry = new Map();
+    armActDeadline(App.closeInquiryVote);
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'inquiry-vote', day: state.day }));
     renderInquiryTally();
     showScreen('screen-host-inquiry-vote');
@@ -2393,6 +2550,7 @@
   }
 
   App.closeInquiryVote = function(){
+    armActDeadline(App.continueAfterInquiry);
     const threshold = Math.floor(aliveEntries().length / 2);
     let yes = 0;
     state.votesInquiry.forEach(choice => { if(choice === 'yes') yes++; });
@@ -2464,6 +2622,7 @@
   function beginVotingRound1(){
     state.gamePhase = 'voting1';
     state.votesRound1 = new Map();
+    armVoteDeadline(App.closeVoting);
     const alive = aliveEntries();
     alive.forEach(([id, entry]) => {
       const candidates = alive.filter(([cid]) => cid !== id).map(([cid, e]) => ({ id: cid, name: e.name }));
@@ -2476,6 +2635,7 @@
   App.startFinalVote = function(){
     state.gamePhase = 'voting2';
     state.votesRound2 = new Map();
+    armVoteDeadline(App.closeVoting);
     aliveEntries().forEach(([id, entry]) => {
       const candidates = state.defendingIds.filter(cid => cid !== id).map(cid => ({ id: cid, name: state.players.get(cid).name }));
       sendToPlayer(entry, { type: 'phase', phase: 'voting2', day: state.day, candidates });
@@ -2635,6 +2795,11 @@
     });
     renderDefenseList();
     showScreen('screen-host-defense');
+    // No God Mode: same reasoning as goToDayScreen — nobody's there to judge
+    // when the defense has run its course and tap Start Final Vote, so the
+    // final vote opens right away too, folding the defense statement itself
+    // into the same voting window (see App.startFinalVote's own deadline).
+    if(state.noGodMode) App.startFinalVote();
   }
 
   function renderDefenseList(){
@@ -2749,6 +2914,7 @@
   function showRoundResult(eliminatedId, note){
     state.gamePhase = 'result';
     const eliminatedEntry = eliminatedId ? state.players.get(eliminatedId) : null;
+    armActDeadline(App.proceedAfterResult);
 
     aliveEntries().forEach(([id, entry]) => {
       sendToPlayer(entry, { type: 'day-result', eliminatedName: eliminatedEntry ? eliminatedEntry.name : null });
@@ -2845,6 +3011,17 @@
     state.nightStepIndex = index;
     const step = NIGHT_STEP_ORDER[index];
     state.gamePhase = 'night-' + step;
+    // No God Mode: arm this step's auto-deadline BEFORE its starter runs,
+    // since the starter sends its 'phase' messages (which pick up the
+    // CURRENTLY armed deadline — see sendToPlayer) synchronously. All three
+    // decision-driven steps share App.forceContinueNight as their timeout
+    // handler (it already knows which pending set to clear from
+    // state.gamePhase); if a step turns out to have nothing pending after
+    // all and self-advances immediately, this arm is simply superseded a
+    // moment later by the next step's own — harmless.
+    if(step === 'mafia-phase' || step === 'zodiac-phase' || step === 'civilian-phase') armActDeadline(App.forceContinueNight);
+    else if(step === 'eyes-closed') armActDeadline(App.continueAfterEyesClosed);
+    else if(step === 'ocean-talk') armActDeadline(App.continueAfterOceanTalk);
     if(step === 'mafia-phase') startMafiaPhaseStep();
     else if(step === 'zodiac-phase') startZodiacPhaseStep();
     else if(step === 'civilian-phase') startCivilianPhaseStep();
@@ -3360,6 +3537,7 @@
     state.gamePhase = 'night-morning';
     $('night-morning-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night-morning');
+    armActDeadline(App.announceMorning);
     refreshDebugPanelIfOpen();
   }
   App.announceMorning = function(){
@@ -3476,6 +3654,7 @@
     $('night-result-title').textContent = parts.length ? parts.join(' ') : (state.day === 1 ? t('mafiaOnlyNightResult') : t('everyoneMadeIt'));
     $('night-result-continue-btn').textContent = state.winner ? t('seeResults') : t('continueToDay', { n: state.day + 1 });
     showScreen('screen-host-night-result');
+    armActDeadline(App.proceedAfterNight);
   }
 
   App.proceedAfterNight = function(){
@@ -3510,6 +3689,11 @@
     state.gunsRemaining = GUNNER_MAX_GUNS;
     state.gunsCancelled = false;
     state.pendingGun = null;
+    // noGodMode/actDeadlineMinutes/voteDeadlineMinutes deliberately carry
+    // over into the next game, same as numPlayers/numMafia/etc. — but any
+    // TIMER actually in flight from the game that just ended must not leak
+    // into whatever comes next.
+    clearAutoDeadline();
     App.goLanding();
   };
 
@@ -3721,6 +3905,16 @@
     dc.onmessage = (e) => {
       try{
         const msg = JSON.parse(e.data);
+        // No God Mode countdown badge (see updateDeadlineBadge): every
+        // message type that can carry a deadline (DEADLINE_CARRYING_TYPES,
+        // shared with the host-side sendToPlayer) is ALWAYS sent with a
+        // fresh deadlineAt whenever the host is actually in No God Mode —
+        // so its absence here means either a normally-hosted game (badge
+        // never shows) or a terminal message with nothing left to wait for.
+        if(DEADLINE_CARRYING_TYPES.indexOf(msg.type) !== -1){
+          state.deadlineExpiresAt = msg.deadlineAt || null;
+          updateDeadlineBadge();
+        }
         if(msg.type === 'role'){
           state.myRole = msg;
           state.amAlive = true;
@@ -4484,7 +4678,9 @@
         escapeHtml(t('debugGunsRemainingLabel')) + ': ' + state.gunsRemaining + ' · ' +
         escapeHtml(t('debugGunsCancelledLabel')) + ': ' + escapeHtml(state.gunsCancelled ? t('yes') : t('no')) + '<br>' +
         escapeHtml(t('debugPendingGunLabel')) + ': ' + (pendingHolder ? escapeHtml(pendingHolder.name) : escapeHtml(t('debugNone'))) + '<br>' +
-        escapeHtml(t('debugPendingRolesLabel')) + ': ' + (pendingRoles.length ? (pendingRoles.length + ' — ' + escapeHtml(pendingRolesSummaryText())) : escapeHtml(t('debugNone')));
+        escapeHtml(t('debugPendingRolesLabel')) + ': ' + (pendingRoles.length ? (pendingRoles.length + ' — ' + escapeHtml(pendingRolesSummaryText())) : escapeHtml(t('debugNone'))) + '<br>' +
+        escapeHtml(t('debugNoGodModeLabel')) + ': ' + escapeHtml(state.noGodMode ? t('yes') : t('no')) +
+        (state.noGodMode && state.deadlineExpiresAt ? ' · ' + escapeHtml(t('debugDeadlineLabel')) + ': ' + Math.max(0, Math.ceil((state.deadlineExpiresAt - Date.now()) / 1000)) + 's' : '');
     }
     const inquiriesValue = $('debug-inquiries-value');
     if(inquiriesValue) inquiriesValue.textContent = state.inquiriesRemaining;
@@ -4697,6 +4893,19 @@
   window.addEventListener('pageshow', (e) => {
     if(e.persisted) checkConnectionAfterResume();
   });
+
+  // No God Mode's countdown badge needs to tick down on its own between
+  // messages, unlike everything else in updateDeadlineBadge's callers
+  // (which only fire on an actual state change) — a no-op every second in a
+  // normally-hosted game, since state.deadlineExpiresAt just stays null.
+  // .unref() (Node/jsdom only — real browsers return a plain number here,
+  // which has no such method, so this is a silent no-op there) keeps this
+  // from counting as a reason for the process to stay alive; harmless
+  // either way since it doesn't stop the interval from firing whenever the
+  // process IS alive — it only matters for the automated test harness,
+  // which otherwise never sees this Node process exit on its own.
+  const deadlineBadgeInterval = setInterval(updateDeadlineBadge, 1000);
+  if(deadlineBadgeInterval && typeof deadlineBadgeInterval.unref === 'function') deadlineBadgeInterval.unref();
 })();
 </script>
 </body>
