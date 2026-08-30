@@ -1623,10 +1623,14 @@
     const screen = $(activeId);
     const section = $('host-self-section');
     if(!screen || !section) return;
-    if(section.parentNode !== screen){
-      const h2 = screen.querySelector('h2');
-      screen.insertBefore(section, h2 ? h2.nextSibling : screen.firstChild);
-    }
+    // Appended as the LAST child, not right after the screen's own <h2> —
+    // an earlier version did that, which sat this section BETWEEN the
+    // screen's own title (eyebrow+h2) and its own body content (hint,
+    // alive list, etc.), visually splitting one screen's title from its
+    // own body instead of keeping each section's title with its own
+    // content. Always going last means it can never split anything,
+    // regardless of any one screen's particular layout.
+    if(section.parentNode !== screen) screen.appendChild(section);
     updateHostSelfActionCard();
   }
   function toast(msg, ms){
@@ -2825,6 +2829,16 @@
       } else if(obj.phase === 'night-action'){
         state.nightActionRole = obj.role;
         state.selectedNightTargetId = null;
+      } else if(obj.phase === 'night' && obj.note){
+        // The ONLY 'night'-phase message that ever carries a note is
+        // ماتادور's "you were blocked tonight" notice (see the 'matador'
+        // branch in handleNightAction) — private, no host-admin equivalent
+        // display anywhere (the host's own screens never say who got
+        // blocked), so it was silently going nowhere for a God-Mode
+        // host-self, same class of bug as investigate-result above. A real
+        // player gets a whole screen for this (screen-player-night-waiting)
+        // — a toast is this card's equivalent.
+        toast(obj.note, 5000);
       }
       updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
     }
@@ -5314,10 +5328,13 @@
     }
     const screen = $(activeId);
     if(!screen){ el.style.display = 'none'; return; }
-    if(el.parentNode !== screen){
-      const h2 = screen.querySelector('h2');
-      screen.insertBefore(el, h2 ? h2.nextSibling : screen.firstChild);
-    }
+    // Appended as the LAST child, not right after the screen's own <h2> —
+    // see attachHostSelfSection's identical comment. On the vote screen
+    // specifically this used to land the gun section BETWEEN "Cast your
+    // vote" (eyebrow+h2) and the vote's own candidate list/hint, making it
+    // look like the gun section's own title belonged to the whole screen
+    // and orphaning the vote's title from its own candidates below.
+    if(el.parentNode !== screen) screen.appendChild(el);
     const eyebrow = $('gun-decision-section-eyebrow');
     if(eyebrow) eyebrow.textContent = t('gunDecisionEyebrow');
     renderDayGunCandidates($('gun-decision-section-body'), state.pendingDayGunMsg, App.submitDayGunAction, App.skipDayGunAction);
