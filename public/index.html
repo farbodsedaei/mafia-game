@@ -113,7 +113,15 @@
   @keyframes spin{to{transform:rotate(360deg);}}
   .pulse-dot{width:8px; height:8px; border-radius:50%; background:var(--gold); animation:pulse 1.4s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:0.3;} 50%{opacity:1;}}
-  .toast{position:fixed; left:50%; bottom:32px; transform:translateX(-50%); background:var(--surface-2); border:1px solid var(--line-strong); color:var(--text); padding:12px 18px; border-radius:12px; font-size:13px; font-weight:600; z-index:100; max-width:85%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
+  /* z-index raised well above the chat-drawer panels (1500) and the
+     deadline badge (1600) — those are common day/night overlays too, and a
+     toast rendering BEHIND one (bottom:32px sits well inside a chat panel's
+     32vh-tall footprint) meant an announcement could fire but never
+     actually be seen, e.g. a day-gun result while a Mafia chat drawer was
+     open. Still below the full-screen debug panel (2000) only because that
+     one is host-only and deliberately opened, not something a toast should
+     interrupt. */
+  .toast{position:fixed; left:50%; bottom:32px; transform:translateX(-50%); background:var(--surface-2); border:1px solid var(--line-strong); color:var(--text); padding:12px 18px; border-radius:12px; font-size:13px; font-weight:600; z-index:2100; max-width:85%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
   .banner{background:var(--gold-dim); border:1px solid rgba(212,168,87,0.3); color:var(--gold); font-size:13px; padding:12px 14px; border-radius:12px; margin-bottom:16px; line-height:1.5;}
   .banner.warning{background:var(--red-dim); border-color:rgba(196,54,75,0.35); color:var(--red-bright); margin-bottom:0;}
   .link-btn{appearance:none; background:none; border:none; color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:13px; cursor:pointer; padding:8px 0;}
@@ -642,6 +650,7 @@
     </div>
     <p class="hint" style="text-align:center;" data-i18n="tapCardHide"></p>
     <button class="btn btn-ghost" id="role-back-btn" style="display:none; margin-top:14px;" onclick="App.closeMyRole()" data-i18n="back"></button>
+    <button class="link-btn activity-link" style="display:none; margin:10px auto 0;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: MY ACTIVITY -->
@@ -661,6 +670,7 @@
     <div id="vote-history-list" class="stack" style="overflow-y:auto;"></div>
     <div class="grow"></div>
     <button class="link-btn" style="margin:0 auto 6px;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto 6px;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
     <button class="btn btn-ghost" onclick="App.closeVoteHistory()" data-i18n="back"></button>
   </div>
 
@@ -688,6 +698,7 @@
       <button class="btn btn-outline" onclick="App.submitInquiryVote('no')" data-i18n="no"></button>
     </div>
     <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: INQUIRY WAITING -->
@@ -697,6 +708,7 @@
       <h3 style="font-size:20px; margin-bottom:8px;" data-i18n="voteSubmittedWaiting"></h3>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: INQUIRY RESULT -->
@@ -707,6 +719,7 @@
       <p class="hint" style="max-width:280px; margin-top:12px;" id="inquiry-result-detail-player"></p>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: VOTE -->
@@ -719,6 +732,7 @@
     <div class="grow"></div>
     <button class="btn btn-primary" id="vote-submit-btn" onclick="App.submitVote()" data-i18n="btnSubmitVote"></button>
     <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: VOTE WAITING -->
@@ -728,6 +742,7 @@
       <h3 style="font-size:20px; margin-bottom:8px;" id="vote-waiting-text" data-i18n="voteSubmittedWaiting"></h3>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: DEFENSE -->
@@ -777,6 +792,7 @@
       <button class="btn btn-ghost" id="night-action-skip-btn" onclick="App.skipNightAction()" data-i18n="btnDoNothingTonight"></button>
     </div>
     <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: NIGHT ANNOUNCEMENT -->
@@ -786,6 +802,7 @@
       <h2 style="font-size:26px;" id="night-announcement-title"></h2>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: INVESTIGATE RESULT -->
@@ -795,6 +812,7 @@
       <h2 style="font-size:24px;" id="investigate-result-title">&mdash;</h2>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: ELIMINATED -->
@@ -805,6 +823,7 @@
       <p class="hint" style="max-width:280px; margin-top:12px;" data-i18n="thanksForPlaying"></p>
     </div>
     <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
   <!-- PLAYER: GAME OVER -->
@@ -813,6 +832,7 @@
     <h2 style="font-size:28px; text-align:center; margin-bottom:20px;" id="game-over-title-player">&mdash;</h2>
     <div class="card"><div id="game-over-roster-player" class="stack"></div></div>
     <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
   </div>
 
 </div>
