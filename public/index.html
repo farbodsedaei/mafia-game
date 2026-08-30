@@ -120,9 +120,20 @@
      actually be seen, e.g. a day-gun result while a Mafia chat drawer was
      open. Still below the full-screen debug panel (2000) only because that
      one is host-only and deliberately opened, not something a toast should
-     interrupt. */
-  .toast{position:fixed; left:50%; bottom:32px; transform:translateX(-50%); background:var(--surface-2); border:1px solid var(--line-strong); color:var(--text); padding:12px 18px; border-radius:12px; font-size:13px; font-weight:600; z-index:2100; max-width:85%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
+     interrupt. (Corrected to 1900 — a prior 2100 actually sat ABOVE the
+     debug panel, contradicting this exact comment.) */
+  .toast{position:fixed; left:50%; bottom:32px; transform:translateX(-50%); background:var(--surface-2); border:1px solid var(--line-strong); color:var(--text); padding:12px 18px; border-radius:12px; font-size:13px; font-weight:600; z-index:1900; max-width:85%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
   .banner{background:var(--gold-dim); border:1px solid rgba(212,168,87,0.3); color:var(--gold); font-size:13px; padding:12px 14px; border-radius:12px; margin-bottom:16px; line-height:1.5;}
+  /* #day-gun-death-banner: a genuine day-gun ELIMINATION is a bigger deal
+     than a plain toast (see announceDayGunOutcome/showDayGunDeathBanner in
+     the script) — a whole team just got revealed to the table, and the
+     reported bug was that nobody had time to actually read the old toast.
+     Sits above the toast and every day/night overlay, same reasoning as
+     .toast for staying below the (host-only, deliberately-opened) debug
+     panel at 2000. */
+  #day-gun-death-banner{display:none; position:fixed; inset:0; z-index:1950; background:rgba(6,7,10,0.82); align-items:center; justify-content:center; padding:24px;}
+  #day-gun-death-banner .card{background:var(--surface-2); border:1px solid var(--line-strong); border-radius:16px; padding:22px 20px; max-width:420px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+  #day-gun-death-banner .card p{font-size:15px; line-height:1.6; margin:0 0 16px;}
   .banner.warning{background:var(--red-dim); border-color:rgba(196,54,75,0.35); color:var(--red-bright); margin-bottom:0;}
   .link-btn{appearance:none; background:none; border:none; color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:13px; cursor:pointer; padding:8px 0;}
   /* No God Mode's live countdown — floats above whatever screen is showing,
@@ -837,6 +848,12 @@
 
 </div>
 <div id="toast-host"></div>
+<div id="day-gun-death-banner">
+  <div class="card">
+    <p id="day-gun-death-banner-text"></p>
+    <button class="btn btn-primary" onclick="App.dismissDayGunDeathBanner()" data-i18n="btnGotIt"></button>
+  </div>
+</div>
 <div id="debug-badge" style="display:none; position:fixed; top:6px; left:8px; z-index:1000; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.05em; color:#EDEFF4; background:rgba(0,0,0,0.55); padding:3px 9px; border-radius:6px; pointer-events:none;"></div>
 <div id="deadline-badge" class="deadline-badge"></div>
 <div class="lang-switch">
@@ -1186,10 +1203,12 @@
       gunDecisionEyebrow: 'اسلحه دست شماست', gunDecisionHint: 'می‌توانید امروز به یکی از بازیکنان شلیک کنید، یا کاری نکنید — هر وقت خواستید، چه پیش از رأی دادن و چه بعد از آن.',
       btnForceSkipGun: 'رد شدن اجباری',
       gunStillPendingNote: '{name} هنوز درباره شلیک امروز تصمیم نگرفته — رأی‌گیری منتظرش نمی‌ماند.',
-      gunHitDiedMafia: '{name} با شلیک اسلحه کشته شد — او مافیا بود.',
-      gunHitDiedCivilian: '{name} با شلیک اسلحه کشته شد — او یک شهروند بود.',
+      gunHitDiedMafia: '{name} با شلیک اسلحه از بازی خارج شد — او مافیا بود.',
+      gunHitDiedIndependent: '{name} با شلیک اسلحه از بازی خارج شد — او مستقل بود.',
+      gunHitDiedCivilian: '{name} با شلیک اسلحه از بازی خارج شد — او یک شهروند بود.',
       gunHitNoEffect: '{name} هدف شلیک قرار گرفت، اما هیچ اتفاقی نیفتاد.',
       gunNotFired: 'امروز اسلحه‌ای شلیک نشد.',
+      btnGotIt: 'متوجه شدم',
       btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
       debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
       btnKickPlayer: 'اخراج از بازی', confirmKickPlayer: 'آیا مطمئن هستید که می‌خواهید {name} را از بازی اخراج کنید؟',
@@ -1397,10 +1416,12 @@
       gunDecisionEyebrow: 'You have the gun', gunDecisionHint: 'You may shoot one player today, or do nothing — whenever you like, before or after voting.',
       btnForceSkipGun: 'Force Skip',
       gunStillPendingNote: "{name} still hasn't decided on today's shot — voting isn't waiting on them.",
-      gunHitDiedMafia: '{name} was shot dead — they were Mafia.',
-      gunHitDiedCivilian: '{name} was shot dead — they were a civilian.',
+      gunHitDiedMafia: '{name} left the game, shot by the gun — they were Mafia.',
+      gunHitDiedIndependent: '{name} left the game, shot by the gun — they were Independent.',
+      gunHitDiedCivilian: '{name} left the game, shot by the gun — they were a civilian.',
       gunHitNoEffect: "{name} was shot at, but nothing happened.",
       gunNotFired: 'No shot was fired today.',
+      btnGotIt: 'Got it',
       btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
       debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
       btnKickPlayer: 'Kick from Game', confirmKickPlayer: "Are you sure you want to kick {name} from the game?",
@@ -1797,8 +1818,40 @@
     if(state.ws && state.ws.readyState === 0 && wsQueue.length < 50) wsQueue.push(obj);
   }
 
+  // ---------------- Critical first-message reply timeout ----------------
+  // A message sent over a WebSocket whose readyState still says "open" can
+  // still silently go nowhere — the single most common real-world trigger
+  // is a fresh deploy: a tab left open from before it survives with its
+  // OLD connection technically intact from the browser's point of view,
+  // even though the server process behind it is already gone (replaced by
+  // the new deploy). The WS heartbeat (see startWsHeartbeat) eventually
+  // notices on its own, but its detection window is generous — long enough
+  // that tapping "Create Lobby" (or joining by room code) moments after a
+  // deploy can easily get stuck well before it ever fires, which is exactly
+  // the reported "stuck on the placeholder every time right after a
+  // deploy, need to refresh and recreate" bug. These two FIRST, critical
+  // round trips (create-room -> room-created, join-room -> joined) get
+  // their own short dedicated timeout instead of waiting on that: if the
+  // expected reply doesn't arrive in time, force the stale connection
+  // closed and retry the exact same request once a fresh one is back up —
+  // both are idempotent enough for this (see their own retry functions).
+  const CRITICAL_REPLY_TIMEOUT_MS = 6000;
+  let criticalReplyTimer = null;
+  function armCriticalReplyTimeout(onTimeout){
+    clearCriticalReplyTimeout();
+    criticalReplyTimer = setTimeout(() => {
+      criticalReplyTimer = null;
+      onTimeout();
+    }, CRITICAL_REPLY_TIMEOUT_MS);
+    if(criticalReplyTimer && typeof criticalReplyTimer.unref === 'function') criticalReplyTimer.unref();
+  }
+  function clearCriticalReplyTimeout(){
+    if(criticalReplyTimer){ clearTimeout(criticalReplyTimer); criticalReplyTimer = null; }
+  }
+
   function handleWSMessage(msg){
     if(msg.type === 'room-created'){
+      clearCriticalReplyTimeout();
       state.room = msg.room;
       renderLobbyHeader();
       return;
@@ -1818,6 +1871,7 @@
       return;
     }
     if(msg.type === 'joined'){
+      clearCriticalReplyTimeout();
       state.playerId = msg.playerId;
       state.room = msg.room;
       $('connecting-title').textContent = t('waitingForHost');
@@ -1826,6 +1880,10 @@
       return;
     }
     if(msg.type === 'room-not-found'){
+      // A genuine, definitive answer (not silence) — no point retrying via
+      // armCriticalReplyTimeout's reconnect-and-resend, the room really
+      // doesn't exist.
+      clearCriticalReplyTimeout();
       // A host whose reclaim attempt (see attemptHostReconnect) arrived
       // after the server's grace window already expired gets this too —
       // the room is genuinely gone, not just this player's join attempt.
@@ -2147,11 +2205,24 @@
       setDebugBadge(hostSelfName);
     }
     state.hostToken = generatePlayerToken();
-    wsSend({ type: 'create-room', hostToken: state.hostToken });
+    sendCreateRoom();
     showScreen('screen-host-lobby');
     renderLobby();
     updateDebugToggleVisibility();
   };
+  // Split out from App.createLobby so the reply-timeout retry below can
+  // resend the EXACT same request without redoing name validation / lobby
+  // setup — see armCriticalReplyTimeout's own comment for why this exists.
+  function sendCreateRoom(){
+    wsSend({ type: 'create-room', hostToken: state.hostToken });
+    armCriticalReplyTimeout(retryCreateRoom);
+  }
+  function retryCreateRoom(){
+    if(state.room) return; // arrived just before the timer fired
+    const ws = state.ws;
+    if(ws){ try{ ws.close(); }catch(e){} }
+    connectWS(sendCreateRoom);
+  }
 
   function inviteURL(){
     return location.origin + '/?join=' + state.room;
@@ -3241,10 +3312,23 @@
     if(shooter) shooter.pendingDayGunMsg = null;
     state.winner = checkWinner();
 
-    const text = outcome === 'died' ? t(target.role === 'mafia' ? 'gunHitDiedMafia' : 'gunHitDiedCivilian', { name: target.name })
+    // Same 3-way team reveal a real death from any cause could have — Mafia
+    // / Independent (زودیاک) / civilian. In practice outcome can only ever
+    // reach 'died' when !target.independent (see the guard just above), so
+    // this specific branch can't currently fire through the gun — every
+    // independent-flagged role is gun-immune, پسر included once it has
+    // succeeded. Kept anyway (not just role==='mafia' vs "everything else")
+    // so this stays correct on its own terms rather than silently
+    // mislabeling an independent death as a plain civilian one if that
+    // immunity rule is ever the one that changes.
+    const teamKey = !target ? null
+      : target.independent ? 'gunHitDiedIndependent'
+      : target.role === 'mafia' ? 'gunHitDiedMafia'
+      : 'gunHitDiedCivilian';
+    const text = outcome === 'died' ? t(teamKey, { name: target.name })
       : outcome === 'no-effect' ? t('gunHitNoEffect', { name: target.name })
       : t('gunNotFired');
-    announceDayGunOutcome(text);
+    announceDayGunOutcome(text, outcome === 'died');
   }
 
   // Public (everyone alive hears it), but — unlike the old sequential flow
@@ -3252,18 +3336,51 @@
   // is going on) may well still be active right when this fires, and
   // forcing every screen away from that just to show a gun announcement
   // would be exactly the kind of interruption this feature is meant to
-  // avoid. A toast for the host and every player instead; see
+  // avoid. A plain toast covers "nothing happened"/"nobody fired" — low
+  // stakes, nothing to actually read. A genuine ELIMINATION is a bigger
+  // deal (someone's whole team just got revealed to the group) and was
+  // reported as easy to miss entirely, so that gets the more deliberate
+  // #day-gun-death-banner instead (see showDayGunDeathBanner): it stays up
+  // until dismissed or a generous safety-net timeout passes, instead of a
+  // toast nobody's guaranteed to have actually seen. See
   // updateGunPendingNote for the small persistent note that clears now
   // that this resolved.
-  function announceDayGunOutcome(text){
-    aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'day-gun-result', text }));
-    toast(text, 5000);
+  function announceDayGunOutcome(text, isDeath){
+    aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'day-gun-result', text, isDeath: !!isDeath }));
+    if(isDeath) showDayGunDeathBanner(text); else toast(text, 5000);
     updateGunPendingNote();
     // A day-gun kill CAN end the game outright (e.g. it's the last Mafia)
     // — that DOES need to interrupt everything, unlike the plain
     // announcement above, so this still routes straight to game-over.
     if(state.winner) App.showGameOver();
   }
+
+  // A more deliberate public announcement than a toast — for a genuine
+  // day-gun ELIMINATION specifically (see announceDayGunOutcome), on every
+  // device: host, every player, and God Mode's host-self alike, since
+  // host-self is the same physical document as the host's own admin view
+  // — no separate call needed there, it just sees this one directly.
+  // Stays up until dismissed or DAY_GUN_DEATH_BANNER_MS passes on its own,
+  // instead of a toast that could come and go while nobody happened to be
+  // looking — see the reported "nothing is announced, or there's no delay
+  // to observe it" bug.
+  const DAY_GUN_DEATH_BANNER_MS = 20000;
+  let dayGunDeathBannerTimer = null;
+  function showDayGunDeathBanner(text){
+    const banner = $('day-gun-death-banner');
+    const textEl = $('day-gun-death-banner-text');
+    if(!banner || !textEl) return;
+    textEl.textContent = text;
+    banner.style.display = 'flex';
+    if(dayGunDeathBannerTimer){ clearTimeout(dayGunDeathBannerTimer); dayGunDeathBannerTimer = null; }
+    dayGunDeathBannerTimer = setTimeout(App.dismissDayGunDeathBanner, DAY_GUN_DEATH_BANNER_MS);
+    if(dayGunDeathBannerTimer && typeof dayGunDeathBannerTimer.unref === 'function') dayGunDeathBannerTimer.unref();
+  }
+  App.dismissDayGunDeathBanner = function(){
+    const banner = $('day-gun-death-banner');
+    if(banner) banner.style.display = 'none';
+    if(dayGunDeathBannerTimer){ clearTimeout(dayGunDeathBannerTimer); dayGunDeathBannerTimer = null; }
+  };
 
   // ---------------- Day-gun: independent deadline ----------------
   // A SEPARATE timer track from armAutoDeadlineMs's single "current phase"
@@ -4538,6 +4655,7 @@
     state.gunsCancelled = false;
     state.pendingGun = null;
     clearGunDeadline();
+    clearCriticalReplyTimeout();
     // God Mode: the host's browser plays through the SAME page across
     // multiple games (see App.createLobby/receiveAsHostSelf), unlike a real
     // player's, which only ever sees one game per page load — so the
@@ -4606,7 +4724,21 @@
     showScreen('screen-player-connecting');
     $('connecting-title').textContent = t('joiningRoom', {code: code});
     $('connecting-hint').textContent = t('contactingHost');
+    sendJoinRoom(code, token);
+  }
+  // Split out so the reply-timeout retry below can resend the EXACT same
+  // request — see armCriticalReplyTimeout's own comment (same "stuck right
+  // after a deploy" failure mode as App.createLobby's sendCreateRoom, just
+  // on the joining side: 'join-room' sent, no 'joined' ever comes back).
+  function sendJoinRoom(code, token){
     wsSend({ type: 'join-room', room: code, token });
+    armCriticalReplyTimeout(() => retryJoinRoom(code, token));
+  }
+  function retryJoinRoom(code, token){
+    if(state.playerId && state.room === code) return; // 'joined' arrived just before the timer fired
+    const ws = state.ws;
+    if(ws){ try{ ws.close(); }catch(e){} }
+    connectWS(() => sendJoinRoom(code, token));
   }
 
   // If the WebRTC handshake with the host never completes — no error, no
@@ -4859,13 +4991,16 @@
           attachGunDecisionSection(activeScreenId());
         }
         else if(msg.type === 'day-gun-result'){
-          // Public (everyone alive hears it) — a toast instead of a full
-          // screen, since voting or whatever else is going on shouldn't be
-          // interrupted by this. If this WAS the pending decision the
-          // subsection was showing, clear it too (covers the "someone
-          // else's deadline forced it closed" case as well as this
-          // player's own submit already having cleared it locally).
-          toast(msg.text, 5000);
+          // Public (everyone alive hears it) — a plain toast for "nothing
+          // happened"/"nobody fired", but a genuine elimination gets the
+          // more deliberate, dismiss-or-timeout death banner instead (see
+          // showDayGunDeathBanner on the host side) so it can't be missed
+          // in the middle of an active vote or whatever else is going on.
+          // If this WAS the pending decision the subsection was showing,
+          // clear it too (covers the "someone else's deadline forced it
+          // closed" case as well as this player's own submit already
+          // having cleared it locally).
+          if(msg.isDeath) showDayGunDeathBanner(msg.text); else toast(msg.text, 5000);
           state.pendingDayGunMsg = null;
           attachGunDecisionSection(activeScreenId());
         }
