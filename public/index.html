@@ -135,24 +135,29 @@
   .debug-panel .debug-row{padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.04); margin-bottom:6px; font-size:13px; line-height:1.5;}
   .debug-panel .debug-log-entry{padding:4px 0 4px 10px; border-left:2px solid rgba(255,255,255,0.12); font-size:12px; color:var(--text-faint);}
 
-  /* God Mode: the host's OWN pending vote/night-action/inquiry/gun-decision
-     — a floating card pinned to the TOP of whatever host-admin screen is
-     showing underneath (unlike the bottom-drawer chats below, which it
-     never overlaps), so the host can act without losing their place. See
-     updateHostSelfActionCard(). Never shown outside God Mode. */
-  .host-self-card{display:none; position:fixed; top:0; left:0; right:0; z-index:1650; flex-direction:column; max-height:78vh; overflow-y:auto; background:rgba(10,9,6,0.98); border-bottom:2px solid var(--gold); box-shadow:0 8px 26px rgba(0,0,0,0.5); padding:calc(10px + env(safe-area-inset-top)) 16px 16px;}
-  .host-self-card.open{display:flex;}
+  /* God Mode: the host's own "you're playing too" subsection — role/
+     activity links always, plus the pending vote/night-action/inquiry/gun-
+     decision body when there is one. Lives INLINE as part of whichever
+     host-admin screen is currently showing (see attachHostSelfSection,
+     called from showScreen) — moved there, right after that screen's own
+     title, every time the host navigates to a new one. Deliberately NOT a
+     floating/fixed overlay: an earlier version was, and covered
+     information (the alive list, the voting tally, etc.) the host still
+     needed to see at the same time — a normal in-flow block just makes the
+     page (and the screen under it) taller/scrollable instead. Never shown
+     outside God Mode. */
+  .host-self-section{display:none; background:var(--surface); border:1px solid var(--line); border-top:2px solid var(--gold); border-radius:16px; padding:16px; margin-bottom:16px;}
+  .host-self-section.open{display:block;}
+  .host-self-section-header{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .host-self-section-label{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold);}
+  .host-self-section-links{display:flex; gap:14px;}
+  .host-self-section-links .link-btn{padding:0;}
+  .host-self-action-body{display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--line);}
   .host-self-card-eyebrow{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold);}
-  .host-self-card-title{font-size:18px; font-weight:700; margin:4px 0 10px; color:var(--text);}
+  .host-self-card-title{font-size:17px; font-weight:700; margin:4px 0 10px; color:var(--text);}
   .host-self-card-body{display:flex; flex-direction:column; gap:8px;}
   .host-self-card-actions{display:flex; gap:8px; margin-top:12px;}
   .host-self-card-actions .btn{flex:1;}
-  /* Small always-on strip (My Role / My Activity) — separate from the
-     action card above so it stays reachable even outside an action-
-     required phase, exactly like a real player's own link-btns. */
-  .host-self-minibar{display:none; position:fixed; top:34px; left:8px; z-index:1000; gap:6px;}
-  .host-self-minibar.open{display:flex;}
-  .host-self-minibar button{appearance:none; border:none; background:rgba(0,0,0,0.55); color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:11px; padding:5px 9px; border-radius:6px; cursor:pointer;}
 
   /* Mafia-only chat — a fixed bottom drawer, present on every night and
      daytime-conversation screen a living Mafia member sees, so they can
@@ -892,25 +897,30 @@
   <div id="debug-zodiac-chat"></div>
 </div>
 
-<!-- God Mode: the host's own "My Role"/"My Activity" links, always reachable
-     while their own seat is alive — same idea as the identical link-btns on
-     every real player screen, just floating since a God-Mode host has no
-     player screen of their own. See updateHostSelfActionCard(). -->
-<div id="host-self-minibar" class="host-self-minibar">
-  <button onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-  <button id="host-self-activity-btn" style="display:none;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-</div>
-
-<!-- God Mode: the host's own pending vote/night-action/inquiry-vote/day-gun
-     decision — see updateHostSelfActionCard(), which shows/hides this and
-     fills in host-self-card-body per phase. Submits go straight into the
-     matching host-side handler in-process (App.hostSelf*), never through a
-     data channel — see sendToPlayer's isHostSelf branch for the reverse
-     direction. -->
-<div id="host-self-card" class="host-self-card">
-  <div class="host-self-card-eyebrow" data-i18n="hostSelfCardEyebrow"></div>
-  <div class="host-self-card-title" id="host-self-card-title">&mdash;</div>
-  <div class="host-self-card-body" id="host-self-card-body"></div>
+<!-- God Mode: the host's own "you're playing too" subsection — role/
+     activity links always reachable while their own seat is alive, plus
+     (when there is one) their pending vote/night-action/inquiry-vote/day-
+     gun decision below it. Lives as an ordinary in-flow block, moved by
+     attachHostSelfSection() into whichever host-admin screen is currently
+     active (right after that screen's own title) instead of floating over
+     it — see the .host-self-section CSS comment. Submits go straight into
+     the matching host-side handler in-process (App.hostSelf*), never
+     through a data channel — see sendToPlayer's isHostSelf branch for the
+     reverse direction. Starts out here as a harmless placeholder location;
+     showScreen() relocates it the first time a host screen shows. -->
+<div id="host-self-section" class="host-self-section">
+  <div class="host-self-section-header">
+    <span class="host-self-section-label" data-i18n="hostSelfSectionLabel"></span>
+    <div class="host-self-section-links">
+      <button class="link-btn" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+      <button class="link-btn" id="host-self-activity-btn" style="display:none;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+    </div>
+  </div>
+  <div class="host-self-action-body" id="host-self-action-body">
+    <div class="host-self-card-eyebrow" data-i18n="hostSelfCardEyebrow"></div>
+    <div class="host-self-card-title" id="host-self-card-title">&mdash;</div>
+    <div class="host-self-card-body" id="host-self-card-body"></div>
+  </div>
 </div>
 
 <!-- Mafia-only chat: visible only to an alive Mafia-team player, during any
@@ -1008,6 +1018,7 @@
       godModeToggle: 'حالت گاد-بازیکن (میزبان هم بازی می‌کند)',
       hintGodMode: 'میزبان هم یکی از بازیکن‌هاست — اسم خودش را هم پایین همین صفحه وارد می‌کند و مثل بقیه نقش می‌گیرد، اما فقط نقش خودش را می‌بیند، نه کل لیست. رأی و اقدام شبانه‌اش را از یک کارت شناور روی همین صفحه انجام می‌دهد، نه یک مرورگر جدا. تا وقتی زنده است، به داشبورد کامل (نقش همه، لاگ شب، پنل دیباگ) دسترسی ندارد؛ همین‌که با رأی یا شلیک از بازی خارج شد، دسترسی کامل باز می‌شود. مثل حالت بدون گاد، مراحل بازی خودش خودکار جلو می‌روند.',
       labelYourNameGodMode: 'اسم شما (شما هم بازی می‌کنید)',
+      hostSelfSectionLabel: 'شما هم بازیکن هستید',
       hostSelfCardEyebrow: 'نوبت شماست',
       labelActDeadline: 'مهلت هر تصمیم (دقیقه)', hintActDeadline: 'برای اقدامات شبانه، تصمیم روزانهٔ تفنگدار، و رأی‌گیری استعلام. صفحات صرفاً اطلاع‌رسانی (مثل اعلام نتیجه) فقط چند ثانیه صبر می‌کنند، نه این مدت.',
       labelVoteDeadline: 'مهلت رأی‌گیری روز (دقیقه به‌ازای هر بازیکن)', hintVoteDeadline: 'برای هر دو دور رأی‌گیری روز، ضرب در تعداد بازیکنان زنده فعلی (نه کل بازیکنان اعلام‌شده) — رأی‌گیری بلافاصله باز می‌شود تا هم زمان گفتگو باشد، هم زمان رأی دادن.',
@@ -1217,6 +1228,7 @@
       godModeToggle: 'God Mode (host plays too)',
       hintGodMode: "The host is a player too — enter your own name below, and you'll be dealt into role assignment like everyone else, seeing only your own role, never the full list. Vote and act at night from a floating card right on this screen, no second browser needed. While you're alive, the full dashboard (everyone's roles, the night log, the debug panel) stays hidden from you — it unlocks the moment you're voted or shot out. Like No God Mode, the game paces itself automatically.",
       labelYourNameGodMode: "Your name (you're playing too)",
+      hostSelfSectionLabel: "You're playing too",
       hostSelfCardEyebrow: 'Your Turn',
       labelActDeadline: 'Deadline per decision (minutes)', hintActDeadline: 'For night actions, the day-gun decision, and the inquiry vote. Plain informational screens (like result reveals) only pause a few seconds, not this long.',
       labelVoteDeadline: 'Day voting deadline (minutes per player)', hintVoteDeadline: "For both day voting rounds, multiplied by how many players are currently alive (not the total declared headcount) — voting opens immediately, doubling as the group's discussion window.",
@@ -1576,6 +1588,34 @@
   function showScreen(id){
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     $(id).classList.add('active');
+    // God Mode: keep #host-self-section living inside whichever host-admin
+    // screen is active right now — see attachHostSelfSection's own comment
+    // for why (never a floating overlay). Gated on state.godMode so this is
+    // a complete no-op for every real player device and every normally-
+    // hosted game (state.godMode is only ever settable from the host's own
+    // setup screen — see App.setGodMode).
+    if(state.godMode) attachHostSelfSection(id);
+  }
+  // God Mode: moves #host-self-section (role/activity links, plus the
+  // host-self's own pending action when there is one) to just after the
+  // CURRENT host screen's own <h2> title, every time the host navigates to
+  // a new host-admin screen — called from showScreen above. A no-op for
+  // any non-host screen id (e.g. the host briefly viewing their own role
+  // via screen-player-role) — the section just stays put, still correctly
+  // parented inside whatever host screen it'll return to. Safe to call
+  // repeatedly: the parentNode check makes re-showing the SAME screen a
+  // no-op move, and updateHostSelfActionCard() (which actually decides
+  // whether anything in it is visible right now) always re-runs regardless.
+  function attachHostSelfSection(activeId){
+    if(!activeId || activeId.indexOf('screen-host-') !== 0) return;
+    const screen = $(activeId);
+    const section = $('host-self-section');
+    if(!screen || !section) return;
+    if(section.parentNode !== screen){
+      const h2 = screen.querySelector('h2');
+      screen.insertBefore(section, h2 ? h2.nextSibling : screen.firstChild);
+    }
+    updateHostSelfActionCard();
   }
   function toast(msg, ms){
     ms = ms || 2800;
@@ -2708,22 +2748,23 @@
     updateHostSelfActionCard();
   }
 
-  // God Mode: shows/hides/fills in #host-self-card and #host-self-minibar.
-  // Called after every receiveAsHostSelf message — cheap to re-run on every
+  // God Mode: shows/hides/fills in #host-self-section (and its inner
+  // #host-self-action-body). Called after every receiveAsHostSelf message
+  // — cheap to re-run on every
   // one of them since it's a handful of style/textContent writes, and far
   // simpler than tracking exactly which message types could possibly change
   // the answer.
   function updateHostSelfActionCard(){
-    const card = $('host-self-card');
-    const minibar = $('host-self-minibar');
-    if(!card || !minibar) return;
+    const section = $('host-self-section');
+    const actionBody = $('host-self-action-body');
+    if(!section || !actionBody) return;
     const self = state.godMode ? state.players.get(HOST_SELF_ID) : null;
     const alive = !!(self && self.alive) && !state.gameEnded;
-    minibar.classList.toggle('open', alive && !!state.myRole);
+    section.classList.toggle('open', alive && !!state.myRole);
     const activityBtn = $('host-self-activity-btn');
     if(activityBtn) activityBtn.style.display = state.hasActivityLog ? 'inline-block' : 'none';
 
-    if(!alive || !state.lastPhaseMsg){ card.classList.remove('open'); return; }
+    if(!alive || !state.lastPhaseMsg){ actionBody.style.display = 'none'; return; }
     const msg = state.lastPhaseMsg;
     const title = $('host-self-card-title');
     const body = $('host-self-card-body');
@@ -2744,11 +2785,11 @@
     } else {
       hasAction = false;
     }
-    card.classList.toggle('open', hasAction);
+    actionBody.style.display = hasAction ? 'block' : 'none';
   }
   function closeHostSelfCard(){
-    const card = $('host-self-card');
-    if(card) card.classList.remove('open');
+    const actionBody = $('host-self-action-body');
+    if(actionBody) actionBody.style.display = 'none';
   }
 
   function renderHostSelfVoteBody(body){
@@ -2959,7 +3000,16 @@
       return;
     }
     state.gamePhase = 'day-gun';
-    armActDeadline(App.forceSkipGunDecision);
+    // Same window as a real day's voting/discussion (armVoteDeadline —
+    // voteDeadlineMinutes x however many are alive), not the shorter
+    // per-decision act deadline — the gun holder is effectively holding up
+    // the whole day's conversation, so they get the same generous amount
+    // of time everyone else gets to talk it over. App.startVoting() checks
+    // state.pendingGun BEFORE ever opening voting (see startDayGunStep), so
+    // this step always fully resolves — one way or another, on its own
+    // deadline if nobody answers — before voting can begin; it structurally
+    // can't run concurrently with it.
+    armVoteDeadline(App.forceSkipGunDecision);
     sendToPlayer(holderEntry, { type: 'phase', phase: 'day-gun-action', day: state.day, candidates, returned, diedName });
     $('day-gun-wait-day').textContent = t('dayLabel', { n: state.day });
     $('day-gun-wait-hint').textContent = returned ? t('dayGunReturnedWaitHint', { name: diedName }) : t('dayGunWaitHint');
@@ -3033,15 +3083,18 @@
     broadcastDayPhase();
     renderDayScreen();
     showScreen('screen-host-day');
-    // No God Mode: there's no one to judge when discussion is "done" and
-    // tap Start Voting, so voting opens right away instead — it doubles as
-    // the group's discussion window (see armVoteDeadline's longer default),
-    // rather than gating it behind a separate wait nobody would ever end.
-    // Day 1 is the one exception — there's never any voting to open (see
-    // App.continueToNight), so it just pauses briefly and heads straight
-    // into Night 1 instead.
+    // No God Mode / God Mode: there's no one to judge when discussion is
+    // "done" and tap Start Voting, so voting opens right away instead — it
+    // doubles as the group's discussion window (see armVoteDeadline's
+    // longer default), rather than gating it behind a separate wait nobody
+    // would ever end. Day 1 is the one exception — there's never any voting
+    // to open (see App.continueToNight), but the discussion itself still
+    // deserves the SAME length window as any other day (armVoteDeadline —
+    // voteDeadlineMinutes x however many are alive), not just a brief
+    // fixed pause; it just heads straight into Night 1 once that expires,
+    // instead of into voting.
     if(autoPacingOn()){
-      if(state.day === 1) armRevealPause(App.continueToNight);
+      if(state.day === 1) armVoteDeadline(App.continueToNight);
       else App.startVoting();
     }
   }
