@@ -134,7 +134,13 @@ const rooms = new Map();
 // window, that single blip destroyed the room instantly and permanently for
 // every player still trying to join, which is the exact "room doesn't
 // exist" failure this grace period exists to prevent. See 'reclaim-room'.
-const HOST_GRACE_MS = process.env.HOST_GRACE_MS_OVERRIDE ? parseInt(process.env.HOST_GRACE_MS_OVERRIDE, 10) : 45000;
+// 90s (was 45s) — the client now proactively detects a silently-dead
+// connection itself (see index.html's WS heartbeat) rather than only
+// relying on this window to cover the browser/OS's own close detection, so
+// this is now purely a safety margin for how long a full network handover
+// (WiFi <-> cellular, DNS+TLS re-establishment and all) can reasonably take
+// end-to-end before the room gives up on the host coming back.
+const HOST_GRACE_MS = process.env.HOST_GRACE_MS_OVERRIDE ? parseInt(process.env.HOST_GRACE_MS_OVERRIDE, 10) : 90000;
 
 function send(ws, obj) {
   if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
@@ -150,6 +156,16 @@ wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch (e) { return; }
+
+    // App-level heartbeat (see index.html's connectWS/startWsHeartbeat) —
+    // lets a client proactively detect a connection that's gone silently
+    // dead (a network handover especially) instead of waiting on the OS/
+    // browser to notice and fire a real close event, which can take far
+    // longer than HOST_GRACE_MS below.
+    if (msg.type === 'ping') {
+      send(ws, { type: 'pong' });
+      return;
+    }
 
     if (msg.type === 'create-room') {
       let code;

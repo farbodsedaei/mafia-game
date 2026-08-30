@@ -417,23 +417,6 @@
     <button class="btn btn-primary" id="btn-day1-continue" style="display:none;" onclick="App.continueToNight()" data-i18n="btnContinueToNight"></button>
   </div>
 
-  <!-- HOST: DAY GUN WAIT -->
-  <div class="screen" id="screen-host-day-gun-wait">
-    <div class="eyebrow" id="day-gun-wait-day"></div>
-    <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="dayGunWaitTitle"></h2>
-    <p class="hint" id="day-gun-wait-hint"></p>
-    <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.forceSkipGunDecision()" data-i18n="btnForceSkipGun"></button>
-  </div>
-
-  <!-- HOST: DAY GUN RESULT -->
-  <div class="screen" id="screen-host-day-gun-result">
-    <div class="eyebrow" id="day-gun-result-day"></div>
-    <h2 style="font-size:26px; margin:10px 0 16px;" id="day-gun-result-title">&mdash;</h2>
-    <div class="grow"></div>
-    <button class="btn btn-primary" onclick="App.continueAfterDayGunResult()" data-i18n="btnContinue"></button>
-  </div>
-
   <!-- HOST: INQUIRY VOTE -->
   <div class="screen" id="screen-host-inquiry-vote">
     <div class="eyebrow" id="inquiry-vote-day"></div>
@@ -462,6 +445,15 @@
   <div class="screen" id="screen-host-voting">
     <div class="eyebrow" id="voting-eyebrow"></div>
     <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="votingInProgress"></h2>
+    <!-- The day-gun decision (if there's a gun pending) runs alongside
+         voting now instead of blocking it — see App.startVoting/
+         promptGunHolder/updateGunPendingNote — the holder's own screen
+         gets the actual decision UI as a subsection; this is just a
+         heads-up that it's still open, not a wait gate. -->
+    <div id="voting-gun-pending-row" style="display:none; margin-bottom:12px; align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap;">
+      <p class="hint" id="voting-gun-pending-note" style="margin:0;"></p>
+      <button class="btn btn-ghost" style="padding:6px 12px; flex-shrink:0;" onclick="App.forceSkipGunDecision()" data-i18n="btnForceSkipGun"></button>
+    </div>
     <div class="card"><div id="voting-tally" class="stack"></div></div>
     <p class="hint" id="voting-progress" style="margin-top:12px;"></p>
     <div class="card" style="margin-top:14px;">
@@ -670,38 +662,6 @@
     <div class="grow"></div>
     <button class="link-btn" style="margin:0 auto 6px;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="btn btn-ghost" onclick="App.closeVoteHistory()" data-i18n="back"></button>
-  </div>
-
-  <!-- PLAYER: DAY GUN ACTION -->
-  <div class="screen" id="screen-player-day-gun-action">
-    <div class="eyebrow" id="day-gun-action-day"></div>
-    <h2 style="font-size:24px; margin:10px 0 6px;" data-i18n="gunDecisionEyebrow"></h2>
-    <p class="hint" id="day-gun-action-hint" style="margin-bottom:14px;"></p>
-    <div id="day-gun-action-candidate-list" class="stack"></div>
-    <div class="grow"></div>
-    <div class="stack">
-      <button class="btn btn-primary" onclick="App.submitDayGunAction()" data-i18n="btnFireGun"></button>
-      <button class="btn btn-ghost" onclick="App.skipDayGunAction()" data-i18n="btnDoNothingToday"></button>
-    </div>
-    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-  </div>
-
-  <!-- PLAYER: DAY GUN WAITING -->
-  <div class="screen" id="screen-player-day-gun-waiting">
-    <div class="grow center">
-      <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
-      <h3 style="font-size:20px; margin-bottom:8px;" data-i18n="decisionSubmittedWaiting"></h3>
-    </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-  </div>
-
-  <!-- PLAYER: DAY GUN RESULT -->
-  <div class="screen" id="screen-player-day-gun-result">
-    <div class="grow center">
-      <div class="eyebrow" style="margin-bottom:10px;" data-i18n="gunResultEyebrow"></div>
-      <h2 style="font-size:24px;" id="day-gun-result-title-player">&mdash;</h2>
-    </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
   </div>
 
   <!-- PLAYER: DAY -->
@@ -917,10 +877,33 @@
     </div>
   </div>
   <div class="host-self-action-body" id="host-self-action-body">
-    <div class="host-self-card-eyebrow" data-i18n="hostSelfCardEyebrow"></div>
-    <div class="host-self-card-title" id="host-self-card-title">&mdash;</div>
-    <div class="host-self-card-body" id="host-self-card-body"></div>
+    <div id="host-self-main-action" style="display:none;">
+      <div class="host-self-card-eyebrow" data-i18n="hostSelfCardEyebrow"></div>
+      <div class="host-self-card-title" id="host-self-card-title">&mdash;</div>
+      <div class="host-self-card-body" id="host-self-card-body"></div>
+    </div>
+    <!-- The day-gun decision, when it's the host-self holding it — always
+         its OWN independent block (see App.startVoting/promptGunHolder):
+         it can be pending at the SAME TIME as the main action above (most
+         likely a vote), not just instead of it. -->
+    <div id="host-self-gun-action" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--line);">
+      <div class="host-self-card-eyebrow" data-i18n="gunDecisionEyebrow"></div>
+      <div class="host-self-card-body" id="host-self-gun-body"></div>
+    </div>
   </div>
+</div>
+
+<!-- Same idea as #host-self-section immediately above, but for a REAL
+     player (not the God-Mode host) who happens to be holding the gun —
+     their own pending day-gun decision, attached as a subsection of
+     whatever screen they're currently on (see attachGunDecisionSection)
+     instead of a dedicated full screen, since it can now be pending at the
+     SAME TIME as an active vote (see App.startVoting/promptGunHolder).
+     Reuses #host-self-section's own card styling — it's the same visual
+     idea, just for a different device. -->
+<div id="gun-decision-section" class="host-self-section" style="display:none;">
+  <div class="host-self-card-eyebrow" id="gun-decision-section-eyebrow"></div>
+  <div class="host-self-card-body" id="gun-decision-section-body"></div>
 </div>
 
 <!-- Mafia-only chat: visible only to an alive Mafia-team player, during any
@@ -1178,10 +1161,9 @@
       chooseToFireGun: 'می‌توانید به کسی شلیک کنید، یا کاری نکنید',
       actYouFiredGun: 'شما به {name} شلیک کردید.', actYouDidNotFireGun: 'شما تصمیم گرفتید شلیک نکنید.',
       btnDoNothingToday: 'امروز کاری نکن',
-      gunDecisionEyebrow: 'اسلحه دست شماست', gunDecisionHint: 'می‌توانید امروز به یکی از بازیکنان شلیک کنید، یا کاری نکنید. این تصمیم پیش از شروع رأی‌گیری گرفته می‌شود.',
-      dayGunWaitTitle: 'در انتظار تصمیم اسلحه', dayGunWaitHint: 'یک بازیکن باید تصمیم بگیرد که امروز شلیک کند یا نه.',
+      gunDecisionEyebrow: 'اسلحه دست شماست', gunDecisionHint: 'می‌توانید امروز به یکی از بازیکنان شلیک کنید، یا کاری نکنید — هر وقت خواستید، چه پیش از رأی دادن و چه بعد از آن.',
       btnForceSkipGun: 'رد شدن اجباری',
-      gunResultEyebrow: 'نتیجه اسلحه',
+      gunStillPendingNote: '{name} هنوز درباره شلیک امروز تصمیم نگرفته — رأی‌گیری منتظرش نمی‌ماند.',
       gunHitDiedMafia: '{name} با شلیک اسلحه کشته شد — او مافیا بود.',
       gunHitDiedCivilian: '{name} با شلیک اسلحه کشته شد — او یک شهروند بود.',
       gunHitNoEffect: '{name} هدف شلیک قرار گرفت، اما هیچ اتفاقی نیفتاد.',
@@ -1388,10 +1370,9 @@
       chooseToFireGun: 'You may shoot someone, or do nothing',
       actYouFiredGun: 'You fired the gun at {name}.', actYouDidNotFireGun: 'You chose not to fire the gun.',
       btnDoNothingToday: 'Do Nothing Today',
-      gunDecisionEyebrow: 'You have the gun', gunDecisionHint: 'You may shoot one player today, or do nothing. This is decided before voting starts.',
-      dayGunWaitTitle: 'Waiting on the gun decision', dayGunWaitHint: 'A player needs to decide whether to shoot today.',
+      gunDecisionEyebrow: 'You have the gun', gunDecisionHint: 'You may shoot one player today, or do nothing — whenever you like, before or after voting.',
       btnForceSkipGun: 'Force Skip',
-      gunResultEyebrow: 'Gun Result',
+      gunStillPendingNote: "{name} still hasn't decided on today's shot — voting isn't waiting on them.",
       gunHitDiedMafia: '{name} was shot dead — they were Mafia.',
       gunHitDiedCivilian: '{name} was shot dead — they were a civilian.',
       gunHitNoEffect: "{name} was shot at, but nothing happened.",
@@ -1565,6 +1546,7 @@
     gunsRemaining: GUNNER_MAX_GUNS, // (host) how many more times تفنگدار may hand over the gun this game
     gunsCancelled: false,   // (host) true once the gun has been fired at a civilian — no more handovers
     pendingGun: null,       // (host) { holderId } once تفنگدار hands the gun over, until it's fired/declined the next day
+    gunDeadlineTimer: null, // (host) the day-gun decision's OWN pending setTimeout handle — separate from state.deadlineTimer since this now runs concurrently with voting (see armGunDeadline)
     myRole: null,           // (player) last role payload received, for the "View My Role" peek
     roleReturnScreen: null, // (player) screen to return to after peeking at role
     voteRound: null,        // (player) 1 or 2, which round the current vote screen is for
@@ -1573,6 +1555,8 @@
     nightActionRole: null,       // (player) which role this night-action prompt is for
     selectedNightTargetId: null, // (player) chosen target before submit
     selectedDayGunTargetId: null, // (player) chosen target for the day-gun decision before submit
+    pendingDayGunMsg: null, // (player, incl. God-Mode host-self) the gun holder's own pending decision, if it's them — see attachGunDecisionSection / updateHostSelfActionCard
+    hostSelfActionClosed: false, // (God Mode host-self) true once the CURRENT state.lastPhaseMsg-driven action has been answered — see closeHostSelfCard/updateHostSelfActionCard for why this exists at all
     myActivityLog: [],           // (player) night-by-night history of this player's (or their mafia team's) actions
     hasActivityLog: false,       // (player) whether to show the "My Activity" link at all
     activityReturnScreen: null,  // (player) screen to return to after viewing activity log
@@ -1595,6 +1579,14 @@
     // hosted game (state.godMode is only ever settable from the host's own
     // setup screen — see App.setGodMode).
     if(state.godMode) attachHostSelfSection(id);
+    // Same idea for a real player who happens to be holding the gun — see
+    // attachGunDecisionSection's own comment. A no-op whenever nothing's
+    // actually pending (the common case).
+    attachGunDecisionSection(id);
+  }
+  function activeScreenId(){
+    const el = document.querySelector('.screen.active');
+    return el ? el.id : null;
   }
   // God Mode: moves #host-self-section (role/activity links, plus the
   // host-self's own pending action when there is one) to just after the
@@ -1690,12 +1682,67 @@
   }
 
   /* ---------------- WebSocket signaling ---------------- */
+  // Messages handed to wsSend() before state.ws has actually finished
+  // connecting — e.g. App.createLobby()'s 'create-room' firing because the
+  // host tapped through the landing/setup screens faster than the initial
+  // WebSocket handshake completed (very plausible on a slow network or a
+  // cold-started Render instance waking up). Used to be silently dropped —
+  // wsSend just no-op'd — leaving the lobby stuck on "generating link..."
+  // forever with no room code and no error, exactly like a real report of
+  // "sometimes the room is created but the link doesn't get generated."
+  // Flushed the instant the socket actually opens (see connectWS's onopen);
+  // reset on every fresh connectWS() call so a NEW connection attempt never
+  // replays something queued for a since-abandoned one.
+  let wsQueue = [];
+  // ---------------- WS heartbeat ----------------
+  // A network change (WiFi <-> cellular, especially — see the reported "host
+  // switches networks and the room is lost" bug) doesn't always cleanly fire
+  // a WebSocket's onclose promptly, or sometimes at all — the socket can sit
+  // there LOOKING open for a long time while actually being dead, which
+  // means neither side's reconnect logic (attemptHostReconnect/
+  // attemptPlayerReconnect, both onclose-triggered) ever fires, and the room
+  // can blow straight through server.js's HOST_GRACE_MS unnoticed. This is
+  // a small app-level ping/pong that detects that case proactively instead
+  // of waiting on the browser/OS to notice: a 'ping' every WS_HEARTBEAT_MS,
+  // and if NOTHING at all has been heard back (a 'pong', or genuinely any
+  // other message — see wsLastActivityAt below) in WS_STALE_MS, the socket
+  // is forced closed, which routes straight into the exact same
+  // onclose-triggered reconnect path a real close would have.
+  const WS_HEARTBEAT_MS = 12000;
+  const WS_STALE_MS = 30000;
+  let wsHeartbeatTimer = null;
+  let wsLastActivityAt = 0;
+  function stopWsHeartbeat(){
+    if(wsHeartbeatTimer){ clearInterval(wsHeartbeatTimer); wsHeartbeatTimer = null; }
+  }
+  function startWsHeartbeat(ws){
+    stopWsHeartbeat();
+    wsLastActivityAt = Date.now();
+    wsHeartbeatTimer = setInterval(() => {
+      if(state.ws !== ws || ws.readyState !== 1){ stopWsHeartbeat(); return; }
+      if(Date.now() - wsLastActivityAt > WS_STALE_MS){
+        try{ ws.close(); }catch(e){}
+        return;
+      }
+      try{ ws.send(JSON.stringify({ type: 'ping' })); }catch(e){}
+    }, WS_HEARTBEAT_MS);
+    if(wsHeartbeatTimer && typeof wsHeartbeatTimer.unref === 'function') wsHeartbeatTimer.unref();
+  }
   function connectWS(onOpen){
+    wsQueue = [];
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(proto + '//' + location.host + '/ws');
     state.ws = ws;
-    ws.onopen = () => { $('conn-indicator').textContent = t('connConnected'); if(onOpen) onOpen(); };
+    ws.onopen = () => {
+      $('conn-indicator').textContent = t('connConnected');
+      const queued = wsQueue;
+      wsQueue = [];
+      queued.forEach(obj => { try{ ws.send(JSON.stringify(obj)); }catch(e){} });
+      startWsHeartbeat(ws);
+      if(onOpen) onOpen();
+    };
     ws.onclose = () => {
+      stopWsHeartbeat();
       $('conn-indicator').textContent = t('connDisconnected');
       toast(t('lostServerConnection'));
       // The host relies on this socket for every future signal (new joins,
@@ -1705,13 +1752,21 @@
     };
     ws.onerror = () => { $('conn-indicator').textContent = t('connError'); };
     ws.onmessage = (evt) => {
+      wsLastActivityAt = Date.now();
       let msg;
       try{ msg = JSON.parse(evt.data); }catch(e){ return; }
+      if(msg.type === 'pong') return; // heartbeat reply only — nothing else to do with it
       handleWSMessage(msg);
     };
   }
   function wsSend(obj){
-    if(state.ws && state.ws.readyState === 1) state.ws.send(JSON.stringify(obj));
+    if(state.ws && state.ws.readyState === 1){ state.ws.send(JSON.stringify(obj)); return; }
+    // Still connecting (readyState 0) — queue it instead of dropping it
+    // silently; readyState 2/3 (closing/closed) is a genuinely dead
+    // connection with nobody about to flush this, so don't queue there —
+    // the ws.onclose handler above (host) or a manual retry (player) is
+    // what actually gets a fresh connection going again.
+    if(state.ws && state.ws.readyState === 0 && wsQueue.length < 50) wsQueue.push(obj);
   }
 
   function handleWSMessage(msg){
@@ -1774,12 +1829,20 @@
       // Anyone who joined (or reconnected) while this host's socket was
       // down never got their 'player-hello' — the server replays the full
       // roster it knows about here so none of them are left stranded.
-      // Players already in state.players are left alone: if THEIR own
-      // connection also needs fixing, their own reconnect path (dc.onclose
-      // / visibilitychange) handles that independently.
-      (msg.playerIds || []).forEach(pid => {
-        if(!state.players.has(pid)) hostBeginConnectionTo(pid);
-      });
+      // Rebuilds EVERY one of them, not just ids missing from
+      // state.players — a player already reconnecting on their own (see
+      // the ICE-state-triggered dc.close() -> attemptPlayerReconnect
+      // path) can genuinely race this: their fresh 'join-room' may reach
+      // the server while room.host still pointed at this host's OLD,
+      // already-dead socket, in which case their 'player-hello' was
+      // silently dropped (server.js's send() no-ops on a closed socket)
+      // and this reclaim is the only signal that ever tells this device
+      // to try them again. hostBeginConnectionTo is reconnect-safe for an
+      // already-known id (closes out whatever pc/dc it had and rebuilds
+      // fresh) — a brief, harmless renegotiation blip for anyone who
+      // DIDN'T actually need it beats leaving anyone who DID stuck
+      // forever with no way to be told to retry.
+      (msg.playerIds || []).forEach(pid => { hostBeginConnectionTo(pid); });
       return;
     }
   }
@@ -2186,6 +2249,21 @@
         wsSend({ type: 'signal', to: playerId, payload: { kind: 'candidate', candidate: e.candidate } });
       }
     };
+    // A network change on EITHER end (this host switching WiFi<->cellular,
+    // or the player's own) can leave this specific peer connection dead
+    // without its data channel ever firing a clean onclose on its own —
+    // WebRTC's built-in ICE keepalive is what actually notices and flips
+    // this state, usually within well under a minute. Forcing the data
+    // channel closed here routes straight into setupHostDataChannel's
+    // existing onclose cleanup (entry.connected = false) instead of this
+    // player silently looking "connected" forever while actually
+    // unreachable — see the reported "host switches networks and the room
+    // is lost" bug.
+    pc.oniceconnectionstatechange = () => {
+      if(pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected'){
+        try{ dc.close(); }catch(e){}
+      }
+    };
 
     pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
       wsSend({ type: 'signal', to: playerId, payload: { kind: 'offer', sdp: pc.localDescription } });
@@ -2209,7 +2287,13 @@
   function setupHostDataChannel(dc, playerId, isReconnect){
     dc.onopen = () => {
       const entry = state.players.get(playerId);
-      if(entry){
+      // Guard against a dc that's already been superseded by a newer one
+      // by the time this fires — hostBeginConnectionTo can now rebuild an
+      // ALREADY-connected player's connection too (see the 'room-reclaimed'
+      // handler), and this stale onopen firing after a newer dc has
+      // already taken over must not stomp entry.connected/etc. based on a
+      // connection that's no longer the real one.
+      if(entry && entry.dc === dc){
         entry.connected = true;
         renderLobby();
         if(isReconnect){
@@ -2290,7 +2374,10 @@
     };
     dc.onclose = () => {
       const entry = state.players.get(playerId);
-      if(entry){ entry.connected = false; renderLobby(); }
+      // Same staleness guard as onopen above — a superseded dc's close
+      // event firing late must not flip a since-reconnected entry back to
+      // disconnected.
+      if(entry && entry.dc === dc){ entry.connected = false; renderLobby(); }
     };
   }
 
@@ -2607,12 +2694,15 @@
   // waiting on something" — either a decision (via 'phase') or one of the
   // plain reveal screens that only has a dedicated non-'phase' type of its
   // own (results don't reuse 'phase' — see night-result/day-result/
-  // inquiry-result/day-gun-result below). Whatever auto-deadline is
+  // inquiry-result below). Whatever auto-deadline is
   // CURRENTLY armed (see armAutoDeadline) always applies to whichever of
   // these is being sent right now — every step arms its own deadline before
   // sending, so this is never stale — letting every player-side screen that
   // cares render a live countdown with zero extra wiring at each site.
-  const DEADLINE_CARRYING_TYPES = ['phase', 'night-result', 'day-result', 'inquiry-result', 'day-gun-result'];
+  // 'day-gun-result' deliberately excluded — it's a passive toast now (see
+  // announceDayGunOutcome), not a "waiting on a decision" screen with a
+  // deadline of its own to display.
+  const DEADLINE_CARRYING_TYPES = ['phase', 'night-result', 'day-result', 'inquiry-result'];
   function sendToPlayer(entry, obj){
     if(obj && DEADLINE_CARRYING_TYPES.indexOf(obj.type) !== -1 && autoPacingOn() && state.deadlineExpiresAt){
       obj.deadlineAt = state.deadlineExpiresAt;
@@ -2667,6 +2757,14 @@
     } else if(entry.lastPhase){
       sendToPlayer(entry, entry.lastPhase);
     }
+    // Tracked separately from entry.lastPhase (see promptGunHolder) since
+    // it can be pending at the SAME TIME as whatever entry.lastPhase just
+    // replayed above (almost always an active vote) — a reconnecting
+    // holder needs BOTH back, not just whichever one this resync happened
+    // to send last.
+    if(entry.pendingDayGunMsg){
+      sendToPlayer(entry, entry.pendingDayGunMsg);
+    }
   }
 
   // God Mode: the host-self player-side dispatcher — everything
@@ -2693,6 +2791,13 @@
     }
     else if(obj.type === 'phase'){
       state.lastPhaseMsg = obj;
+      // A genuinely NEW phase always supersedes whatever was answered
+      // before — see closeHostSelfCard/updateHostSelfActionCard's own
+      // comment for why this flag exists at all (without it, an unrelated
+      // later message — e.g. the investigate-result right below, or even
+      // just a mafia chat line — could resurrect an already-answered
+      // prompt from a stale state.lastPhaseMsg).
+      state.hostSelfActionClosed = false;
       if(obj.phase === 'voting1' || obj.phase === 'voting2'){
         state.voteRound = obj.phase === 'voting1' ? 1 : 2;
         state.voteCandidates = obj.candidates || [];
@@ -2700,10 +2805,20 @@
       } else if(obj.phase === 'night-action'){
         state.nightActionRole = obj.role;
         state.selectedNightTargetId = null;
-      } else if(obj.phase === 'day-gun-action'){
-        state.selectedDayGunTargetId = null;
       }
       updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
+    }
+    else if(obj.type === 'day-gun-pending'){
+      // Independent of state.lastPhaseMsg/hostSelfActionClosed above — the
+      // gun decision can be pending at the SAME TIME as a vote now (see
+      // App.startVoting/promptGunHolder), so it gets its own separate
+      // block in the action card instead of competing for the single
+      // "current phase" slot.
+      state.pendingDayGunMsg = obj;
+      state.selectedDayGunTargetId = null;
+    }
+    else if(obj.type === 'day-gun-result'){
+      state.pendingDayGunMsg = null;
     }
     else if(obj.type === 'eliminated'){
       state.amAlive = false;
@@ -2740,10 +2855,21 @@
     else if(obj.type === 'vote-history'){
       state.voteHistory = obj.history || [];
     }
-    // day-result/inquiry-result/night-result/day-gun-result/investigate-
-    // result carry nothing the host-admin screen doesn't already show
-    // publicly (see the file-level God Mode note) — no host-self handling
-    // needed for those.
+    else if(obj.type === 'investigate-result'){
+      // Unlike day-result/inquiry-result/night-result/day-gun-result — all
+      // public outcomes the host-admin screens already show elsewhere — a
+      // detective's own read is PRIVATE, sent only to them, with no host-
+      // admin equivalent display anywhere. It's already persisted into
+      // state.myActivityLog (see handleNightAction's 'detective' branch,
+      // which calls logActivity right alongside this), reachable via "My
+      // Activity" — but that's not visible enough on its own; surface it
+      // immediately too, exactly like a real player's dedicated reveal
+      // screen would.
+      toast(obj.outcome === 'positive' ? t('isPositive', { name: obj.targetName }) : t('isNegative', { name: obj.targetName }), 5000);
+    }
+    // day-result/inquiry-result/night-result carry nothing the host-admin
+    // screen doesn't already show publicly (see the file-level God Mode
+    // note) — no host-self handling needed for those.
     updateDebugToggleVisibility();
     updateHostSelfActionCard();
   }
@@ -2757,41 +2883,64 @@
   function updateHostSelfActionCard(){
     const section = $('host-self-section');
     const actionBody = $('host-self-action-body');
-    if(!section || !actionBody) return;
+    const mainBlock = $('host-self-main-action');
+    const gunBlock = $('host-self-gun-action');
+    if(!section || !actionBody || !mainBlock || !gunBlock) return;
     const self = state.godMode ? state.players.get(HOST_SELF_ID) : null;
     const alive = !!(self && self.alive) && !state.gameEnded;
     section.classList.toggle('open', alive && !!state.myRole);
     const activityBtn = $('host-self-activity-btn');
     if(activityBtn) activityBtn.style.display = state.hasActivityLog ? 'inline-block' : 'none';
 
-    if(!alive || !state.lastPhaseMsg){ actionBody.style.display = 'none'; return; }
-    const msg = state.lastPhaseMsg;
-    const title = $('host-self-card-title');
-    const body = $('host-self-card-body');
-    body.innerHTML = '';
-    let hasAction = true;
-    if(msg.phase === 'voting1' || msg.phase === 'voting2'){
-      title.textContent = state.voteRound === 1 ? t('whoSuspect') : t('finalVoteTitle');
-      renderHostSelfVoteBody(body);
-    } else if(msg.phase === 'inquiry-vote'){
-      title.textContent = t('useInquiryToday');
-      renderHostSelfInquiryBody(body);
-    } else if(msg.phase === 'night-action'){
-      title.textContent = msg.title || t('chooseSomeone');
-      renderHostSelfNightActionBody(body, msg);
-    } else if(msg.phase === 'day-gun-action'){
-      title.textContent = t('gunDecisionEyebrow');
-      renderHostSelfDayGunBody(body, msg);
-    } else {
-      hasAction = false;
-    }
-    actionBody.style.display = hasAction ? 'block' : 'none';
-  }
-  function closeHostSelfCard(){
-    const actionBody = $('host-self-action-body');
-    if(actionBody) actionBody.style.display = 'none';
-  }
+    if(!alive){ actionBody.style.display = 'none'; return; }
 
+    // Main phase-derived action (vote / inquiry / night-action) — driven
+    // purely by state.lastPhaseMsg, cleared the instant it's answered (see
+    // state.hostSelfActionClosed's own comment for why that flag exists).
+    let hasMainAction = false;
+    if(state.lastPhaseMsg && !state.hostSelfActionClosed){
+      const msg = state.lastPhaseMsg;
+      const title = $('host-self-card-title');
+      const body = $('host-self-card-body');
+      body.innerHTML = '';
+      hasMainAction = true;
+      if(msg.phase === 'voting1' || msg.phase === 'voting2'){
+        title.textContent = state.voteRound === 1 ? t('whoSuspect') : t('finalVoteTitle');
+        renderHostSelfVoteBody(body);
+      } else if(msg.phase === 'inquiry-vote'){
+        title.textContent = t('useInquiryToday');
+        renderHostSelfInquiryBody(body);
+      } else if(msg.phase === 'night-action'){
+        title.textContent = msg.title || t('chooseSomeone');
+        renderHostSelfNightActionBody(body, msg);
+      } else {
+        hasMainAction = false;
+      }
+    }
+    mainBlock.style.display = hasMainAction ? 'block' : 'none';
+
+    // The day-gun decision — fully independent of whatever the main phase
+    // is (see App.startVoting/promptGunHolder): can be pending at the SAME
+    // TIME as a vote, so it gets its own separate block instead of
+    // competing with the main action above for the single "current phase"
+    // slot.
+    const hasGunAction = !!state.pendingDayGunMsg;
+    if(hasGunAction){
+      renderDayGunCandidates($('host-self-gun-body'), state.pendingDayGunMsg, App.hostSelfSubmitDayGunAction, App.hostSelfSkipDayGunAction);
+    }
+    gunBlock.style.display = hasGunAction ? 'block' : 'none';
+
+    actionBody.style.display = (hasMainAction || hasGunAction) ? 'block' : 'none';
+  }
+  // Closes only the MAIN phase-derived action (vote/inquiry/night-action) —
+  // see state.hostSelfActionClosed. Never touches the gun block; that one
+  // is closed by clearing state.pendingDayGunMsg directly (see
+  // App.hostSelfSubmitDayGunAction/hostSelfSkipDayGunAction), since the two
+  // can be open at once and answering one must not hide the other.
+  function closeHostSelfCard(){
+    state.hostSelfActionClosed = true;
+    updateHostSelfActionCard();
+  }
   function renderHostSelfVoteBody(body){
     const hasCandidates = state.voteCandidates.length > 0;
     const hint = document.createElement('p');
@@ -2903,44 +3052,18 @@
     hostSelfSendNightAction(null);
   };
 
-  function renderHostSelfDayGunBody(body, msg){
-    const hint = document.createElement('p');
-    hint.className = 'hint';
-    hint.textContent = msg.returned ? t('gunDecisionReturnedHint', { name: msg.diedName }) : t('gunDecisionHint');
-    body.appendChild(hint);
-    const list = document.createElement('div');
-    list.className = 'stack';
-    (msg.candidates || []).forEach(c => {
-      const row = document.createElement('label');
-      row.className = 'role-row role-check-row';
-      row.innerHTML =
-        '<input type="radio" name="host-self-gun-target">' +
-        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
-      row.querySelector('input').onchange = () => { state.selectedDayGunTargetId = c.id; };
-      list.appendChild(row);
-    });
-    body.appendChild(list);
-    const actions = document.createElement('div');
-    actions.className = 'host-self-card-actions';
-    const fireBtn = document.createElement('button');
-    fireBtn.className = 'btn btn-primary';
-    fireBtn.textContent = t('btnFireGun');
-    fireBtn.onclick = App.hostSelfSubmitDayGunAction;
-    const skipBtn = document.createElement('button');
-    skipBtn.className = 'btn btn-ghost';
-    skipBtn.textContent = t('btnDoNothingToday');
-    skipBtn.onclick = App.hostSelfSkipDayGunAction;
-    actions.appendChild(fireBtn); actions.appendChild(skipBtn);
-    body.appendChild(actions);
-  }
+  // Rendering itself is shared with a real player's own gun subsection —
+  // see renderDayGunCandidates, called from updateHostSelfActionCard.
   App.hostSelfSubmitDayGunAction = function(){
     if(!state.selectedDayGunTargetId){ toast(t('pickSomeoneFirst')); return; }
     handleDayGunAction(HOST_SELF_ID, state.selectedDayGunTargetId);
-    closeHostSelfCard();
+    state.pendingDayGunMsg = null;
+    updateHostSelfActionCard();
   };
   App.hostSelfSkipDayGunAction = function(){
     handleDayGunAction(HOST_SELF_ID, null);
-    closeHostSelfCard();
+    state.pendingDayGunMsg = null;
+    updateHostSelfActionCard();
   };
 
   App.beginGame = function(){
@@ -2999,30 +3122,33 @@
       resolveDayGunAction(holderId, null);
       return;
     }
-    state.gamePhase = 'day-gun';
-    // Same window as a real day's voting/discussion (armVoteDeadline —
-    // voteDeadlineMinutes x however many are alive), not the shorter
-    // per-decision act deadline — the gun holder is effectively holding up
-    // the whole day's conversation, so they get the same generous amount
-    // of time everyone else gets to talk it over. App.startVoting() checks
-    // state.pendingGun BEFORE ever opening voting (see startDayGunStep), so
-    // this step always fully resolves — one way or another, on its own
-    // deadline if nobody answers — before voting can begin; it structurally
-    // can't run concurrently with it.
-    armVoteDeadline(App.forceSkipGunDecision);
-    sendToPlayer(holderEntry, { type: 'phase', phase: 'day-gun-action', day: state.day, candidates, returned, diedName });
-    $('day-gun-wait-day').textContent = t('dayLabel', { n: state.day });
-    $('day-gun-wait-hint').textContent = returned ? t('dayGunReturnedWaitHint', { name: diedName }) : t('dayGunWaitHint');
-    showScreen('screen-host-day-gun-wait');
+    // Deliberately does NOT touch state.gamePhase — that's voting's own
+    // phase now (this runs concurrently with it, see App.startVoting), and
+    // handleDayGunAction/App.forceSkipGunDecision below check
+    // state.pendingGun directly instead, which is the only thing that
+    // actually needs to be true for a gun submission to be valid right now.
+    // Same reasoning for the deadline: armGunDeadline is a SEPARATE timer
+    // from voting's own armVoteDeadline (armed moments later, in the same
+    // App.startVoting() call) — sharing one slot would silently cancel
+    // whichever got armed first.
+    armGunDeadline(App.forceSkipGunDecision);
+    const msg = { type: 'day-gun-pending', day: state.day, candidates, returned, diedName };
+    // Cached on the entry (like entry.lastPhase, but tracked separately —
+    // see resyncPlayer) so a reconnecting holder gets this prompt back
+    // alongside whatever their main phase (voting, most likely) also is,
+    // instead of losing one or the other.
+    holderEntry.pendingDayGunMsg = msg;
+    sendToPlayer(holderEntry, msg);
+    updateGunPendingNote();
   }
 
   function handleDayGunAction(voterId, targetId){
-    if(state.gamePhase !== 'day-gun' || !state.pendingGun || state.pendingGun.holderId !== voterId) return;
+    if(!state.pendingGun || state.pendingGun.holderId !== voterId) return;
     resolveDayGunAction(voterId, targetId);
   }
 
   App.forceSkipGunDecision = function(){
-    if(state.gamePhase !== 'day-gun' || !state.pendingGun) return;
+    if(!state.pendingGun) return;
     resolveDayGunAction(state.pendingGun.holderId, null);
   };
 
@@ -3033,6 +3159,7 @@
   // (see gunHitNoEffect). A returned gun (تفنگدار shooting it themselves) is
   // never neutralized this way — only the original blocked handover is.
   function resolveDayGunAction(shooterId, targetId){
+    clearGunDeadline();
     const shooter = state.players.get(shooterId);
     const target = targetId ? state.players.get(targetId) : null;
     const neutralized = !!(state.pendingGun && state.pendingGun.neutralized);
@@ -3056,6 +3183,7 @@
     }
 
     state.pendingGun = null;
+    if(shooter) shooter.pendingDayGunMsg = null;
     state.winner = checkWinner();
 
     const text = outcome === 'died' ? t(target.role === 'mafia' ? 'gunHitDiedMafia' : 'gunHitDiedCivilian', { name: target.name })
@@ -3064,19 +3192,68 @@
     announceDayGunOutcome(text);
   }
 
+  // Public (everyone alive hears it), but — unlike the old sequential flow
+  // — never takes over anyone's screen anymore: voting (or whatever else
+  // is going on) may well still be active right when this fires, and
+  // forcing every screen away from that just to show a gun announcement
+  // would be exactly the kind of interruption this feature is meant to
+  // avoid. A toast for the host and every player instead; see
+  // updateGunPendingNote for the small persistent note that clears now
+  // that this resolved.
   function announceDayGunOutcome(text){
-    armRevealPause(App.continueAfterDayGunResult);
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'day-gun-result', text }));
-
-    $('day-gun-result-day').textContent = t('dayLabel', { n: state.day });
-    $('day-gun-result-title').textContent = text;
-    showScreen('screen-host-day-gun-result');
+    toast(text, 5000);
+    updateGunPendingNote();
+    // A day-gun kill CAN end the game outright (e.g. it's the last Mafia)
+    // — that DOES need to interrupt everything, unlike the plain
+    // announcement above, so this still routes straight to game-over.
+    if(state.winner) App.showGameOver();
   }
 
-  App.continueAfterDayGunResult = function(){
-    if(state.winner) App.showGameOver();
-    else beginVotingRound1();
-  };
+  // ---------------- Day-gun: independent deadline ----------------
+  // A SEPARATE timer track from armAutoDeadlineMs's single "current phase"
+  // slot (armActDeadline/armVoteDeadline/armRevealPause) — the gun decision
+  // now runs concurrently with voting (see App.startVoting/promptGunHolder)
+  // instead of gating it, so arming voting's own deadline right alongside
+  // this one must not clobber it the way sharing one slot would. Same
+  // per-player length as a real vote (armVoteDeadline), same test-only
+  // ms-override — just tracked independently. No visible countdown badge
+  // for this one specifically; it force-skips silently via
+  // App.forceSkipGunDecision when it expires, same as before.
+  function clearGunDeadline(){
+    if(state.gunDeadlineTimer){ clearTimeout(state.gunDeadlineTimer); state.gunDeadlineTimer = null; }
+  }
+  function armGunDeadline(onExpire){
+    clearGunDeadline();
+    if(!autoPacingOn()) return;
+    let ms = state.voteDeadlineMinutes * 60 * 1000 * Math.max(1, aliveEntries().length);
+    try{
+      const override = localStorage.getItem('mafia-deadline-ms-override');
+      if(override) ms = parseInt(override, 10);
+    }catch(e){}
+    state.gunDeadlineTimer = setTimeout(() => {
+      state.gunDeadlineTimer = null;
+      onExpire();
+    }, ms);
+    if(state.gunDeadlineTimer && typeof state.gunDeadlineTimer.unref === 'function') state.gunDeadlineTimer.unref();
+  }
+  // Small persistent note (+ manual force-skip fallback, for a normally-
+  // hosted game where nothing auto-expires this — see armGunDeadline) on
+  // the host's own voting screen — the only host-admin acknowledgement
+  // that a gun decision is still pending alongside the vote; everything
+  // else about it lives entirely on the holder's own device/subsection now.
+  function updateGunPendingNote(){
+    const row = $('voting-gun-pending-row');
+    const note = $('voting-gun-pending-note');
+    if(!row || !note) return;
+    if(state.pendingGun){
+      const holder = state.players.get(state.pendingGun.holderId);
+      note.textContent = t('gunStillPendingNote', { name: holder ? holder.name : '' });
+      row.style.display = 'flex';
+    } else {
+      row.style.display = 'none';
+    }
+  }
 
   function goToDayScreen(){
     state.gamePhase = 'day';
@@ -3206,7 +3383,15 @@
   // point in its own right.
   App.startVoting = function(){
     if(state.day === 1) return;
-    if(state.pendingGun){ startDayGunStep(); return; }
+    // The day-gun decision (if there's a gun pending) now runs ALONGSIDE
+    // voting instead of blocking it — starts here, at the same moment
+    // voting opens, and resolves independently on its own timeline; the
+    // holder can fire, skip, or vote in whatever order they like, and
+    // everyone else's voting is never held up waiting for them. See
+    // promptGunHolder/resolveDayGunAction for the rest of that flow, and
+    // armGunDeadline for why this needs its own separate deadline timer
+    // instead of sharing armVoteDeadline's single slot with voting itself.
+    if(state.pendingGun) startDayGunStep();
     beginVotingRound1();
   };
 
@@ -4288,6 +4473,7 @@
     state.gunsRemaining = GUNNER_MAX_GUNS;
     state.gunsCancelled = false;
     state.pendingGun = null;
+    clearGunDeadline();
     // God Mode: the host's browser plays through the SAME page across
     // multiple games (see App.createLobby/receiveAsHostSelf), unlike a real
     // player's, which only ever sees one game per page load — so the
@@ -4309,8 +4495,10 @@
     state.nightActionRole = null;
     state.selectedNightTargetId = null;
     state.selectedDayGunTargetId = null;
-    closeHostSelfCard();
+    state.pendingDayGunMsg = null;
+    state.hostSelfActionClosed = false;
     updateHostSelfActionCard();
+    attachGunDecisionSection(activeScreenId());
     // noGodMode/actDeadlineMinutes/voteDeadlineMinutes deliberately carry
     // over into the next game, same as numPlayers/numMafia/etc. — but any
     // TIMER actually in flight from the game that just ended must not leak
@@ -4487,7 +4675,21 @@
         if(e.candidate) wsSend({ type: 'signal', to: 'host', payload: { kind: 'candidate', candidate: e.candidate } });
       };
       pc.oniceconnectionstatechange = () => {
-        if(pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') showConnectingStuck();
+        if(pc.iceConnectionState !== 'failed' && pc.iceConnectionState !== 'disconnected') return;
+        // Still on the initial handshake screen — same "stuck, offer a
+        // retry" behavior as before. Past that (mid-game, this connection
+        // HAD been working), it's a live connection that just died —
+        // typically a network change on either end (this player's own, or
+        // the host's — see the reported "host switches networks and the
+        // room is lost" bug). Force the data channel closed so it routes
+        // straight into the EXISTING dc.onclose -> attemptPlayerReconnect
+        // path instead of this player silently sitting on a dead
+        // connection forever with no reconnect ever triggered.
+        if(document.getElementById('screen-player-connecting').classList.contains('active')){
+          showConnectingStuck();
+        } else if(state.playerDC){
+          try{ state.playerDC.close(); }catch(e){}
+        }
       };
       pc.setRemoteDescription(payload.sdp)
         .then(() => pc.createAnswer())
@@ -4514,10 +4716,17 @@
     dc.onopen = () => {
       state.reconnectInProgress = false;
       clearConnectingTimeout();
-      if(state.isReconnecting && state.myPlayerName){
-        // Re-announce our name so the host's roster stays accurate, then just
-        // wait — the host will resync us with whatever's happening right now
-        // (role, activity log, current phase/eliminated/game-over).
+      // Keyed on "do we already have a name" rather than state.isReconnecting
+      // (only ever set by our OWN attemptPlayerReconnect) — a fresh offer
+      // can now also arrive UNPROMPTED, from the host proactively rebuilding
+      // every known connection after reclaiming its own dropped WS (see the
+      // 'room-reclaimed' handler's own comment) even when THIS player's
+      // connection was fine the whole time. Either way, already having a
+      // name means we've joined before — re-announce it and let the host's
+      // resync (see resyncPlayer) bring us straight back to whatever we
+      // were actually doing, instead of being dumped on the fresh-join name
+      // screen mid-game.
+      if(state.myPlayerName){
         try{ state.playerDC.send(JSON.stringify({ type: 'name', name: state.myPlayerName })); }catch(e){}
         showScreen('screen-player-reconnecting');
       } else {
@@ -4575,7 +4784,27 @@
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = 'block'; });
         }
         else if(msg.type === 'revived'){ handleRevived(msg); }
-        else if(msg.type === 'day-gun-result'){ handleDayGunResult(msg); }
+        else if(msg.type === 'day-gun-pending'){
+          // The gun holder's own decision — now independent of whatever
+          // phase (voting, most likely) is also showing, see
+          // App.startVoting/promptGunHolder — rides along as a subsection
+          // of whatever screen is currently active instead of taking over
+          // the screen. See attachGunDecisionSection, called from
+          // showScreen.
+          state.pendingDayGunMsg = msg;
+          attachGunDecisionSection(activeScreenId());
+        }
+        else if(msg.type === 'day-gun-result'){
+          // Public (everyone alive hears it) — a toast instead of a full
+          // screen, since voting or whatever else is going on shouldn't be
+          // interrupted by this. If this WAS the pending decision the
+          // subsection was showing, clear it too (covers the "someone
+          // else's deadline forced it closed" case as well as this
+          // player's own submit already having cleared it locally).
+          toast(msg.text, 5000);
+          state.pendingDayGunMsg = null;
+          attachGunDecisionSection(activeScreenId());
+        }
         else if(msg.type === 'mafia-chat-log'){
           state.mafiaChatLog = msg.log || [];
           renderMafiaChat();
@@ -4632,6 +4861,14 @@
       }catch(err){}
     };
     dc.onclose = () => {
+      // Staleness guard: if a NEWER dc has already taken over (state.playerDC
+      // reassigned — see setupPlayerDataChannel's own top line) by the time
+      // this fires, it's a late close event from a channel that's already
+      // been superseded, not an actual live disconnect — ignore it rather
+      // than scaring the player with a false "connection lost" toast and
+      // kicking off a needless reconnect on top of a connection that's
+      // already fine.
+      if(state.playerDC !== dc) return;
       toast(t('connectionToHostLost'));
       attemptPlayerReconnect();
     };
@@ -4707,8 +4944,6 @@
     } else if(msg.phase === 'inquiry-vote'){
       $('inquiry-vote-day-player').textContent = t('dayLabel', { n: msg.day }) + ' · ' + t('morningInquiry');
       showScreen('screen-player-inquiry-vote');
-    } else if(msg.phase === 'day-gun-action'){
-      renderDayGunActionScreen(msg);
     } else if(msg.phase === 'voting1' || msg.phase === 'voting2'){
       state.voteRound = msg.phase === 'voting1' ? 1 : 2;
       state.voteCandidates = msg.candidates || [];
@@ -5003,28 +5238,70 @@
     sendNightAction(null);
   };
 
-  function renderDayGunActionScreen(msg){
-    state.selectedDayGunTargetId = null;
-    $('day-gun-action-day').textContent = t('dayLabel', { n: msg.day });
-    $('day-gun-action-hint').textContent = msg.returned ? t('gunDecisionReturnedHint', { name: msg.diedName }) : t('gunDecisionHint');
-    const list = $('day-gun-action-candidate-list');
-    list.innerHTML = '';
+  // Builds the "fire the gun, or don't" candidate list + Fire/Skip buttons
+  // shared by BOTH a real player's #gun-decision-section and (in God Mode)
+  // the host-self's own #host-self-gun-action block — see
+  // attachGunDecisionSection and updateHostSelfActionCard respectively.
+  // Takes the fire/skip callbacks as params rather than hardcoding App.*
+  // since the two callers submit through entirely different paths (a real
+  // data-channel send vs. an in-process host-side call).
+  function renderDayGunCandidates(container, msg, onFire, onSkip){
+    container.innerHTML = '';
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.style.margin = '4px 0 10px';
+    hint.textContent = msg.returned ? t('gunDecisionReturnedHint', { name: msg.diedName }) : t('gunDecisionHint');
+    container.appendChild(hint);
+    const list = document.createElement('div');
+    list.className = 'stack';
     (msg.candidates || []).forEach(c => {
       const row = document.createElement('label');
       row.className = 'role-row role-check-row';
       row.innerHTML =
-        '<input type="radio" name="day-gun-target">' +
+        '<input type="radio" name="gun-decision-target">' +
         '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
       row.querySelector('input').onchange = () => { state.selectedDayGunTargetId = c.id; };
       list.appendChild(row);
     });
-    showScreen('screen-player-day-gun-action');
+    container.appendChild(list);
+    const actions = document.createElement('div');
+    actions.className = 'host-self-card-actions';
+    const fireBtn = document.createElement('button');
+    fireBtn.className = 'btn btn-primary';
+    fireBtn.textContent = t('btnFireGun');
+    fireBtn.onclick = onFire;
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn btn-ghost';
+    skipBtn.textContent = t('btnDoNothingToday');
+    skipBtn.onclick = onSkip;
+    actions.appendChild(fireBtn); actions.appendChild(skipBtn);
+    container.appendChild(actions);
   }
 
-  function sendDayGunAction(targetId){
-    try{ state.playerDC.send(JSON.stringify({ type: 'day-gun-action', targetId })); }
-    catch(e){ toast(t('lostHostConnection')); return; }
-    showScreen('screen-player-day-gun-waiting');
+  // Real player: the gun holder's own pending decision, shown as a
+  // subsection of whatever screen they're currently on (see
+  // attachGunDecisionSection, called from showScreen and from the
+  // 'day-gun-pending'/'day-gun-result' message handlers) instead of a
+  // dedicated full screen — it can be pending at the SAME TIME as an
+  // active vote now (see App.startVoting/promptGunHolder), and the two no
+  // longer take turns owning the screen.
+  function attachGunDecisionSection(activeId){
+    const el = $('gun-decision-section');
+    if(!el) return;
+    if(!state.pendingDayGunMsg || state.role !== 'player' || !activeId || activeId.indexOf('screen-player-') !== 0){
+      el.style.display = 'none';
+      return;
+    }
+    const screen = $(activeId);
+    if(!screen){ el.style.display = 'none'; return; }
+    if(el.parentNode !== screen){
+      const h2 = screen.querySelector('h2');
+      screen.insertBefore(el, h2 ? h2.nextSibling : screen.firstChild);
+    }
+    const eyebrow = $('gun-decision-section-eyebrow');
+    if(eyebrow) eyebrow.textContent = t('gunDecisionEyebrow');
+    renderDayGunCandidates($('gun-decision-section-body'), state.pendingDayGunMsg, App.submitDayGunAction, App.skipDayGunAction);
+    el.style.display = 'block';
   }
 
   App.submitDayGunAction = function(){
@@ -5034,10 +5311,14 @@
   App.skipDayGunAction = function(){
     sendDayGunAction(null);
   };
-
-  function handleDayGunResult(msg){
-    $('day-gun-result-title-player').textContent = msg.text;
-    showScreen('screen-player-day-gun-result');
+  function sendDayGunAction(targetId){
+    try{ state.playerDC.send(JSON.stringify({ type: 'day-gun-action', targetId })); }
+    catch(e){ toast(t('lostHostConnection')); return; }
+    // Optimistic clear — stay right where we were (mid-vote, most likely)
+    // instead of navigating anywhere; the public result (see the
+    // 'day-gun-result' handler) arrives as a toast, not a screen change.
+    state.pendingDayGunMsg = null;
+    attachGunDecisionSection(activeScreenId());
   }
 
   function nightResultText(deadNames, revivedName, day){
