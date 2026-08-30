@@ -135,6 +135,25 @@
   .debug-panel .debug-row{padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.04); margin-bottom:6px; font-size:13px; line-height:1.5;}
   .debug-panel .debug-log-entry{padding:4px 0 4px 10px; border-left:2px solid rgba(255,255,255,0.12); font-size:12px; color:var(--text-faint);}
 
+  /* God Mode: the host's OWN pending vote/night-action/inquiry/gun-decision
+     — a floating card pinned to the TOP of whatever host-admin screen is
+     showing underneath (unlike the bottom-drawer chats below, which it
+     never overlaps), so the host can act without losing their place. See
+     updateHostSelfActionCard(). Never shown outside God Mode. */
+  .host-self-card{display:none; position:fixed; top:0; left:0; right:0; z-index:1650; flex-direction:column; max-height:78vh; overflow-y:auto; background:rgba(10,9,6,0.98); border-bottom:2px solid var(--gold); box-shadow:0 8px 26px rgba(0,0,0,0.5); padding:calc(10px + env(safe-area-inset-top)) 16px 16px;}
+  .host-self-card.open{display:flex;}
+  .host-self-card-eyebrow{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold);}
+  .host-self-card-title{font-size:18px; font-weight:700; margin:4px 0 10px; color:var(--text);}
+  .host-self-card-body{display:flex; flex-direction:column; gap:8px;}
+  .host-self-card-actions{display:flex; gap:8px; margin-top:12px;}
+  .host-self-card-actions .btn{flex:1;}
+  /* Small always-on strip (My Role / My Activity) — separate from the
+     action card above so it stays reachable even outside an action-
+     required phase, exactly like a real player's own link-btns. */
+  .host-self-minibar{display:none; position:fixed; top:34px; left:8px; z-index:1000; gap:6px;}
+  .host-self-minibar.open{display:flex;}
+  .host-self-minibar button{appearance:none; border:none; background:rgba(0,0,0,0.55); color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:11px; padding:5px 9px; border-radius:6px; cursor:pointer;}
+
   /* Mafia-only chat — a fixed bottom drawer, present on every night and
      daytime-conversation screen a living Mafia member sees, so they can
      coordinate without leaving whatever they're doing. */
@@ -293,6 +312,14 @@
       </div>
     </div>
     <div class="field">
+      <label class="shield-toggle"><input type="checkbox" id="god-mode-toggle" onchange="App.setGodMode(this.checked)"> <span data-i18n="godModeToggle"></span></label>
+      <div class="hint" data-i18n="hintGodMode"></div>
+    </div>
+    <div class="field" id="host-self-name-field" style="display:none;">
+      <label data-i18n="labelYourNameGodMode"></label>
+      <input type="text" id="input-host-self-name" maxlength="24" autocomplete="off" data-i18n-placeholder="namePlaceholder">
+    </div>
+    <div class="field">
       <label data-i18n="labelRolesInPlay"></label>
       <div class="hint" dir="rtl" style="margin-bottom:10px; text-align:right;" data-i18n="hintRolesInPlay"></div>
       <div id="role-checklist" class="stack"></div>
@@ -334,6 +361,13 @@
     <div class="grow"></div>
     <p class="hint" id="lobby-min-hint" style="text-align:center; margin-bottom:8px;"></p>
     <button class="btn btn-primary" id="btn-assign" onclick="App.assignRoles()" disabled data-i18n="btnAssignRoles"></button>
+    <!-- God Mode: App.assignRoles() never shows the host its own dossier
+         (see the function itself) — normally maybeAutoStartGame beats
+         anyone to App.beginGame() the instant the roster fills, but if the
+         host had to assign early with stragglers still missing, this is
+         the manual fallback to actually start once ready. Hidden the rest
+         of the time by renderLobby. -->
+    <button class="btn btn-primary" id="btn-godmode-begin" style="display:none;" onclick="App.beginGame()" data-i18n="btnBeginGame"></button>
   </div>
 
   <!-- HOST SUMMARY -->
@@ -858,6 +892,27 @@
   <div id="debug-zodiac-chat"></div>
 </div>
 
+<!-- God Mode: the host's own "My Role"/"My Activity" links, always reachable
+     while their own seat is alive — same idea as the identical link-btns on
+     every real player screen, just floating since a God-Mode host has no
+     player screen of their own. See updateHostSelfActionCard(). -->
+<div id="host-self-minibar" class="host-self-minibar">
+  <button onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+  <button id="host-self-activity-btn" style="display:none;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+</div>
+
+<!-- God Mode: the host's own pending vote/night-action/inquiry-vote/day-gun
+     decision — see updateHostSelfActionCard(), which shows/hides this and
+     fills in host-self-card-body per phase. Submits go straight into the
+     matching host-side handler in-process (App.hostSelf*), never through a
+     data channel — see sendToPlayer's isHostSelf branch for the reverse
+     direction. -->
+<div id="host-self-card" class="host-self-card">
+  <div class="host-self-card-eyebrow" data-i18n="hostSelfCardEyebrow"></div>
+  <div class="host-self-card-title" id="host-self-card-title">&mdash;</div>
+  <div class="host-self-card-body" id="host-self-card-body"></div>
+</div>
+
 <!-- Mafia-only chat: visible only to an alive Mafia-team player, during any
      night phase or daytime conversation phase, regardless of which specific
      screen is showing underneath. See updateMafiaChatVisibility(). -->
@@ -950,6 +1005,10 @@
       labelZodiacFrequency: 'شلیک زودیاک', zodiacEveryNightToggle: 'زودیاک، اگر آن نقش در بازی باشد، هر شب شلیک کند (در غیر این صورت یک شب در میان).',
       noGodModeToggle: 'حالت بدون گاد (بدون میزبان فعال)',
       hintNoGodMode: 'کل بازی کاملاً بدون دخالت پیش می‌رود — هیچ‌کس، حتی برای تخصیص نقش‌ها یا شروع بازی، نیازی نیست روی گوشی میزبان کلیک کند. به محض این‌که همه بازیکنان اعلام‌شده اسم خود را وارد کردند، نقش‌ها خودکار تخصیص داده شده و بازی پس از چند ثانیه شروع می‌شود. هر تصمیمی (شبانه یا روزانه) و هر رأی‌گیری یک مهلت دارد؛ اگر کسی در آن زمان اقدام نکند، بازی خودش جلو می‌رود. (توجه: باز هم یک دستگاه باید نقش میزبان را اجرا کند و طول بازی روشن بماند — فقط لازم نیست کسی آن را دستی جلو ببرد.)',
+      godModeToggle: 'حالت گاد-بازیکن (میزبان هم بازی می‌کند)',
+      hintGodMode: 'میزبان هم یکی از بازیکن‌هاست — اسم خودش را هم پایین همین صفحه وارد می‌کند و مثل بقیه نقش می‌گیرد، اما فقط نقش خودش را می‌بیند، نه کل لیست. رأی و اقدام شبانه‌اش را از یک کارت شناور روی همین صفحه انجام می‌دهد، نه یک مرورگر جدا. تا وقتی زنده است، به داشبورد کامل (نقش همه، لاگ شب، پنل دیباگ) دسترسی ندارد؛ همین‌که با رأی یا شلیک از بازی خارج شد، دسترسی کامل باز می‌شود. مثل حالت بدون گاد، مراحل بازی خودش خودکار جلو می‌روند.',
+      labelYourNameGodMode: 'اسم شما (شما هم بازی می‌کنید)',
+      hostSelfCardEyebrow: 'نوبت شماست',
       labelActDeadline: 'مهلت هر تصمیم (دقیقه)', hintActDeadline: 'برای اقدامات شبانه، تصمیم روزانهٔ تفنگدار، و رأی‌گیری استعلام. صفحات صرفاً اطلاع‌رسانی (مثل اعلام نتیجه) فقط چند ثانیه صبر می‌کنند، نه این مدت.',
       labelVoteDeadline: 'مهلت رأی‌گیری روز (دقیقه به‌ازای هر بازیکن)', hintVoteDeadline: 'برای هر دو دور رأی‌گیری روز، ضرب در تعداد بازیکنان زنده فعلی (نه کل بازیکنان اعلام‌شده) — رأی‌گیری بلافاصله باز می‌شود تا هم زمان گفتگو باشد، هم زمان رأی دادن.',
       labelRolesInPlay: 'نقش‌های بازی',
@@ -1134,7 +1193,7 @@
       debugPhaseLabel: 'فاز', debugWinnerLabel: 'برنده', debugGunsRemainingLabel: 'اسلحه‌های باقی‌مانده',
       debugGunsCancelledLabel: 'اسلحه‌ها لغو شده', debugPendingGunLabel: 'اسلحه در دست', debugNone: 'هیچ‌کدام',
       debugPendingRolesLabel: 'نقش‌های توزیع‌نشده',
-      debugNoGodModeLabel: 'حالت بدون گاد', debugDeadlineLabel: 'مهلت فعلی',
+      debugNoGodModeLabel: 'حالت بدون گاد', debugDeadlineLabel: 'مهلت فعلی', debugGodModeLabel: 'حالت گاد-بازیکن',
       dayGunReturnedWaitHint: '{name} که اسلحه دستش بود، شب گذشته جان خود را از دست داد. اسلحه به تفنگدار برگشته و او باید تصمیم بگیرد.',
       gunDecisionReturnedHint: '{name}، کسی که اسلحه را به او داده بودید، شب گذشته جان خود را از دست داد. اسلحه به شما برگشته — می‌توانید به کسی شلیک کنید، یا کاری نکنید.',
       actGunReturned: '{name}، کسی که اسلحه را به او داده بودید، جان باخت و اسلحه به شما برگشت.',
@@ -1155,6 +1214,10 @@
       labelZodiacFrequency: "زودیاک's Shooting", zodiacEveryNightToggle: 'زودیاک, if that role is in play, shoots every night (otherwise, every other night).',
       noGodModeToggle: 'No God Mode (no active host)',
       hintNoGodMode: "The whole game drives itself with zero intervention — nobody needs to tap anything on the host's phone, not even to assign roles or start the game. The moment every declared player has entered their name, roles are assigned automatically and the game begins a few seconds later. Every decision (night or day) and every vote gets a deadline; if nobody acts in time, the game moves on by itself. (Note: a device still needs to run the host role and stay open for the whole game — it just never needs a manual push.)",
+      godModeToggle: 'God Mode (host plays too)',
+      hintGodMode: "The host is a player too — enter your own name below, and you'll be dealt into role assignment like everyone else, seeing only your own role, never the full list. Vote and act at night from a floating card right on this screen, no second browser needed. While you're alive, the full dashboard (everyone's roles, the night log, the debug panel) stays hidden from you — it unlocks the moment you're voted or shot out. Like No God Mode, the game paces itself automatically.",
+      labelYourNameGodMode: "Your name (you're playing too)",
+      hostSelfCardEyebrow: 'Your Turn',
       labelActDeadline: 'Deadline per decision (minutes)', hintActDeadline: 'For night actions, the day-gun decision, and the inquiry vote. Plain informational screens (like result reveals) only pause a few seconds, not this long.',
       labelVoteDeadline: 'Day voting deadline (minutes per player)', hintVoteDeadline: "For both day voting rounds, multiplied by how many players are currently alive (not the total declared headcount) — voting opens immediately, doubling as the group's discussion window.",
       labelRolesInPlay: 'Roles in play',
@@ -1339,7 +1402,7 @@
       debugPhaseLabel: 'Phase', debugWinnerLabel: 'Winner', debugGunsRemainingLabel: 'Guns remaining',
       debugGunsCancelledLabel: 'Guns cancelled', debugPendingGunLabel: 'Gun currently held by', debugNone: 'None',
       debugPendingRolesLabel: 'Undistributed roles',
-      debugNoGodModeLabel: 'No God Mode', debugDeadlineLabel: 'Current deadline',
+      debugNoGodModeLabel: 'No God Mode', debugDeadlineLabel: 'Current deadline', debugGodModeLabel: 'God Mode',
       dayGunReturnedWaitHint: "{name}, who was holding the gun, didn't survive the night. The gun has returned to تفنگدار, who must now decide.",
       gunDecisionReturnedHint: "{name}, who you handed the gun to, didn't survive the night. It's back with you — you may shoot someone, or do nothing.",
       actGunReturned: "{name}, who you gave the gun to, died and the gun came back to you.",
@@ -1404,6 +1467,12 @@
     { id: 'role-zodiac-son', team: 'villager', name: 'زودیاک پسر', description: 'شما همراه زودیاک هستید. تا وقتی زودیاک در بازی است، شما یک شهروند عادی محسوب می‌شوید — می‌توان شما را شب‌ها هدف قرار داد و کشت، و اگر کاراگاه شما را بررسی کند، نتیجه مثبت می‌شود، درست مثل یک اصابت واقعی به مافیا. اگر زودیاک از بازی خارج شود (که فقط با رأی‌گیری روز ممکن است)، تمام توانایی‌های او — از جمله مصونیت در برابر شلیک شبانه و شلیک شبانهٔ خودش — به شما منتقل می‌شود و شما زودیاک جدید می‌شوید.', shield: false, independent: false, builtin: false }
   ];
 
+  // God Mode: the fixed players-Map key for the host's own seat when
+  // they're playing too (see App.createLobby). Never comes from the
+  // server/signaling layer like every other id here — it's assigned once,
+  // locally, the moment the lobby is created.
+  const HOST_SELF_ID = 'host-self';
+
   const state = {
     lang: (function(){
       try{ return localStorage.getItem('mafia-lang') || 'fa'; }catch(e){ return 'fa'; }
@@ -1423,6 +1492,19 @@
     // architecture is host-authoritative — see the file-level notes) — this
     // just means nobody has to actively watch or click through it.
     noGodMode: false,
+    // "God Mode" — the host is ALSO one of the players, sharing this same
+    // browser tab/device for both jobs at once (see App.createLobby's
+    // host-self name field and HOST_SELF_ID). They're dealt a real role
+    // like anyone else and see only their own — never the full dossier or
+    // the debug panel's roles/night-log while still alive (see
+    // updateDebugToggleVisibility) — and vote/act via the floating
+    // #host-self-card overlay instead of a second browser. Because the
+    // host can't practically also be clicking "Start Voting"/"Announce
+    // Morning" while they're busy playing, God Mode reuses the exact same
+    // automatic pacing engine as No God Mode (see autoPacingOn) rather
+    // than inventing a second one — every "if(state.noGodMode)" auto-
+    // advance check below also checks state.godMode.
+    godMode: false,
     actDeadlineMinutes: 2,  // per-DECISION deadline only: night actions, the day-gun decision, the morning inquiry vote. Plain "continue when ready" reveal screens use the short fixed armRevealPause instead, not this.
     voteDeadlineMinutes: 5, // day voting deadline PER PLAYER CURRENTLY ALIVE (round 1 AND round 2/final) — see armVoteDeadline; longer than a single act by design, since this is also the group's discussion window (see beginVotingRound1/App.startFinalVote: voting opens immediately, no separate wait-for-discussion step, in No God mode)
     deadlineExpiresAt: null, // (host: authoritative: when the CURRENT auto-deadline fires; player: mirrors the host's last broadcast 'deadlineAt' for the countdown badge — see updateDeadlineBadge)
@@ -1812,11 +1894,32 @@
     if(role === 'host'){ state.role = 'host'; showScreen('screen-host-setup'); renderRoleChecklist(); setDebugBadge('HOST'); }
     else if(role === 'player'){ state.role = 'player'; showScreen('screen-player-join'); setDebugBadge('PLAYER'); }
     else { state.role = null; showScreen('screen-landing'); setDebugBadge(''); }
-    // The full-roles/activity debug panel is a dev/troubleshooting aid — only
-    // ever shown on the God's own device, never a player's.
-    const debugToggle = $('debug-toggle-btn');
-    if(debugToggle) debugToggle.style.display = role === 'host' ? 'block' : 'none';
+    updateDebugToggleVisibility();
   };
+
+  // God Mode: while the host's OWN seat is still alive, they're just
+  // another player and must not get the full-roles/night-log debug panel
+  // — that's exactly the spoiler info requirement 1/4 said they shouldn't
+  // have. The instant that seat dies (voted or shot out — see
+  // eliminatePlayer/sendToPlayer's 'eliminated' -> receiveAsHostSelf path),
+  // this re-opens automatically. Not in God Mode at all (or no host-self
+  // seat yet) behaves exactly like today — always available on the host's
+  // own device, never a player's.
+  function hostSelfBlocksDebug(){
+    if(!state.godMode) return false;
+    const self = state.players.get(HOST_SELF_ID);
+    return !!(self && self.alive);
+  }
+  function updateDebugToggleVisibility(){
+    const debugToggle = $('debug-toggle-btn');
+    if(!debugToggle) return;
+    const allowed = state.role === 'host' && !hostSelfBlocksDebug();
+    debugToggle.style.display = allowed ? 'block' : 'none';
+    if(!allowed){
+      const panel = $('debug-panel');
+      if(panel) panel.classList.remove('open');
+    }
+  }
 
   App.openManageRoles = function(returnTo){
     state.manageRolesReturnTo = returnTo || 'landing';
@@ -1859,6 +1962,10 @@
     state.noGodMode = !!checked;
     renderSetupValues();
   };
+  App.setGodMode = function(checked){
+    state.godMode = !!checked;
+    renderSetupValues();
+  };
   App.stepActDeadline = function(delta){
     state.actDeadlineMinutes = Math.max(1, Math.min(15, state.actDeadlineMinutes + delta));
     renderSetupValues();
@@ -1881,15 +1988,38 @@
     if(deadlineFields) deadlineFields.style.display = state.noGodMode ? 'block' : 'none';
     $('val-act-deadline').textContent = state.actDeadlineMinutes;
     $('val-vote-deadline').textContent = state.voteDeadlineMinutes;
+    const godToggle = $('god-mode-toggle');
+    if(godToggle) godToggle.checked = state.godMode;
+    const hostSelfField = $('host-self-name-field');
+    if(hostSelfField) hostSelfField.style.display = state.godMode ? 'block' : 'none';
     renderRoleSummary();
   }
 
   App.createLobby = function(){
+    // God Mode: the host's own seat, if any, has to be captured BEFORE
+    // state.players is reset below — read it from the setup screen's own
+    // name field, same validation as a real player's name entry.
+    let hostSelfName = null;
+    if(state.godMode){
+      const nameInput = $('input-host-self-name');
+      hostSelfName = nameInput ? nameInput.value.trim() : '';
+      if(!hostSelfName){ toast(t('enterNameFirst')); return; }
+    }
     state.players = new Map();
+    if(hostSelfName){
+      // No pc/dc at all — see sendToPlayer's isHostSelf branch, which
+      // routes anything addressed to this entry straight into
+      // receiveAsHostSelf() in-process instead of a real data channel.
+      state.players.set(HOST_SELF_ID, { name: hostSelfName, connected: true, alive: false, isHostSelf: true, role: null, activityLog: [] });
+      state.myPlayerName = hostSelfName;
+      state.amAlive = true;
+      setDebugBadge(hostSelfName);
+    }
     state.hostToken = generatePlayerToken();
     wsSend({ type: 'create-room', hostToken: state.hostToken });
     showScreen('screen-host-lobby');
     renderLobby();
+    updateDebugToggleVisibility();
   };
 
   function inviteURL(){
@@ -1946,6 +2076,13 @@
     // that gets folded in automatically once they do (see App.assignRoles'
     // state.pendingRoleSlots and the 'name' handler in setupHostDataChannel).
     const minToStart = Math.max(2, state.numMafia + 1);
+    // God Mode: once roles are dealt, App.assignRoles() deliberately keeps
+    // the host right here instead of showing the dossier (see that
+    // function) — swap the button for the "Begin Game" fallback instead of
+    // leaving a now-pointless "Assign Roles" button showing.
+    const godAssigned = state.godMode && state.rolesAssigned;
+    $('btn-assign').style.display = godAssigned ? 'none' : 'flex';
+    $('btn-godmode-begin').style.display = godAssigned && !state.gamePhase ? 'flex' : 'none';
     $('btn-assign').disabled = connectedCount < minToStart;
     $('lobby-min-hint').textContent = connectedCount < minToStart
       ? t('lobbyNeedMoreHint', { n: minToStart })
@@ -2090,7 +2227,7 @@
             }
             renderLobby();
             toast(t(wasReconnect ? 'toastPlayerReconnected' : 'toastPlayerJoined', {name: msg.name}));
-            maybeAutoStartNoGodGame();
+            maybeAutoStartGame();
           }
         } else if(msg.type === 'vote'){
           handlePlayerVote(playerId, msg.round, msg.candidateIds);
@@ -2194,6 +2331,10 @@
   // No God Mode: truly zero intervention means not even the lobby's own
   // "Assign Roles" / "Begin Game" clicks — the room fills itself up and
   // starts on its own the instant every declared seat has a name in it.
+  // God Mode gets the exact same auto-start (the host, being a player too,
+  // shouldn't have to separately click through their own lobby — see the
+  // state.godMode comment) — the host-self entry created in App.createLobby
+  // already has a .name, so it's counted here exactly like anyone else's.
   // Checked after every 'name' message; harmless to call repeatedly before
   // (or even after) the roster fills, since armRevealPause/state.rolesAssigned
   // both make every call after the real trigger a no-op. Deliberately waits
@@ -2201,8 +2342,8 @@
   // "minimum viable" headcount — with nobody watching to judge "close
   // enough, let's start without the stragglers", the declared count is the
   // only unambiguous signal available.
-  function maybeAutoStartNoGodGame(){
-    if(!state.noGodMode || state.rolesAssigned) return;
+  function maybeAutoStartGame(){
+    if(!autoPacingOn() || state.rolesAssigned) return;
     const namedCount = Array.from(state.players.values()).filter(e => e.name).length;
     if(namedCount < state.numPlayers) return;
     // App.assignRoles/App.beginGame are themselves idempotent (see their
@@ -2252,12 +2393,29 @@
     state.pendingRoleSlots = fullDeck.slice(joinedIds.length);
 
     renderDossier();
-    showScreen('screen-host-summary');
+    // God Mode: the host is one of the names in that dossier now — never
+    // show it to them. Their own role already went out above like anyone
+    // else's (they see it via receiveAsHostSelf -> the "My Role" button on
+    // #host-self-card, exactly like a real player's viewMyRole()). Stay on
+    // the lobby instead, which renderLobby swaps to a "Begin Game" button
+    // for (see there) — normally moot, since maybeAutoStartGame's own
+    // armRevealPause chain reaches App.beginGame() on its own a moment
+    // later without anyone touching it.
+    if(state.godMode){
+      updateDebugToggleVisibility();
+      if(!document.getElementById('screen-host-lobby').classList.contains('active')) showScreen('screen-host-lobby');
+      renderLobby();
+    } else {
+      showScreen('screen-host-summary');
+    }
   };
 
   // While we're still building/testing the game, the God's own screen shows
   // real roles too instead of hiding them — see renderDossier below and the
-  // full debug panel (App.toggleDebugPanel) for the same reasoning.
+  // full debug panel (App.toggleDebugPanel) for the same reasoning. (In God
+  // Mode this table still gets built the same as always — see
+  // App.assignRoles — it's just never shown to the playing host; only a
+  // normally-hosted game's screen-host-summary reveals it.)
   function renderDossier(){
     const table = $('dossier-table');
     table.innerHTML = '';
@@ -2312,9 +2470,16 @@
   function aliveEntries(){
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive);
   }
-  // ---------------- No God Mode: auto-deadlines ----------------
+  // ---------------- No God Mode / God Mode: auto-deadlines ----------------
+  // True whenever EITHER toggle asks for automatic pacing — No God Mode
+  // (nobody moderating at all) or God Mode (the host is busy playing and
+  // can't practically also be clicking through every step — see the
+  // state.godMode comment). Every "should this auto-advance?" check in the
+  // file goes through this one function instead of testing state.noGodMode
+  // directly, so the two toggles can never drift out of sync.
+  function autoPacingOn(){ return !!(state.noGodMode || state.godMode); }
   // Arms (or, with no onExpire reachable, simply clears) the one active
-  // countdown. A no-op whenever state.noGodMode is off, so a normally-hosted
+  // countdown. A no-op whenever autoPacingOn() is false, so a normally-hosted
   // game is completely unaffected. Called at the START of every single step
   // in the day/night cycle — decision-waiting AND plain "continue when
   // ready" reveal screens alike — which means it's naturally self-cleaning:
@@ -2341,7 +2506,7 @@
   }
   function armAutoDeadlineMs(ms, onExpire){
     clearAutoDeadline();
-    if(!state.noGodMode) return;
+    if(!autoPacingOn()) return;
     // Test-only escape hatch, exactly like server.js's HOST_GRACE_MS_OVERRIDE
     // — lets the automated test harness prove a real deadline actually
     // fires without a test needing to wait minutes for it. Never set by the
@@ -2409,7 +2574,7 @@
   // cares render a live countdown with zero extra wiring at each site.
   const DEADLINE_CARRYING_TYPES = ['phase', 'night-result', 'day-result', 'inquiry-result', 'day-gun-result'];
   function sendToPlayer(entry, obj){
-    if(obj && DEADLINE_CARRYING_TYPES.indexOf(obj.type) !== -1 && state.noGodMode && state.deadlineExpiresAt){
+    if(obj && DEADLINE_CARRYING_TYPES.indexOf(obj.type) !== -1 && autoPacingOn() && state.deadlineExpiresAt){
       obj.deadlineAt = state.deadlineExpiresAt;
     }
     // Cache the most recent 'phase' message per player — this is what lets a
@@ -2420,6 +2585,12 @@
       entry.lastPhase = obj;
       if(GLOBAL_SNAPSHOT_PHASES.indexOf(obj.phase) !== -1) state.currentPhaseSnapshot = obj;
     }
+    // God Mode: the host's own seat has no real dc at all (see
+    // App.createLobby) — everything addressed to it gets handled in-process
+    // instead, on the very same object literal a real message would have
+    // arrived as (JSON round-tripping it would only strip functions/Sets,
+    // neither of which any message payload here ever carries).
+    if(entry.isHostSelf){ receiveAsHostSelf(obj); return; }
     try{ entry.dc.send(JSON.stringify(obj)); }catch(e){}
   }
 
@@ -2458,6 +2629,279 @@
     }
   }
 
+  // God Mode: the host-self player-side dispatcher — everything
+  // setupPlayerDataChannel's dc.onmessage does for a real player, EXCEPT
+  // never showScreen() to a player screen (that would yank the host's own
+  // admin screen out from under them mid-game) and never touch a real data
+  // channel. Reuses the exact same "(player)" state fields a real player's
+  // browser would (state.myRole, state.voteCandidates, etc.) — safe,
+  // because nothing on the host-admin side ever reads them for anything
+  // else. Action-required phases populate those fields and hand off to
+  // updateHostSelfActionCard() to render the floating card; anything else
+  // (results, reveals, logs) just needs the state kept current — the
+  // host's own admin screen already shows the same public outcome.
+  function receiveAsHostSelf(obj){
+    if(!obj) return;
+    if(obj.type === 'role'){
+      state.myRole = obj;
+      state.amAlive = true;
+      if(obj.name === ROLE_NAME_OCEAN) state.inOceanGroup = true;
+      if(obj.name === ROLE_NAME_ZODIAC || obj.name === ROLE_NAME_ZODIAC_SON) state.inZodiacGroup = true;
+      state.hasActivityLog = obj.role === 'mafia' ||
+        [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN, ROLE_NAME_GUNNER, ROLE_NAME_ZODIAC, ROLE_NAME_ZODIAC_SON].includes(obj.name);
+      updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
+    }
+    else if(obj.type === 'phase'){
+      state.lastPhaseMsg = obj;
+      if(obj.phase === 'voting1' || obj.phase === 'voting2'){
+        state.voteRound = obj.phase === 'voting1' ? 1 : 2;
+        state.voteCandidates = obj.candidates || [];
+        state.selectedCandidateIds = new Set();
+      } else if(obj.phase === 'night-action'){
+        state.nightActionRole = obj.role;
+        state.selectedNightTargetId = null;
+      } else if(obj.phase === 'day-gun-action'){
+        state.selectedDayGunTargetId = null;
+      }
+      updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
+    }
+    else if(obj.type === 'eliminated'){
+      state.amAlive = false;
+      updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
+    }
+    else if(obj.type === 'game-over'){
+      state.gameEnded = true;
+      updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
+    }
+    else if(obj.type === 'revived'){
+      state.amAlive = true;
+      updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
+    }
+    else if(obj.type === 'activity-log'){
+      state.myActivityLog = obj.log || [];
+      state.hasActivityLog = true;
+    }
+    else if(obj.type === 'mafia-chat-log'){
+      state.mafiaChatLog = obj.log || [];
+      renderMafiaChat();
+    }
+    else if(obj.type === 'ocean-group-status'){
+      state.inOceanGroup = !!obj.inGroup;
+      updateOceanChatVisibility();
+    }
+    else if(obj.type === 'ocean-chat-log'){
+      state.oceanChatLog = obj.log || [];
+      renderOceanChat();
+    }
+    else if(obj.type === 'zodiac-chat-log'){
+      state.zodiacChatLog = obj.log || [];
+      renderZodiacChat();
+    }
+    else if(obj.type === 'vote-history'){
+      state.voteHistory = obj.history || [];
+    }
+    // day-result/inquiry-result/night-result/day-gun-result/investigate-
+    // result carry nothing the host-admin screen doesn't already show
+    // publicly (see the file-level God Mode note) — no host-self handling
+    // needed for those.
+    updateDebugToggleVisibility();
+    updateHostSelfActionCard();
+  }
+
+  // God Mode: shows/hides/fills in #host-self-card and #host-self-minibar.
+  // Called after every receiveAsHostSelf message — cheap to re-run on every
+  // one of them since it's a handful of style/textContent writes, and far
+  // simpler than tracking exactly which message types could possibly change
+  // the answer.
+  function updateHostSelfActionCard(){
+    const card = $('host-self-card');
+    const minibar = $('host-self-minibar');
+    if(!card || !minibar) return;
+    const self = state.godMode ? state.players.get(HOST_SELF_ID) : null;
+    const alive = !!(self && self.alive) && !state.gameEnded;
+    minibar.classList.toggle('open', alive && !!state.myRole);
+    const activityBtn = $('host-self-activity-btn');
+    if(activityBtn) activityBtn.style.display = state.hasActivityLog ? 'inline-block' : 'none';
+
+    if(!alive || !state.lastPhaseMsg){ card.classList.remove('open'); return; }
+    const msg = state.lastPhaseMsg;
+    const title = $('host-self-card-title');
+    const body = $('host-self-card-body');
+    body.innerHTML = '';
+    let hasAction = true;
+    if(msg.phase === 'voting1' || msg.phase === 'voting2'){
+      title.textContent = state.voteRound === 1 ? t('whoSuspect') : t('finalVoteTitle');
+      renderHostSelfVoteBody(body);
+    } else if(msg.phase === 'inquiry-vote'){
+      title.textContent = t('useInquiryToday');
+      renderHostSelfInquiryBody(body);
+    } else if(msg.phase === 'night-action'){
+      title.textContent = msg.title || t('chooseSomeone');
+      renderHostSelfNightActionBody(body, msg);
+    } else if(msg.phase === 'day-gun-action'){
+      title.textContent = t('gunDecisionEyebrow');
+      renderHostSelfDayGunBody(body, msg);
+    } else {
+      hasAction = false;
+    }
+    card.classList.toggle('open', hasAction);
+  }
+  function closeHostSelfCard(){
+    const card = $('host-self-card');
+    if(card) card.classList.remove('open');
+  }
+
+  function renderHostSelfVoteBody(body){
+    const hasCandidates = state.voteCandidates.length > 0;
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = hasCandidates ? t('pickAsMany') : t('noOneElseToVote');
+    body.appendChild(hint);
+    if(hasCandidates){
+      const list = document.createElement('div');
+      list.className = 'stack';
+      state.voteCandidates.forEach(c => {
+        const row = document.createElement('label');
+        row.className = 'role-row role-check-row';
+        row.innerHTML =
+          '<input type="checkbox"' + (state.selectedCandidateIds.has(c.id) ? ' checked' : '') + '>' +
+          '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
+        row.querySelector('input').onchange = (e) => {
+          if(e.target.checked) state.selectedCandidateIds.add(c.id);
+          else state.selectedCandidateIds.delete(c.id);
+        };
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+      const actions = document.createElement('div');
+      actions.className = 'host-self-card-actions';
+      const submitBtn = document.createElement('button');
+      submitBtn.className = 'btn btn-primary';
+      submitBtn.textContent = t('btnSubmitVote');
+      submitBtn.onclick = App.hostSelfSubmitVote;
+      actions.appendChild(submitBtn);
+      body.appendChild(actions);
+    }
+  }
+  App.hostSelfSubmitVote = function(){
+    const candidateIds = Array.from(state.selectedCandidateIds);
+    handlePlayerVote(HOST_SELF_ID, state.voteRound, candidateIds);
+    closeHostSelfCard();
+  };
+
+  function renderHostSelfInquiryBody(body){
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = t('inquiryExplain');
+    body.appendChild(hint);
+    const actions = document.createElement('div');
+    actions.className = 'host-self-card-actions';
+    const yesBtn = document.createElement('button');
+    yesBtn.className = 'btn btn-primary';
+    yesBtn.textContent = t('yes');
+    yesBtn.onclick = () => App.hostSelfSubmitInquiryVote('yes');
+    const noBtn = document.createElement('button');
+    noBtn.className = 'btn btn-outline';
+    noBtn.textContent = t('no');
+    noBtn.onclick = () => App.hostSelfSubmitInquiryVote('no');
+    actions.appendChild(yesBtn); actions.appendChild(noBtn);
+    body.appendChild(actions);
+  }
+  App.hostSelfSubmitInquiryVote = function(choice){
+    handlePlayerInquiryVote(HOST_SELF_ID, choice);
+    closeHostSelfCard();
+  };
+
+  function renderHostSelfNightActionBody(body, msg){
+    if(msg.canRecruit){
+      const label = document.createElement('label');
+      label.className = 'shield-toggle';
+      label.style.marginBottom = '10px';
+      label.innerHTML = '<input type="checkbox" id="host-self-recruit-checkbox"> <span>' + escapeHtml(t('recruitInsteadOfShoot')) + '</span>';
+      body.appendChild(label);
+    }
+    const list = document.createElement('div');
+    list.className = 'stack';
+    (msg.candidates || []).forEach(c => {
+      const row = document.createElement('label');
+      row.className = 'role-row role-check-row';
+      row.innerHTML =
+        '<input type="radio" name="host-self-night-target">' +
+        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
+      row.querySelector('input').onchange = () => { state.selectedNightTargetId = c.id; };
+      list.appendChild(row);
+    });
+    body.appendChild(list);
+    const actions = document.createElement('div');
+    actions.className = 'host-self-card-actions';
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'btn btn-primary';
+    confirmBtn.textContent = t('btnConfirm');
+    confirmBtn.onclick = App.hostSelfSubmitNightAction;
+    actions.appendChild(confirmBtn);
+    if(msg.allowSkip){
+      const skipBtn = document.createElement('button');
+      skipBtn.className = 'btn btn-ghost';
+      skipBtn.textContent = t('btnDoNothingTonight');
+      skipBtn.onclick = App.hostSelfSkipNightAction;
+      actions.appendChild(skipBtn);
+    }
+    body.appendChild(actions);
+  }
+  function hostSelfSendNightAction(targetId){
+    const recruitEl = $('host-self-recruit-checkbox');
+    const recruit = !!(recruitEl && recruitEl.checked);
+    handleNightAction(HOST_SELF_ID, state.nightActionRole, targetId, recruit);
+    closeHostSelfCard();
+  }
+  App.hostSelfSubmitNightAction = function(){
+    if(!state.selectedNightTargetId){ toast(t('pickSomeoneFirst')); return; }
+    hostSelfSendNightAction(state.selectedNightTargetId);
+  };
+  App.hostSelfSkipNightAction = function(){
+    hostSelfSendNightAction(null);
+  };
+
+  function renderHostSelfDayGunBody(body, msg){
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = msg.returned ? t('gunDecisionReturnedHint', { name: msg.diedName }) : t('gunDecisionHint');
+    body.appendChild(hint);
+    const list = document.createElement('div');
+    list.className = 'stack';
+    (msg.candidates || []).forEach(c => {
+      const row = document.createElement('label');
+      row.className = 'role-row role-check-row';
+      row.innerHTML =
+        '<input type="radio" name="host-self-gun-target">' +
+        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
+      row.querySelector('input').onchange = () => { state.selectedDayGunTargetId = c.id; };
+      list.appendChild(row);
+    });
+    body.appendChild(list);
+    const actions = document.createElement('div');
+    actions.className = 'host-self-card-actions';
+    const fireBtn = document.createElement('button');
+    fireBtn.className = 'btn btn-primary';
+    fireBtn.textContent = t('btnFireGun');
+    fireBtn.onclick = App.hostSelfSubmitDayGunAction;
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn btn-ghost';
+    skipBtn.textContent = t('btnDoNothingToday');
+    skipBtn.onclick = App.hostSelfSkipDayGunAction;
+    actions.appendChild(fireBtn); actions.appendChild(skipBtn);
+    body.appendChild(actions);
+  }
+  App.hostSelfSubmitDayGunAction = function(){
+    if(!state.selectedDayGunTargetId){ toast(t('pickSomeoneFirst')); return; }
+    handleDayGunAction(HOST_SELF_ID, state.selectedDayGunTargetId);
+    closeHostSelfCard();
+  };
+  App.hostSelfSkipDayGunAction = function(){
+    handleDayGunAction(HOST_SELF_ID, null);
+    closeHostSelfCard();
+  };
+
   App.beginGame = function(){
     // Same idempotency reasoning as App.assignRoles — No God Mode's
     // auto-start and a manual click can race, and re-running this would
@@ -2467,6 +2911,7 @@
     state.inquiriesRemaining = state.numInquiries;
     for(const entry of state.players.values()){ entry.alive = true; }
     state.winner = checkWinner();
+    updateDebugToggleVisibility();
     if(state.winner){ App.showGameOver(); return; }
     startDayOrInquiry();
   };
@@ -2595,7 +3040,7 @@
     // Day 1 is the one exception — there's never any voting to open (see
     // App.continueToNight), so it just pauses briefly and heads straight
     // into Night 1 instead.
-    if(state.noGodMode){
+    if(autoPacingOn()){
       if(state.day === 1) armRevealPause(App.continueToNight);
       else App.startVoting();
     }
@@ -2900,7 +3345,7 @@
     // when the defense has run its course and tap Start Final Vote, so the
     // final vote opens right away too, folding the defense statement itself
     // into the same voting window (see App.startFinalVote's own deadline).
-    if(state.noGodMode) App.startFinalVote();
+    if(autoPacingOn()) App.startFinalVote();
   }
 
   function renderDefenseList(){
@@ -3790,6 +4235,29 @@
     state.gunsRemaining = GUNNER_MAX_GUNS;
     state.gunsCancelled = false;
     state.pendingGun = null;
+    // God Mode: the host's browser plays through the SAME page across
+    // multiple games (see App.createLobby/receiveAsHostSelf), unlike a real
+    // player's, which only ever sees one game per page load — so the
+    // "(player)" fields below need an explicit reset here or a leftover
+    // role/screen from the game that just ended would bleed into the next
+    // one's #host-self-card / minibar before any new 'role' message arrives.
+    // Harmless to always reset regardless of godMode — a plain host device
+    // never reads these fields for anything.
+    state.myRole = null;
+    state.amAlive = true;
+    state.gameEnded = false;
+    state.inOceanGroup = false;
+    state.inZodiacGroup = false;
+    state.hasActivityLog = false;
+    state.myActivityLog = [];
+    state.lastPhaseMsg = null;
+    state.voteCandidates = [];
+    state.selectedCandidateIds = new Set();
+    state.nightActionRole = null;
+    state.selectedNightTargetId = null;
+    state.selectedDayGunTargetId = null;
+    closeHostSelfCard();
+    updateHostSelfActionCard();
     // noGodMode/actDeadlineMinutes/voteDeadlineMinutes deliberately carry
     // over into the next game, same as numPlayers/numMafia/etc. — but any
     // TIMER actually in flight from the game that just ended must not leak
@@ -4266,6 +4734,11 @@
     if(!input) return;
     const text = input.value.trim();
     if(!text) return;
+    // God Mode: this panel can now be showing on the HOST's own device too
+    // (see receiveAsHostSelf -> updateMafiaChatVisibility) — that device has
+    // no state.playerDC at all, so route straight into the host-side
+    // handler in-process instead, exactly like every other host-self action.
+    if(!state.playerDC){ handleMafiaChat(HOST_SELF_ID, text); input.value = ''; return; }
     try{ state.playerDC.send(JSON.stringify({ type: 'mafia-chat', text })); }catch(e){ toast(t('lostHostConnection')); return; }
     input.value = '';
   };
@@ -4301,6 +4774,8 @@
     if(!input) return;
     const text = input.value.trim();
     if(!text) return;
+    // God Mode: see App.sendMafiaChat's identical branch.
+    if(!state.playerDC){ handleOceanChat(HOST_SELF_ID, text); input.value = ''; return; }
     try{ state.playerDC.send(JSON.stringify({ type: 'ocean-chat', text })); }catch(e){ toast(t('lostHostConnection')); return; }
     input.value = '';
   };
@@ -4344,6 +4819,8 @@
     if(!input) return;
     const text = input.value.trim();
     if(!text) return;
+    // God Mode: see App.sendMafiaChat's identical branch.
+    if(!state.playerDC){ handleZodiacChat(HOST_SELF_ID, text); input.value = ''; return; }
     try{ state.playerDC.send(JSON.stringify({ type: 'zodiac-chat', text })); }catch(e){ toast(t('lostHostConnection')); return; }
     input.value = '';
   };
@@ -4697,6 +5174,11 @@
     if(state.currentPhaseSnapshot) entry.lastPhase = state.currentPhaseSnapshot;
     resyncPlayer(entry, id);
     state.winner = checkWinner();
+    // Reviving the God-Mode host's OWN seat (only reachable here in the
+    // first place because they were dead, which is what unlocked this
+    // panel — see updateDebugToggleVisibility) must re-lock it immediately,
+    // not leave it open now that they're back in play.
+    updateDebugToggleVisibility();
     renderDebugPanel();
     refreshCurrentHostScreen();
   };
@@ -4785,8 +5267,9 @@
         escapeHtml(t('debugGunsCancelledLabel')) + ': ' + escapeHtml(state.gunsCancelled ? t('yes') : t('no')) + '<br>' +
         escapeHtml(t('debugPendingGunLabel')) + ': ' + (pendingHolder ? escapeHtml(pendingHolder.name) : escapeHtml(t('debugNone'))) + '<br>' +
         escapeHtml(t('debugPendingRolesLabel')) + ': ' + (pendingRoles.length ? (pendingRoles.length + ' — ' + escapeHtml(pendingRolesSummaryText())) : escapeHtml(t('debugNone'))) + '<br>' +
-        escapeHtml(t('debugNoGodModeLabel')) + ': ' + escapeHtml(state.noGodMode ? t('yes') : t('no')) +
-        (state.noGodMode && state.deadlineExpiresAt ? ' · ' + escapeHtml(t('debugDeadlineLabel')) + ': ' + Math.max(0, Math.ceil((state.deadlineExpiresAt - Date.now()) / 1000)) + 's' : '');
+        escapeHtml(t('debugNoGodModeLabel')) + ': ' + escapeHtml(state.noGodMode ? t('yes') : t('no')) + ' · ' +
+        escapeHtml(t('debugGodModeLabel')) + ': ' + escapeHtml(state.godMode ? t('yes') : t('no')) +
+        (autoPacingOn() && state.deadlineExpiresAt ? ' · ' + escapeHtml(t('debugDeadlineLabel')) + ': ' + Math.max(0, Math.ceil((state.deadlineExpiresAt - Date.now()) / 1000)) + 's' : '');
     }
     const inquiriesValue = $('debug-inquiries-value');
     if(inquiriesValue) inquiriesValue.textContent = state.inquiriesRemaining;
