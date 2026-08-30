@@ -1140,6 +1140,8 @@
       mafiaTalkNowNight1: 'بقیه چشمانشان را بستند. امشب فقط برای این است که اعضای مافیا یکدیگر را بشناسند — امشب هیچ شلیکی وجود نخواهد داشت. آرام با هم‌تیمی‌های خود صحبت کنید.',
       mafiaOnlyNightResult: 'امشب فقط برای آشنایی اعضای مافیا با یکدیگر بود — کسی صدمه ندید.',
       youWereBlocked: 'امشب مسدود شدید — کاری برای شما نیست.',
+      blockedTonightTitle: 'امشب مسدود شدید',
+      actYouWereBlocked: 'امشب توسط مافیا مسدود شدید.',
       oceanGroupJoinTalk: 'شما به یک گروه مخفی اضافه شدید. حالا می‌توانید چشمانتان را باز کنید و آرام با آن‌ها صحبت کنید.',
       investigationResult: 'نتیجه تحقیق', isPositive: '{name} مثبت است.', isNegative: '{name} منفی است.',
       youreOut: 'شما خارج شدید', youveBeenEliminated: 'شما حذف شدید',
@@ -1349,6 +1351,8 @@
       mafiaTalkNowNight1: "Everyone else has closed their eyes. Tonight is just for Mafia members to learn who each other are — there will be no shot tonight. Talk quietly with your teammates.",
       mafiaOnlyNightResult: 'Tonight was just for the Mafia to get acquainted with each other — no one was harmed.',
       youWereBlocked: 'You were blocked tonight — no action for you.',
+      blockedTonightTitle: 'You were blocked tonight',
+      actYouWereBlocked: 'You were blocked by the Mafia tonight.',
       oceanGroupJoinTalk: "You've been added to a secret group. You may open your eyes and talk quietly with them now.",
       investigationResult: 'Investigation Result', isPositive: '{name} is positive.', isNegative: '{name} is negative.',
       youreOut: "You're Out", youveBeenEliminated: "You've been eliminated",
@@ -2947,6 +2951,23 @@
       } else if(msg.phase === 'night-action'){
         title.textContent = msg.title || t('chooseSomeone');
         renderHostSelfNightActionBody(body, msg);
+      } else if(msg.phase === 'night' && msg.note){
+        // ماتادور's "you were blocked" notice — no action to take (that's
+        // the whole point), just informational, but it needs to STAY
+        // visible for the rest of the night, not flash by in a 5-second
+        // toast and be gone — a real player's equivalent is a whole screen
+        // (screen-player-night-waiting) that sticks around exactly that
+        // long. This piggybacks on the same "current phase" mechanism
+        // everything else here uses: state.lastPhaseMsg naturally stays
+        // this exact message for the rest of the night (nothing else
+        // addressed to a blocked civilian arrives until 'night-result',
+        // which isn't a 'phase' message and so never overwrites it) — see
+        // receiveAsHostSelf's still-separate toast for the immediate cue.
+        title.textContent = t('blockedTonightTitle');
+        const p = document.createElement('p');
+        p.className = 'hint';
+        p.textContent = msg.note;
+        body.appendChild(p);
       } else {
         hasMainAction = false;
       }
@@ -4211,10 +4232,19 @@
       // previously they only learned anything if their own role's turn came up
       // during civilian-phase, so a blocked plain شهروند ساده, or e.g. a
       // تفنگدار blocked on a night they were already out of guns, never found
-      // out anything happened to them at all.
+      // out anything happened to them at all. Two channels, deliberately —
+      // the transient 'phase' notice (which a real player's whole screen,
+      // or God Mode's own persistent card — see updateHostSelfActionCard —
+      // keeps showing for the rest of the night, not just a brief flash),
+      // AND their own permanent activity-log entry, so it's still there to
+      // find later even for anyone who genuinely wasn't looking at that
+      // exact moment.
       if(targetId){
         const blockedEntry = state.players.get(targetId);
-        if(blockedEntry) sendToPlayer(blockedEntry, { type: 'phase', phase: 'night', day: state.day, note: t('youWereBlocked') });
+        if(blockedEntry){
+          logActivity(blockedEntry, prefix + t('actYouWereBlocked'));
+          sendToPlayer(blockedEntry, { type: 'phase', phase: 'night', day: state.day, note: t('youWereBlocked') });
+        }
       }
       recordNightDecision(voter, targetName ? t('actYouBlocked', { name: targetName }) : t('actYouNoBlock'));
       state.night.mafiaPending.delete('matador');
