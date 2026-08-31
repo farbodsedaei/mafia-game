@@ -7,12 +7,16 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node test/run-all.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
   }
 }
