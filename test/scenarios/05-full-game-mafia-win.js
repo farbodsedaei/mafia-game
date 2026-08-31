@@ -9,7 +9,7 @@
 // 04-full-game-village-win.js).
 const { runScenario } = require('../lib/scenario');
 const { startServer } = require('../lib/server-runner');
-const { createDevice, activeScreenId, text, pickNightTarget, waitFor, teardown } = require('../lib/device');
+const { createDevice, activeScreenId, text, pickNightTarget, waitFor, teardown, readGameOverRoster } = require('../lib/device');
 const { joinPlayers, assignRolesAndBegin, playDay1AndSkipNight1, castVotes } = require('../lib/game-flow');
 
 const PLAYER_NAMES = ['Amir', 'Bita', 'Cyrus'];
@@ -33,7 +33,8 @@ runScenario('05-full-game-mafia-win', async (log) => {
 
     await playDay1AndSkipNight1(host, players, log);
 
-    log.step('Day 2: everyone abstains again, so nobody is voted out...');
+    log.banner('DAY 2');
+    log.step('Everyone abstains again, so nobody is voted out...');
     host.App.startVoting();
     await castVotes(players, {}, log, 'round 1');
     await waitFor(() => activeScreenId(host) === 'screen-host-result',
@@ -42,6 +43,7 @@ runScenario('05-full-game-mafia-win', async (log) => {
     host.App.proceedAfterResult();
     await waitFor(() => activeScreenId(host) === 'screen-host-night-eyes-closed',
       { message: 'host never reached Night 2' });
+    log.banner('NIGHT 2');
     host.App.continueAfterEyesClosed();
 
     await waitFor(() => activeScreenId(mafiaPlayer) === 'screen-player-night-action',
@@ -55,6 +57,10 @@ runScenario('05-full-game-mafia-win', async (log) => {
     log.step('Announcing morning — this kill should equalize Mafia and villagers and end the game...');
     host.App.announceMorning();
 
+    await waitFor(() => activeScreenId(victim) === 'screen-player-eliminated',
+      { message: victim.label + ' never saw their own elimination screen' });
+    log.death(victim.label, 'villager', 'shot by the Mafia during the night');
+
     await waitFor(() => activeScreenId(host) === 'screen-host-night-result',
       { message: 'host never reached the night-result screen' });
     host.App.proceedAfterNight();
@@ -62,7 +68,8 @@ runScenario('05-full-game-mafia-win', async (log) => {
     await waitFor(() => activeScreenId(host) === 'screen-host-game-over',
       { message: 'host never reached the game-over screen after the deciding kill' });
     const hostTitle = text(host, 'game-over-title') || '';
-    log.info('Host game-over title: "' + hostTitle + '"');
+    log.banner('GAME OVER — ' + hostTitle);
+    log.roster(readGameOverRoster(host));
 
     await waitFor(() => activeScreenId(victim) === 'screen-player-game-over',
       { message: victim.label + ' never reached their own game-over screen' });

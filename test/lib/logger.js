@@ -30,6 +30,42 @@ class Logger {
     this._push('=== ' + title + ' ===');
   }
 
+  // A day/night phase change — the spine of the game recap. Deliberately
+  // louder than a plain step() so skimming the log for "how did the game
+  // progress" means just scanning for these lines.
+  banner(title) {
+    this._push('');
+    this._push('───────── ' + title + ' ─────────');
+  }
+
+  // rows: [{name, count}], already sorted however the caller wants them
+  // shown (typically desc by count, matching the host's own live tally UI).
+  // Pulled from the REAL rendered #voting-tally DOM, not from what the test
+  // script told each player to vote for — so this doubles as a check that
+  // the app counted the same votes the test actually cast.
+  tally(rows, label) {
+    this.info('Tally' + (label ? ' (' + label + ')' : '') + ':');
+    rows.forEach((r) => {
+      this._push('[' + this._stamp() + ']     ' + r.name + ' — ' + r.count + ' vote' + (r.count === 1 ? '' : 's'));
+    });
+  }
+
+  // A player leaving the game — by vote or by night action. `cause` is a
+  // short phrase ("voted out by the village", "shot by the Mafia", ...).
+  death(name, role, cause) {
+    this._push('[' + this._stamp() + '] ☠ ' + name + (role ? ' (' + role + ')' : '') + ' is out — ' + cause + '.');
+  }
+
+  // rows: [{name, role, alive}] — the final game-over roster, one line per
+  // player, read from the real DOM so it reflects what every device
+  // actually displayed, not just what the test script tracked internally.
+  roster(rows) {
+    this.info('Final roster:');
+    rows.forEach((r) => {
+      this._push('[' + this._stamp() + ']     ' + r.name + ' — ' + r.role + ' — ' + (r.alive ? 'ALIVE' : 'OUT'));
+    });
+  }
+
   step(text) {
     this._push('[' + this._stamp() + '] ' + text);
   }

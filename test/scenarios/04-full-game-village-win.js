@@ -6,8 +6,8 @@
 // winner and a full roster.
 const { runScenario } = require('../lib/scenario');
 const { startServer } = require('../lib/server-runner');
-const { createDevice, activeScreenId, text, waitFor, teardown, $ } = require('../lib/device');
-const { joinPlayers, assignRolesAndBegin, playDay1AndSkipNight1, castVotes } = require('../lib/game-flow');
+const { createDevice, activeScreenId, text, waitFor, teardown, readGameOverRoster } = require('../lib/device');
+const { joinPlayers, assignRolesAndBegin, playDay1AndSkipNight1, castVotes, logTally } = require('../lib/game-flow');
 
 const PLAYER_NAMES = ['Amir', 'Bita', 'Cyrus', 'Dara'];
 
@@ -29,7 +29,8 @@ runScenario('04-full-game-village-win', async (log) => {
 
     await playDay1AndSkipNight1(host, players, log);
 
-    log.step('Day 2: the village accuses ' + mafiaPlayer.label + ' (the actual Mafia) directly...');
+    log.banner('DAY 2');
+    log.step('The village accuses ' + mafiaPlayer.label + ' (the actual Mafia) directly...');
     host.App.startVoting();
     const round1 = {};
     villagers.forEach((p) => { round1[p.label] = [mafiaPlayer.label]; });
@@ -37,6 +38,7 @@ runScenario('04-full-game-village-win', async (log) => {
 
     await waitFor(() => activeScreenId(host) === 'screen-host-defense',
       { message: 'host never reached the defense screen' });
+    logTally(host, log, 'round 1');
 
     host.App.startFinalVote();
     const finalVotes = {};
@@ -45,9 +47,11 @@ runScenario('04-full-game-village-win', async (log) => {
 
     await waitFor(() => activeScreenId(host) === 'screen-host-result',
       { message: 'host never reached the result screen' });
+    logTally(host, log, 'final vote');
     const resultTitle = text(host, 'result-title') || '';
     log.assert(resultTitle.indexOf(mafiaPlayer.label) !== -1,
       'result screen names ' + mafiaPlayer.label + ' as voted out');
+    log.death(mafiaPlayer.label, 'Mafia', 'voted out by the village');
 
     log.step('Since Mafia is now eliminated, this should end the game as a village win...');
     host.App.proceedAfterResult();
@@ -55,10 +59,11 @@ runScenario('04-full-game-village-win', async (log) => {
     await waitFor(() => activeScreenId(host) === 'screen-host-game-over',
       { message: 'host never reached the game-over screen' });
     const hostTitle = text(host, 'game-over-title') || '';
-    log.info('Host game-over title: "' + hostTitle + '"');
-    const hostRosterRows = $(host, 'game-over-roster').children.length;
-    log.assert(hostRosterRows === PLAYER_NAMES.length,
-      'host game-over roster lists all ' + PLAYER_NAMES.length + ' players (found ' + hostRosterRows + ')');
+    log.banner('GAME OVER — ' + hostTitle);
+    const rosterRows = readGameOverRoster(host);
+    log.roster(rosterRows);
+    log.assert(rosterRows.length === PLAYER_NAMES.length,
+      'host game-over roster lists all ' + PLAYER_NAMES.length + ' players (found ' + rosterRows.length + ')');
 
     for (const p of players) {
       await waitFor(() => activeScreenId(p) === 'screen-player-game-over',

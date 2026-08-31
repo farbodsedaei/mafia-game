@@ -32,7 +32,8 @@ runScenario('03-night-mafia-kill', async (log) => {
 
     await playDay1AndSkipNight1(host, players, log);
 
-    log.step('Day 2: everyone abstains, so no majority is reached...');
+    log.banner('DAY 2');
+    log.step('Everyone abstains, so no majority is reached...');
     host.App.startVoting();
     await castVotes(players, {}, log, 'round 1');
     await waitFor(() => activeScreenId(host) === 'screen-host-result',
@@ -42,6 +43,7 @@ runScenario('03-night-mafia-kill', async (log) => {
     host.App.proceedAfterResult();
     await waitFor(() => activeScreenId(host) === 'screen-host-night-eyes-closed',
       { message: 'host never reached Night 2' });
+    log.banner('NIGHT 2');
     host.App.continueAfterEyesClosed();
 
     await waitFor(() => activeScreenId(mafiaPlayer) === 'screen-player-night-action',
@@ -53,10 +55,12 @@ runScenario('03-night-mafia-kill', async (log) => {
 
     await waitFor(() => activeScreenId(host) === 'screen-host-night-morning',
       { message: 'night never reached the morning-ready screen after the kill decision' });
+    log.step('Announcing morning...');
     host.App.announceMorning();
 
     await waitFor(() => activeScreenId(victim) === 'screen-player-eliminated',
       { message: victim.label + ' never saw their own elimination screen' });
+    log.death(victim.label, 'villager', 'shot by the Mafia during the night');
     log.pass(victim.label + ' was correctly eliminated by the night kill.');
 
     const survivors = players.filter((p) => p !== victim && p !== mafiaPlayer);

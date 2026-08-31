@@ -98,6 +98,40 @@ function roomCode(device) {
   return /^—+$/.test(code) ? null : code;
 }
 
+// Reads the host's OWN live vote tally straight out of the rendered
+// #voting-tally box (renderVotingTally's output) — real counts the app
+// itself computed, not the test's own bookkeeping. The count is embedded in
+// a translated string ("3 رأی" / "3 votes"), so it's pulled out with a
+// digit regex rather than parsed by language.
+function readVoteTally(device) {
+  const box = $(device, 'voting-tally');
+  if (!box) return [];
+  return Array.from(box.children).map((row) => {
+    const name = row.querySelector('.name').textContent;
+    const statusText = row.querySelector('.status').textContent;
+    const match = /(\d+)/.exec(statusText);
+    return { name, count: match ? parseInt(match[1], 10) : 0 };
+  });
+}
+
+// Reads the host's final #game-over-roster — one row per player, each
+// showing their real name, revealed role, and alive/out status exactly as
+// every device's own screen renders it (App.showGameOver appends the same
+// "(out)" hint to a dead player's name and uses a `.slot.connected` class
+// only for the living — see index.html's App.showGameOver).
+function readGameOverRoster(device) {
+  const box = $(device, 'game-over-roster');
+  if (!box) return [];
+  return Array.from(box.children).map((row) => {
+    const nameEl = row.querySelector('.name');
+    const firstNode = nameEl.childNodes[0];
+    const name = (firstNode ? firstNode.textContent : nameEl.textContent).trim();
+    const role = row.querySelector('.tag').textContent;
+    const alive = row.classList.contains('connected');
+    return { name, role, alive };
+  });
+}
+
 function connectedNamedCount(device) {
   const list = $(device, 'slot-list');
   if (!list) return 0;
@@ -158,6 +192,7 @@ module.exports = {
   $, text, setValue, activeScreenId,
   checkVoteCandidate, pickNightTarget,
   roleInfo, roomCode, connectedNamedCount,
+  readVoteTally, readGameOverRoster,
   sleep, waitFor,
   dropConnection,
   teardown

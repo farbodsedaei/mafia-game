@@ -9,7 +9,7 @@
 const { runScenario } = require('../lib/scenario');
 const { startServer } = require('../lib/server-runner');
 const { createDevice, activeScreenId, text, waitFor, teardown } = require('../lib/device');
-const { joinPlayers, assignRolesAndBegin, playDay1AndSkipNight1, castVotes } = require('../lib/game-flow');
+const { joinPlayers, assignRolesAndBegin, playDay1AndSkipNight1, castVotes, logTally } = require('../lib/game-flow');
 
 const PLAYER_NAMES = ['Amir', 'Bita', 'Cyrus', 'Dara'];
 
@@ -34,7 +34,8 @@ runScenario('02-day-voting-elimination', async (log) => {
     const target = players.find((p) => !mafiaNames.includes(p.label));
     log.info('Day 2 target (a villager, deliberately NOT Mafia): ' + target.label);
 
-    log.step('Day 2: host starts voting...');
+    log.banner('DAY 2');
+    log.step('Host starts voting...');
     host.App.startVoting();
     const unanimous = {};
     PLAYER_NAMES.filter((n) => n !== target.label).forEach((n) => { unanimous[n] = [target.label]; });
@@ -42,6 +43,7 @@ runScenario('02-day-voting-elimination', async (log) => {
 
     await waitFor(() => activeScreenId(host) === 'screen-host-defense',
       { message: 'host never reached the defense screen after a unanimous round-1 vote' });
+    logTally(host, log, 'round 1');
     log.pass('Round 1 vote made ' + target.label + ' the sole defendant.');
 
     log.step('Host opens the final vote...');
@@ -52,12 +54,14 @@ runScenario('02-day-voting-elimination', async (log) => {
 
     await waitFor(() => activeScreenId(host) === 'screen-host-result',
       { message: 'host never reached the round-result screen' });
+    logTally(host, log, 'final vote');
     const resultTitle = text(host, 'result-title') || '';
     log.assert(resultTitle.indexOf(target.label) !== -1,
       'result screen names ' + target.label + ' as voted out (got "' + resultTitle + '")');
 
     await waitFor(() => activeScreenId(target) === 'screen-player-eliminated',
       { message: target.label + ' never saw their own elimination screen' });
+    log.death(target.label, 'villager', 'voted out by the village');
     log.pass(target.label + '\'s own device shows the elimination screen.');
 
     for (const p of players.filter((pl) => pl !== target)) {
@@ -70,6 +74,7 @@ runScenario('02-day-voting-elimination', async (log) => {
     host.App.proceedAfterResult();
     await waitFor(() => activeScreenId(host) === 'screen-host-night-eyes-closed',
       { message: 'host never reached Night 2 after the day-2 elimination' });
+    log.banner('NIGHT 2');
     log.assert(activeScreenId(host) !== 'screen-host-game-over',
       'game correctly continues (a villager\'s death alone must not end it)');
 
