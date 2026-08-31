@@ -97,10 +97,31 @@ classes), not on anything internal to `index.html`.
    second زودیاک-win ending. Every day vote again has at least half of the
    currently-alive players actually voting.
 
+9. `09-day-gun-reveals-zodiac-son` — regression test for a reported bug:
+   the day-gun's public team reveal (Mafia/villager/زودیاک) used to key off
+   `entry.independent`, which is only ever true for the CURRENT main
+   زودیاک (itself immune to the gun outright, so that branch could never
+   really fire) — meaning a زودیاک پسر killed by the gun before succession
+   wrongly announced as a plain civilian. Fixed in `resolveDayGunAction` by
+   checking role identity instead; this test hands the gun to a bystander,
+   has them shoot زودیاک پسر specifically, and asserts the announcement
+   says زودیاک everywhere it's shown (host banner + a bystander's own
+   device), not "شهروند".
+
 Not yet covered (candidates for a follow-up pass): Godfather/Saul/Matador
 (the remaining Mafia-side special roles), the morning inquiry vote
-(deliberately turned off in scenarios 07/08 — see their own comments), God
-Mode / No God Mode auto-pacing, mid-game reconnects (as opposed to
-lobby-only), a doctor self-save / a professional backfire / a زودیاک-پسر
-succession, and the structural `verify.js`-style static checks (brace/paren
-balance, fa/en STRINGS parity) an earlier pass of this harness also had.
+(deliberately turned off in scenarios 07/08 — see their own comments), a
+doctor self-save / a professional backfire / a زودیاک-پسر succession, and
+the structural `verify.js`-style static checks (brace/paren balance, fa/en
+STRINGS parity) an earlier pass of this harness also had.
+
+**God Mode / No God Mode entirely** is the biggest structural gap: there's
+no driving infrastructure yet for the host-self card (`#host-self-section`,
+`App.hostSelfSubmitVote`/`hostSelfSubmitNightAction`, etc.) the way
+`device.js` drives a real player's screens. A second reported bug — God
+Mode's host-self had no way to open vote history at all (fixed by adding a
+`#host-self-vote-history-btn` alongside the existing My Role/My Activity
+links, using the same `App.viewVoteHistory()` real players use) — was
+verified by hand rather than by an automated test for exactly this reason.
+Building that driving layer is the natural next investment if God Mode
+keeps coming up.

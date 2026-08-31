@@ -911,6 +911,7 @@
     <div class="host-self-section-links">
       <button class="link-btn" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
       <button class="link-btn" id="host-self-activity-btn" style="display:none;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+      <button class="link-btn" id="host-self-vote-history-btn" style="display:none;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
     </div>
   </div>
   <div class="host-self-action-body" id="host-self-action-body">
@@ -1204,7 +1205,7 @@
       btnForceSkipGun: 'رد شدن اجباری',
       gunStillPendingNote: '{name} هنوز درباره شلیک امروز تصمیم نگرفته — رأی‌گیری منتظرش نمی‌ماند.',
       gunHitDiedMafia: '{name} با شلیک اسلحه از بازی خارج شد — او مافیا بود.',
-      gunHitDiedIndependent: '{name} با شلیک اسلحه از بازی خارج شد — او مستقل بود.',
+      gunHitDiedZodiac: '{name} با شلیک اسلحه از بازی خارج شد — او زودیاک بود.',
       gunHitDiedCivilian: '{name} با شلیک اسلحه از بازی خارج شد — او یک شهروند بود.',
       gunHitNoEffect: '{name} هدف شلیک قرار گرفت، اما هیچ اتفاقی نیفتاد.',
       gunNotFired: 'امروز اسلحه‌ای شلیک نشد.',
@@ -1417,7 +1418,7 @@
       btnForceSkipGun: 'Force Skip',
       gunStillPendingNote: "{name} still hasn't decided on today's shot — voting isn't waiting on them.",
       gunHitDiedMafia: '{name} left the game, shot by the gun — they were Mafia.',
-      gunHitDiedIndependent: '{name} left the game, shot by the gun — they were Independent.',
+      gunHitDiedZodiac: '{name} left the game, shot by the gun — they were Zodiac.',
       gunHitDiedCivilian: '{name} left the game, shot by the gun — they were a civilian.',
       gunHitNoEffect: "{name} was shot at, but nothing happened.",
       gunNotFired: 'No shot was fired today.',
@@ -3000,6 +3001,17 @@
     section.classList.toggle('open', alive && !!state.myRole);
     const activityBtn = $('host-self-activity-btn');
     if(activityBtn) activityBtn.style.display = state.hasActivityLog ? 'inline-block' : 'none';
+    // Bug fix: God Mode's host-self previously had no way at all to see the
+    // vote history real players get via .vote-history-link (see
+    // updateVoteHistoryLinkVisibility) — receiveAsHostSelf's 'vote-history'
+    // branch already stored it in state.voteHistory, there was just no
+    // button anywhere to open it. Same show/hide rule as that real-player
+    // link (any completed round at all); like every other host-self link
+    // here, it still only ever shows up while their own seat is alive —
+    // section.classList's own 'open' gate above already hides this whole
+    // section once it isn't, same as it always has for My Role/My Activity.
+    const voteHistoryBtn = $('host-self-vote-history-btn');
+    if(voteHistoryBtn) voteHistoryBtn.style.display = (state.voteHistory && state.voteHistory.length) ? 'inline-block' : 'none';
 
     if(!alive){ actionBody.style.display = 'none'; return; }
 
@@ -3312,17 +3324,22 @@
     if(shooter) shooter.pendingDayGunMsg = null;
     state.winner = checkWinner();
 
-    // Same 3-way team reveal a real death from any cause could have — Mafia
-    // / Independent (زودیاک) / civilian. In practice outcome can only ever
-    // reach 'died' when !target.independent (see the guard just above), so
-    // this specific branch can't currently fire through the gun — every
-    // independent-flagged role is gun-immune, پسر included once it has
-    // succeeded. Kept anyway (not just role==='mafia' vs "everything else")
-    // so this stays correct on its own terms rather than silently
-    // mislabeling an independent death as a plain civilian one if that
-    // immunity rule is ever the one that changes.
+    // 3-way team reveal for a genuine gun kill — Mafia / زودیاک / civilian.
+    // Checked by ROLE NAME, not the `independent` flag: that flag only ever
+    // marks the CURRENT main زودیاک, who's outright immune to the gun (see
+    // the guard just above — outcome can only reach 'died' when
+    // !target.independent, so an actual independent-flagged زودیاک never
+    // reaches this line at all). A زودیاک پسر who hasn't inherited yet is
+    // independent:false and very much killable by the gun (unlike the real
+    // زودیاک) — and must still reveal as زودیاک here, not "civilian". Being
+    // indistinguishable from a plain villager is only a promise made to
+    // کاراگاه's investigation (see handleNightAction's isZodiacSonDecoy),
+    // never to a public team reveal like this one — a bug fixed here: this
+    // branch used to check target.independent and so mislabeled a
+    // pre-succession پسر's gun death as a plain civilian.
+    const isZodiacTeam = target && (target.roleName === ROLE_NAME_ZODIAC || target.roleName === ROLE_NAME_ZODIAC_SON);
     const teamKey = !target ? null
-      : target.independent ? 'gunHitDiedIndependent'
+      : isZodiacTeam ? 'gunHitDiedZodiac'
       : target.role === 'mafia' ? 'gunHitDiedMafia'
       : 'gunHitDiedCivilian';
     const text = outcome === 'died' ? t(teamKey, { name: target.name })
