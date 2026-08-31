@@ -78,11 +78,20 @@ classes), not on anything internal to `index.html`.
    brings the village down to Mafia's own numbers.
 6. `06-disconnect-reconnect-lobby` — a dropped connection mid-lobby that
    self-heals with no user action, then continues into a normal game.
+7. `07-twelve-player-mafia-and-zodiac` — a larger (12-player), longer
+   (3-day) game with 2 Mafia and a زودیاک (independent role): every day
+   vote has at least half of the currently-alive players actually casting a
+   ballot, every night past the first has real decisions from both
+   night-acting roles (Mafia's kill, زودیاک's own independent shot), and it
+   ends in a **زودیاک win** — a third, distinct outcome from the village/
+   Mafia wins `04`/`05` cover, which only happens when Mafia is wiped out
+   while زودیاک is still alive (see `checkWinner` in `index.html`).
 
 Not yet covered (candidates for a follow-up pass): special roles beyond
-plain Mafia/villager (Doctor, Detective, Godfather, Zodiac, Ocean, Gunner,
-Constantine, Saul, Matador...), the morning inquiry vote, the day-gun
-decision, God Mode / No God Mode auto-pacing, mid-game reconnects (as
-opposed to lobby-only), and the structural `verify.js`-style static checks
-(brace/paren balance, fa/en STRINGS parity) an earlier pass of this harness
-also had.
+Mafia/villager/زودیاک (Doctor, Detective, Godfather, Ocean, Gunner,
+Constantine, Saul, Matador...), the morning inquiry vote (deliberately
+turned off in scenario 07 — see its own comment), the day-gun decision, God
+Mode / No God Mode auto-pacing, mid-game reconnects (as opposed to
+lobby-only), and the structural `verify.js`-style static checks (brace/
+paren balance, fa/en STRINGS parity) an earlier pass of this harness also
+had.

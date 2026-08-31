@@ -83,6 +83,18 @@ function pickNightTarget(device, name) {
   if (typeof input.onchange === 'function') input.onchange();
 }
 
+// Opts an optional role (e.g. "زودیاک", "دکتر") into this game's role pool
+// by checking its box in the host setup screen's #role-checklist — the same
+// checkbox a real host taps before creating the lobby. Must be called
+// before App.createLobby() (role assignment reads state.selectedRoleIds at
+// App.assignRoles() time, but the pool is meant to be locked in during
+// setup either way).
+function selectRoleInPlay(device, roleName) {
+  const input = pickCandidateRow(device, 'role-checklist', roleName);
+  input.checked = true;
+  if (typeof input.onchange === 'function') input.onchange({ target: input });
+}
+
 function roleInfo(device) {
   const front = $(device, 'role-front');
   return {
@@ -190,7 +202,7 @@ async function teardown(server, devices) {
 module.exports = {
   createDevice,
   $, text, setValue, activeScreenId,
-  checkVoteCandidate, pickNightTarget,
+  checkVoteCandidate, pickNightTarget, selectRoleInPlay,
   roleInfo, roomCode, connectedNamedCount,
   readVoteTally, readGameOverRoster,
   sleep, waitFor,
