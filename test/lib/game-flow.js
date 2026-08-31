@@ -6,7 +6,7 @@
 // see device.js for the low-level mechanics.
 const {
   createDevice, activeScreenId, setValue, roomCode, connectedNamedCount, waitFor, roleInfo,
-  checkVoteCandidate, readVoteTally
+  checkVoteCandidate, readVoteTally, pickNightTarget, pickDayGunTarget, isGunDecisionVisible
 } = require('./device');
 
 // Host device is assumed already created by the scenario (so it can tweak
@@ -127,4 +127,40 @@ function logTally(host, log, roundLabel) {
   return rows;
 }
 
-module.exports = { joinPlayers, assignRolesAndBegin, playDay1AndSkipNight1, castVotes, logTally };
+// Every night-acting role (Mafia, زودیاک, and each of the civilian-phase
+// roles — دکتر/کاراگاه/حرفه‌ای/کنستانتین/تفنگدار/اوشن) renders through the
+// exact same generic 'screen-player-night-action' + #night-action-candidate-list
+// screen regardless of which role it actually is (see renderNightActionScreen
+// in index.html) — so one helper drives all of them. Pass a target name to
+// act, or omit it to skip (a real, always-available choice for every one of
+// these roles).
+async function nightAction(device, log, target) {
+  await waitFor(() => activeScreenId(device) === 'screen-player-night-action',
+    { message: device.label + ' never got their night-action prompt' });
+  if (target) {
+    pickNightTarget(device, target);
+    device.App.submitNightAction();
+  } else {
+    device.App.skipNightAction();
+  }
+}
+
+// تفنگدار's handoff recipient deciding whether to fire, the day after —
+// runs alongside that day's vote (see App.startVoting in index.html), so
+// this waits on the gun-decision section specifically rather than any one
+// screen id.
+async function dayGunDecision(device, log, target) {
+  await waitFor(() => isGunDecisionVisible(device),
+    { message: device.label + ' never got the day-gun decision prompt' });
+  if (target) {
+    pickDayGunTarget(device, target);
+    device.App.submitDayGunAction();
+  } else {
+    device.App.skipDayGunAction();
+  }
+}
+
+module.exports = {
+  joinPlayers, assignRolesAndBegin, playDay1AndSkipNight1, castVotes, logTally,
+  nightAction, dayGunDecision
+};

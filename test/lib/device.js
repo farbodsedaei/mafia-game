@@ -83,6 +83,26 @@ function pickNightTarget(device, name) {
   if (typeof input.onchange === 'function') input.onchange();
 }
 
+// The day-gun decision (تفنگدار's handoff recipient deciding whether to
+// fire) renders its candidates into #gun-decision-section-body — nested
+// under a wrapper div, but querySelectorAll in pickCandidateRow searches the
+// whole subtree, so this is otherwise identical to pickNightTarget.
+function pickDayGunTarget(device, name) {
+  const input = pickCandidateRow(device, 'gun-decision-section-body', name);
+  input.checked = true;
+  if (typeof input.onchange === 'function') input.onchange();
+}
+// True once a pending day-gun decision has actually been rendered onto this
+// device's screen (attachGunDecisionSection sets #gun-decision-section's
+// display directly — see index.html) — the section can be pending before
+// the day's voting phase even arrives, or attached to whatever screen was
+// already showing, so this is the reliable thing to wait on rather than any
+// particular screen id.
+function isGunDecisionVisible(device) {
+  const el = $(device, 'gun-decision-section');
+  return !!(el && el.style.display === 'block');
+}
+
 // Opts an optional role (e.g. "زودیاک", "دکتر") into this game's role pool
 // by checking its box in the host setup screen's #role-checklist — the same
 // checkbox a real host taps before creating the lobby. Must be called
@@ -203,6 +223,7 @@ module.exports = {
   createDevice,
   $, text, setValue, activeScreenId,
   checkVoteCandidate, pickNightTarget, selectRoleInPlay,
+  pickDayGunTarget, isGunDecisionVisible,
   roleInfo, roomCode, connectedNamedCount,
   readVoteTally, readGameOverRoster,
   sleep, waitFor,

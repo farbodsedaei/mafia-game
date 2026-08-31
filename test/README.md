@@ -86,12 +86,21 @@ classes), not on anything internal to `index.html`.
    ends in a **زودیاک win** — a third, distinct outcome from the village/
    Mafia wins `04`/`05` cover, which only happens when Mafia is wiped out
    while زودیاک is still alive (see `checkWinner` in `index.html`).
+8. `08-fourteen-player-full-role-roster` — the "kitchen sink": 14 players,
+   3 Mafia, زودیاک, and every civilian special role at once (دکتر, کاراگاه,
+   حرفه‌ای, کنستانتین, اوشن, تفنگدار), across a 3-day game where each role
+   actually DOES its thing at least once rather than just being dealt:
+   دکتر blocks a kill, کنستانتین revives a same-day vote-out, کاراگاه
+   investigates twice (both correctly positive), تفنگدار hands off the gun
+   for a real day-gun kill the next day, اوشن recruits and triggers the
+   nightly talk step, and حرفه‌ای/زودیاک together wipe out Mafia for a
+   second زودیاک-win ending. Every day vote again has at least half of the
+   currently-alive players actually voting.
 
-Not yet covered (candidates for a follow-up pass): special roles beyond
-Mafia/villager/زودیاک (Doctor, Detective, Godfather, Ocean, Gunner,
-Constantine, Saul, Matador...), the morning inquiry vote (deliberately
-turned off in scenario 07 — see its own comment), the day-gun decision, God
+Not yet covered (candidates for a follow-up pass): Godfather/Saul/Matador
+(the remaining Mafia-side special roles), the morning inquiry vote
+(deliberately turned off in scenarios 07/08 — see their own comments), God
 Mode / No God Mode auto-pacing, mid-game reconnects (as opposed to
-lobby-only), and the structural `verify.js`-style static checks (brace/
-paren balance, fa/en STRINGS parity) an earlier pass of this harness also
-had.
+lobby-only), a doctor self-save / a professional backfire / a زودیاک-پسر
+succession, and the structural `verify.js`-style static checks (brace/paren
+balance, fa/en STRINGS parity) an earlier pass of this harness also had.
