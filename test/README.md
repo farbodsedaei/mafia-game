@@ -106,10 +106,16 @@ classes), not on anything internal to `index.html`.
    checking role identity instead; this test hands the gun to a bystander,
    has them shoot زودیاک پسر specifically, and asserts the announcement
    says زودیاک everywhere it's shown (host banner + a bystander's own
-   device), not "شهروند".
+   device), not "شهروند". Mafia is dealt as ماتادور + پدر خوانده here
+   (not plain مافیا ساده), so this is also the only scenario so far
+   exercising پدر خوانده's deterministic kill-decision (no random pick
+   needed when a Godfather is alive — see `startMafiaPhaseStep`) and
+   ماتادور's own independent block, both resolving alongside تفنگدار's
+   handoff the same night.
 
-Not yet covered (candidates for a follow-up pass): Godfather/Saul/Matador
-(the remaining Mafia-side special roles), the morning inquiry vote
+Not yet covered (candidates for a follow-up pass): ساول گودمن (the one
+remaining Mafia-side special role — recruiting a villager instead of
+shooting), the morning inquiry vote
 (deliberately turned off in scenarios 07/08 — see their own comments), a
 doctor self-save / a professional backfire / a زودیاک-پسر succession, and
 the structural `verify.js`-style static checks (brace/paren balance, fa/en
