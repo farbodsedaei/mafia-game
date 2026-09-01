@@ -114,6 +114,22 @@ function selectRoleInPlay(device, roleName) {
   input.checked = true;
   if (typeof input.onchange === 'function') input.onchange({ target: input });
 }
+// Opposite of selectRoleInPlay — unchecks an already-selected optional
+// role's box, same real onchange path (e.g. undoing a earlier
+// selectRoleInPlay, or exercising a dependency the checklist enforces
+// between two roles, like زودیاک/زودیاک پسر).
+function deselectRoleInPlay(device, roleName) {
+  const input = pickCandidateRow(device, 'role-checklist', roleName);
+  input.checked = false;
+  if (typeof input.onchange === 'function') input.onchange({ target: input });
+}
+// Reads whether a role is CURRENTLY checked in #role-checklist without
+// touching it — renderRoleChecklist() fully rebuilds the list's DOM on
+// certain changes (see index.html's enforceZodiacSonDependency), so this
+// re-queries live rather than caching an old input reference.
+function isRoleInPlay(device, roleName) {
+  return !!pickCandidateRow(device, 'role-checklist', roleName).checked;
+}
 
 function roleInfo(device) {
   const front = $(device, 'role-front');
@@ -222,7 +238,7 @@ async function teardown(server, devices) {
 module.exports = {
   createDevice,
   $, text, setValue, activeScreenId,
-  checkVoteCandidate, pickNightTarget, selectRoleInPlay,
+  checkVoteCandidate, pickNightTarget, selectRoleInPlay, deselectRoleInPlay, isRoleInPlay,
   pickDayGunTarget, isGunDecisionVisible,
   roleInfo, roomCode, connectedNamedCount,
   readVoteTally, readGameOverRoster,

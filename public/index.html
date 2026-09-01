@@ -1179,6 +1179,8 @@
       roleSummaryDefault: '{count} از {slotCount} {label}، نقش پیش‌فرض ({defaultName}) را می‌گیرند.',
       roleSummaryAllCustom: 'تمام {slotCount} {label} نقش اختصاصی دارند — نقش پیش‌فرض {label} استفاده نخواهد شد.',
       roleOverflowWarning: 'شما {customCount} نقش {label} انتخاب کرده‌اید ولی فقط {slotCount} جایگاه {label} وجود دارد — {overflow} مورد را بردارید.',
+      zodiacSonRequiresZodiacAdded: 'زودیاک پسر بدون زودیاک معنی ندارد — زودیاک هم به‌طور خودکار اضافه شد.',
+      zodiacSonRequiresZodiacRemoved: 'زودیاک پسر بدون زودیاک نمی‌تواند در بازی باشد — زودیاک پسر هم حذف شد.',
       recruitedMafiaName: 'مافیای جدید', recruitedMafiaDesc: 'شما به‌تازگی توسط مافیا به گروه اضافه شدید.',
       nightLogPrefix: 'شب {day}: ',
       actMatadorBlocked: 'ماتادور {name} را مسدود کرد.', actMatadorNoBlock: 'ماتادور کسی را مسدود نکرد.',
@@ -1392,6 +1394,8 @@
       roleSummaryDefault: '{count} of {slotCount} {label} will get the default role ({defaultName}).',
       roleSummaryAllCustom: "All {slotCount} {label} have dedicated roles — the default {label} role won't be used.",
       roleOverflowWarning: "You've selected {customCount} {label} role(s) but there are only {slotCount} {label} slot(s) — remove {overflow}.",
+      zodiacSonRequiresZodiacAdded: "Zodiac Son doesn't make sense without Zodiac — Zodiac was added automatically.",
+      zodiacSonRequiresZodiacRemoved: "Zodiac Son can't be in the game without Zodiac — Zodiac Son was removed too.",
       recruitedMafiaName: 'New Mafia', recruitedMafiaDesc: "You were just recruited into Mafia.",
       nightLogPrefix: 'Night {day}: ',
       actMatadorBlocked: 'Matador blocked {name}.', actMatadorNoBlock: 'Matador did not block anyone.',
@@ -1966,11 +1970,37 @@
       row.querySelector('input').onchange = (e) => {
         if(e.target.checked) state.selectedRoleIds.add(r.id);
         else state.selectedRoleIds.delete(r.id);
+        if(enforceZodiacSonDependency(r.id, e.target.checked)) return; // already re-rendered the whole checklist
         renderRoleSummary();
       };
       box.appendChild(row);
     });
     renderRoleSummary();
+  }
+
+  // زودیاک پسر only makes sense as the heir of a زودیاک actually in this
+  // game (see transferZodiacLegacy) — a game can never have the son
+  // without the parent. Keep the two linked in both directions from the
+  // checklist itself, so that invalid combination simply can't be reached
+  // in the first place, rather than allowing it and warning about it
+  // after the fact (like the role-overflow warning does). Returns true if
+  // it changed anything — and already re-rendered the WHOLE checklist to
+  // reflect that (the other role's own checkbox needs to visually update
+  // too) — so the caller's usual renderRoleSummary()-only update can skip.
+  function enforceZodiacSonDependency(toggledId, isChecked){
+    if(toggledId === 'role-zodiac-son' && isChecked && !state.selectedRoleIds.has('role-zodiac')){
+      state.selectedRoleIds.add('role-zodiac');
+      toast(t('zodiacSonRequiresZodiacAdded'));
+      renderRoleChecklist();
+      return true;
+    }
+    if(toggledId === 'role-zodiac' && !isChecked && state.selectedRoleIds.has('role-zodiac-son')){
+      state.selectedRoleIds.delete('role-zodiac-son');
+      toast(t('zodiacSonRequiresZodiacRemoved'));
+      renderRoleChecklist();
+      return true;
+    }
+    return false;
   }
 
   function roleSummaryForTeam(team){

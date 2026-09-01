@@ -113,6 +113,18 @@ classes), not on anything internal to `index.html`.
    ماتادور's own independent block, both resolving alongside تفنگدار's
    handoff the same night.
 
+10. `10-zodiac-son-requires-zodiac` — regression test for a reported bug:
+    the role checklist used to let a host select زودیاک پسر on its own,
+    leaving it in play with no زودیاک for it to ever succeed. Fixed with
+    `enforceZodiacSonDependency` in `renderRoleChecklist()`: the two are now
+    linked in both directions right at the checkbox — selecting پسر without
+    زودیاک also selects زودیاک, and deselecting زودیاک while پسر is still
+    selected also deselects پسر — each with its own explanatory toast, so
+    the invalid combination can never actually be reached. This scenario
+    drives the checklist directly (no lobby/game needed) and asserts both
+    directions, plus that selecting them in the already-valid order (زودیاک
+    first) needs no correction and that زودیاک alone (no پسر) is untouched.
+
 Not yet covered (candidates for a follow-up pass): ساول گودمن (the one
 remaining Mafia-side special role — recruiting a villager instead of
 shooting), the morning inquiry vote
