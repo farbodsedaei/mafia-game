@@ -66,28 +66,48 @@ classes), not on anything internal to `index.html`.
 
 ## Current coverage
 
-None right now — `scenarios/` was cleared out deliberately (2026-09-01) to
-start a fresh set of test cases. The harness itself (`lib/`) is untouched
-and still fully working; see "How it works" above and "Adding a scenario"
-below to start writing new ones.
-
-For reference, the harness has previously been proven against: basic
-lobby/join/role-assignment, day voting (majority elimination and no-majority
-outcomes), night actions (Mafia kill, زودیاک's independent kill), both
-village and Mafia and زودیاک win conditions, a lobby disconnect/reconnect,
-every civilian special role (دکتر, کاراگاه, حرفه‌ای, کنستانتین, اوشن,
-تفنگدار) each actually acting at least once in a single game, پدر خوانده's
-deterministic kill-decision and ماتادور's block, the day-gun mechanic
-(handoff + fire + public team reveal), and a role-checklist dependency
-(زودیاک/زودیاک پسر). None of that depended on anything scenario-specific in
-`lib/` — it's all reusable via the same `device.js`/`game-flow.js` helpers
-this README documents above.
+1. `01-fourteen-player-full-roster` — the full requested roster in one
+   game: 14 players, Mafia dealt as پدر خوانده + ماتادور (not plain
+   مافیا ساده), زودیاک, دکتر, حرفه‌ای, تفنگدار, کاراگاه, کنستانتین, اوشن,
+   and 5 plain villagers. Every day vote has a real majority (strictly
+   more than half) of the currently-alive players actually voting, and
+   every role with no count limit (پدر خوانده's kill, ماتادور's block,
+   زودیاک's shot, دکتر's other-directed saves, حرفه‌ای's shot, کاراگاه's
+   investigation) acts on EVERY night it's prompted rather than skipping,
+   while the roles that DO have a real limit (کنستانتین's once-per-game
+   revive, تفنگدار's 2 handovers, اوشن's cap at `numOceanSlots`) are driven
+   all the way to that limit. Along the way it exercises several mechanics
+   no earlier pass of this harness ever had:
+   - پدر خوانده's **detective immunity** — کاراگاه investigating the actual
+     Godfather still reads negative (`isRealMafiaHit` excludes
+     `ROLE_NAME_GODFATHER`).
+   - پدر خوانده's own **shield** (`HARDCODED_ROLES`: `role-godfather` has
+     `shield:true`) — the first hit against them just strips it (they
+     survive); only a second hit afterward actually kills them.
+   - حرفه‌ای's **backfire** — shooting a non-Mafia target kills the shooter
+     instead of the target.
+   - دکتر's once-per-game **self-save**, distinct from an ordinary
+     other-directed save.
+   - تفنگدار's gun **returning** to them when the current holder dies
+     overnight before ever getting to decide (`startGunReturnedStep`).
+   It ends in a زودیاک win once the returned gun finishes off the last
+   Mafia member — a shield-stripped پدر خوانده, confirming the shield
+   mechanic end to end.
 
 Still not covered by anything: ساول گودمن (recruiting a villager instead of
-shooting), the morning inquiry vote, a doctor self-save / a professional
-backfire / a زودیاک-پسر succession, and the structural `verify.js`-style
-static checks (brace/paren balance, fa/en STRINGS parity) an earlier pass
-of this harness also had.
+shooting), the morning inquiry vote, a زودیاک-پسر succession, and the
+structural `verify.js`-style static checks (brace/paren balance, fa/en
+STRINGS parity) an earlier pass of this harness also had.
+
+**A real gotcha hit building scenario 01**, worth not re-discovering: when a
+kill (day-gun or otherwise) happens to also be the LAST Mafia member, the
+target's own device receives `'eliminated'` immediately followed by
+`'game-over'` (see `announceDayGunOutcome`'s own `App.showGameOver()` call)
+— both queued back-to-back, so their screen lands on
+`screen-player-game-over` and never visibly settles on
+`screen-player-eliminated` at all. Assert on `screen-player-game-over`
+directly for a target whose death ends the game, not the intermediate
+elimination screen — a `waitFor` on the latter will simply time out.
 
 **God Mode / No God Mode entirely** is the biggest structural gap: there's
 no driving infrastructure yet for the host-self card (`#host-self-section`,
