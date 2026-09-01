@@ -82,6 +82,15 @@ function pickNightTarget(device, name) {
   input.checked = true;
   if (typeof input.onchange === 'function') input.onchange();
 }
+// ساول گودمن: the kill-decider's own night-action prompt grows a "recruit
+// instead of shoot" checkbox once Saul is alive and Mafia has already lost
+// someone (see startMafiaPhaseStep's canRecruit). Check it BEFORE submitting
+// (sendNightAction reads it live at submit time).
+function setRecruitCheckbox(device, checked) {
+  const el = $(device, 'night-action-recruit-checkbox');
+  if (!el) throw new Error('setRecruitCheckbox: #night-action-recruit-checkbox not present');
+  el.checked = !!checked;
+}
 
 // The day-gun decision (تفنگدار's handoff recipient deciding whether to
 // fire) renders its candidates into #gun-decision-section-body — nested
@@ -138,6 +147,54 @@ function roleInfo(device) {
     title: text(device, 'role-title'),
     desc: text(device, 'role-desc')
   };
+}
+
+// ---------------- God Mode: driving the host-self card ----------------
+// God Mode's host-self (the host playing as one of the seats — see
+// HOST_SELF_ID in index.html) has no real data channel at all:
+// sendToPlayer's isHostSelf branch calls receiveAsHostSelf(obj) directly,
+// SYNCHRONOUSLY, in-process — so unlike every real player device above,
+// there's no async message delivery to wait out. The host-self card
+// (#host-self-section, built by updateHostSelfActionCard) renders whatever
+// the current pending action is into #host-self-card-body (vote/night-
+// action) or #host-self-gun-body (the day-gun decision, independent of the
+// main action) with the exact same row markup pickCandidateRow expects, so
+// selecting a candidate there works identically to a real player's screen.
+function isHostSelfActionVisible(host) {
+  const el = $(host, 'host-self-main-action');
+  return !!(el && el.style.display === 'block');
+}
+function isHostSelfGunActionVisible(host) {
+  const el = $(host, 'host-self-gun-action');
+  return !!(el && el.style.display === 'block');
+}
+// Generic across the host-self card's vote checkboxes AND night-action
+// radios: both onchange handlers either read e.target.checked or ignore
+// their argument entirely, so always passing {target: input} is safe for
+// either kind (same reasoning as pickNightTarget's real-player counterpart).
+function pickHostSelfCandidate(host, listId, name) {
+  const input = pickCandidateRow(host, listId, name);
+  input.checked = true;
+  if (typeof input.onchange === 'function') input.onchange({ target: input });
+}
+function setHostSelfRecruitCheckbox(host, checked) {
+  const el = $(host, 'host-self-recruit-checkbox');
+  if (!el) throw new Error('setHostSelfRecruitCheckbox: #host-self-recruit-checkbox not present');
+  el.checked = !!checked;
+}
+// Peeks at the God-Mode host's OWN role via the same App.viewMyRole()/
+// closeMyRole() "peek and return" a real player's "My Role" link uses —
+// index.html's attachHostSelfSection already no-ops for non-host-admin
+// screens (see its own comment), so this safely returns the host to
+// whichever host-admin screen it found them on. Only valid once
+// state.myRole is actually set (i.e. after role assignment has reached the
+// host-self entry, which — being synchronous — is true immediately after
+// App.assignRoles() returns).
+function hostSelfRoleInfo(host) {
+  host.App.viewMyRole();
+  const info = roleInfo(host);
+  host.App.closeMyRole();
+  return info;
 }
 
 function roomCode(device) {
@@ -239,9 +296,11 @@ module.exports = {
   createDevice,
   $, text, setValue, activeScreenId,
   checkVoteCandidate, pickNightTarget, selectRoleInPlay, deselectRoleInPlay, isRoleInPlay,
-  pickDayGunTarget, isGunDecisionVisible,
+  pickDayGunTarget, isGunDecisionVisible, setRecruitCheckbox,
   roleInfo, roomCode, connectedNamedCount,
   readVoteTally, readGameOverRoster,
+  isHostSelfActionVisible, isHostSelfGunActionVisible, pickHostSelfCandidate,
+  setHostSelfRecruitCheckbox, hostSelfRoleInfo,
   sleep, waitFor,
   dropConnection,
   teardown

@@ -123,10 +123,58 @@ classes), not on anything internal to `index.html`.
      alive members, even a night with no fresh recruit — easy to forget
      once اوشن itself is capped out and no longer acting.
 
-Still not covered by anything: ساول گودمن (recruiting a villager instead of
-shooting), the morning inquiry vote, a زودیاک-پسر succession, and the
-structural `verify.js`-style static checks (brace/paren balance, fa/en
-STRINGS parity) an earlier pass of this harness also had.
+3. `03-eighteen-player-god-mode` — the largest scenario yet: 18 players (17
+   real devices + the host's own **God Mode** seat, played by the host
+   in-process with no real device of its own), every Mafia special role
+   (پدر خوانده + ماتادور + ساول گودمن), BOTH زودیاک roles (زودیاک + زودیاک
+   پسر, so succession is actually reachable), every civilian special role
+   (دکتر, کاراگاه, حرفه‌ای, کنستانتین, اوشن, تفنگدار), inquiries configured
+   up to 5, and اوشن capped at 4 recruits (all 4 actually reached). This is
+   also the first scenario to build and exercise full God Mode driving
+   infrastructure (`device.js`'s `hostSelfRoleInfo`/`isHostSelfActionVisible`/
+   `isHostSelfGunActionVisible`/`pickHostSelfCandidate`/
+   `setHostSelfRecruitCheckbox`, `game-flow.js`'s `hostSelfVote`/
+   `hostSelfNightAction`/`hostSelfInquiryVote`/`hostSelfDayGunDecision`, and
+   the auto-pacing-aware `autoAssignRolesAndBegin`/
+   `playDay1AndSkipNight1AutoPaced`/`fullVoteRound1`/`fullVoteFinal`). New
+   mechanics exercised for the first time here:
+   - ساول گودمن's **recruit-instead-of-shoot** checkbox — only appears on
+     the Mafia kill-decider's own night-action prompt once ساول گودمن is
+     alive and Mafia has already lost someone, and the target must
+     presently hold `ROLE_NAME_PLAIN_VILLAGER` exactly or the recruit
+     silently no-ops (`resolveNight`'s `mafiaRecruitId` branch).
+   - The morning **inquiry vote**, including a genuinely DENIED result (a
+     deliberately mixed vote that fails `yes >= floor(alive/2)`) as well as
+     two granted ones — the denied path was never exercised before this
+     scenario.
+   - A real **زودیاک پسر succession**: voting out the original زودیاک while
+     پسر is still alive transfers independence and the nightly shot to
+     پسر (`transferZodiacLegacy`), and every following night's zodiac
+     action correctly routes to پسر's new identity.
+   - **God Mode itself**: the host's own seat plays a full role (this run,
+     a plain villager who ends up voted out mid-game) alongside everyone
+     else, including casting real votes, taking real night actions, and
+     being correctly excluded from later rounds once eliminated.
+   It ends in a زودیاک win: زودیاک پسر (having succeeded) delivers the
+   final shot on a villager freshly recruited into Mafia by ساول گودمن,
+   confirming both the succession AND the recruit mechanic all the way
+   through to a correct game-over screen on every surviving device.
+
+   A note on "5 daytime inquiries": `numInquiries` is configured up to 5,
+   but only a GRANTED inquiry decrements `inquiriesRemaining` — a denied
+   one doesn't consume the pool, yet still only re-offers once per day from
+   the first elimination onward (`App.closeInquiryVote` in index.html).
+   Exhausting all 5 offers literally would need 5 separate inquiry-eligible
+   days, which doesn't fit alongside this scenario's other requirements
+   (5 full day-votes, 4 اوشن recruits, etc.) without an impractically long
+   game. This scenario offers 3 real inquiries — one denied, two granted —
+   genuinely exercising both outcomes, with the config left at 5 to confirm
+   the game supports that capacity even though this playthrough doesn't
+   exhaust it.
+
+Still not covered by anything: the structural `verify.js`-style static
+checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this
+harness also had.
 
 **A real gotcha hit building scenario 01**, worth not re-discovering: when a
 kill (day-gun or otherwise) happens to also be the LAST Mafia member, the
@@ -138,8 +186,64 @@ target's own device receives `'eliminated'` immediately followed by
 directly for a target whose death ends the game, not the intermediate
 elimination screen — a `waitFor` on the latter will simply time out.
 
-**God Mode / No God Mode entirely** is the biggest structural gap: there's
-no driving infrastructure yet for the host-self card (`#host-self-section`,
-`App.hostSelfSubmitVote`/`hostSelfSubmitNightAction`, etc.) the way
-`device.js` drives a real player's screens. Building that driving layer is
-the natural next investment if God Mode needs test coverage.
+**God Mode / No God Mode** (`state.godMode`/`state.noGodMode`) both make
+`autoPacingOn()` true, which changes the game's own pacing in exactly three
+places (confirmed by grepping every `autoPacingOn()` call site in
+`index.html`):
+- `maybeAutoStartGame()` — deals roles and begins the game itself the
+  instant every declared seat has a name, after two chained ~8s reveal
+  pauses (so wait generously — `timeout: 20000` — rather than calling
+  `App.assignRoles`/`beginGame` and waiting on those).
+- `goToDayScreen()` — for any day > 1, calls `App.startVoting()` itself the
+  moment the day screen would otherwise show. There is no stable
+  `screen-host-day` to observe first; wait for the vote screen instead.
+- `broadcastDefensePhase()` — calls `App.startFinalVote()` itself the
+  instant round 1's tally closes. There is no stable `screen-host-defense`
+  moment to observe or act on either, so round 1's own tally can't be read
+  reliably — chain `fullVoteRound1` straight into `fullVoteFinal` and only
+  read the tally after the FINAL round settles on `screen-host-result`.
+
+Every other transition (`continueToNight`, `continueAfterEyesClosed`,
+`announceMorning`, `proceedAfterNight`, `proceedAfterResult`,
+`continueAfterInquiry`, `continueAfterOceanTalk`) is only ever armed as a
+real timer under auto-pacing instead of a no-op — calling these manually
+and promptly, exactly like a normal game, still works fine.
+
+Other lessons from building God Mode's first scenario:
+- **`fullVoteRound1`/`fullVoteFinal` need an ALIVE-filtered player list**,
+  not the raw, never-shrinking array of every device ever created — passing
+  an already-eliminated real player hangs forever waiting for a
+  `screen-player-vote` that will never come. Likewise, the God Mode
+  `hostSelfName` argument must become `null`/`undefined` once the host's
+  own seat has been eliminated, since the host's role (and therefore the
+  host's fate) is dealt randomly just like anyone else's — a scenario can't
+  assume the host-self seat survives the whole game.
+- **کنستانتین becomes eligible the instant ANYONE is dead**, not just from
+  whatever night the scenario planned to use their revive — since Day 2's
+  vote-out already creates a valid revive candidate, کنستانتین is prompted
+  starting Night 2 even if the scenario wants their once-per-game revive
+  spent later. A real (logged) skip is the correct way to hold off.
+- **اوشن's talk step fires the instant the team (founder + recruits)
+  reaches 2+ alive members** — true starting the very night of the FIRST
+  recruit, not just on later nights with an already-established team. This
+  is the same recurrence noted in scenario 02, just easy to miss on the
+  earliest possible night too.
+- **حرفه‌ای and کاراگاه have no per-night eligibility limit at all** (their
+  `eligible` callback is `null` in `startCivilianPhaseStep`) — unlike
+  کنستانتین/تفنگدار/اوشن which cap out, they must be driven on literally
+  every night they're alive, all the way to the last one.
+- **تفنگدار the ROLE is a different identity from whoever currently holds
+  the physical gun.** `findAliveByRoleName(ROLE_NAME_GUNNER)` always finds
+  the original تفنگدار, who keeps deciding handoffs (up to
+  `GUNNER_MAX_GUNS = 2` total) regardless of who's currently holding the
+  gun; the day-time fire/skip decision belongs to that night's RECIPIENT
+  instead, and must clear (via a real fire or skip) before the next handoff
+  can happen the following night.
+- **اوشن's fatal mistake**: recruiting an actual Mafia member into the
+  group kills the RECRUITER, not the target (`state.night.extraDeathIds`)
+  — every اوشن recruit target in this scenario is deliberately a confirmed
+  non-Mafia identity.
+- **ماتادور's block only matters against a civilian night ability** — its
+  candidate list already excludes Mafia (`role === 'villager'`), and
+  blocking a plain villager with no night action of their own is a genuine,
+  harmless no-op, not a suppressed real action.
