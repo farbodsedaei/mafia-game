@@ -94,6 +94,35 @@ classes), not on anything internal to `index.html`.
    Mafia member — a shield-stripped پدر خوانده, confirming the shield
    mechanic end to end.
 
+2. `02-fourteen-player-longer-village-win` — the same roster and rules as
+   01, played longer (4 full nights instead of 3) with two deliberate
+   differences: حرفه‌ای never makes a mistake shot all game (three shots,
+   all genuine Mafia targets — پدر خوانده twice, ماتادور once — zero
+   backfires), and زودیاک is voted out on Day 3 while BOTH Mafia members
+   are still alive, so the game ends in a plain **village win** once the
+   last Mafia falls (independentAlive already false by then) — the
+   opposite ending from 01's زودیاک win. New mechanics exercised here that
+   01 never touched:
+   - The **deferred ماتادور prompt**: once پدر خوانده is dead, ماتادور
+     becomes Mafia's fallback kill-decider AND still has their own block —
+     the same device gets two separate night-action prompts in a row (see
+     `startMafiaPhaseStep`'s `deferredMatadorPrompt`). Needs a short
+     `sleep()` between the two `nightAction()` calls so the second,
+     server-sent prompt has landed before the test acts on it — the
+     screen id doesn't change between the two prompts, so `waitFor`
+     watching only the screen id would otherwise race ahead of it.
+   - A genuine **wrong-target gun kill**: firing at an ordinary villager
+     (as opposed to a shielded or independent target) is NOT a no-effect
+     dud — it's a real, unavoidable death, on top of permanently
+     cancelling any remaining handovers.
+   - **دکتر's self-save is a whole-game limit**, not once-per-night — reused
+     it by mistake while writing this scenario (see the debugging note
+     below) before realizing the once-per-game cap also applies to the
+     self-directed save, not just reviving/reviving-adjacent abilities.
+   - اوشن's nightly talk step recurs on ANY night the team still has 2+
+     alive members, even a night with no fresh recruit — easy to forget
+     once اوشن itself is capped out and no longer acting.
+
 Still not covered by anything: ساول گودمن (recruiting a villager instead of
 shooting), the morning inquiry vote, a زودیاک-پسر succession, and the
 structural `verify.js`-style static checks (brace/paren balance, fa/en
