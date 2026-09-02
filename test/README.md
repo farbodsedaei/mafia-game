@@ -172,6 +172,60 @@ classes), not on anything internal to `index.html`.
    the game supports that capacity even though this playthrough doesn't
    exhaust it.
 
+4. `04-revote-after-reconnect` — regression test for a reported bug: "if
+   someone casts their vote and then disconnects or refreshes their
+   browser, they're asked to vote again — and their new vote applies on
+   top of the previous one." `handlePlayerVote` was already safe at the
+   data layer (`state.votesRound1/2` is a Map keyed by voterId, so a
+   genuine re-submission from the same identity always just overwrites) —
+   confirmed here by driving an automatic same-token reconnect (a dropped
+   connection, browser data intact). What genuinely WAS broken: the resync
+   always replayed a totally blank vote screen with no sign an earlier
+   vote was on record — confusing on its own, and risky in this
+   multi-select (accuse-several-people) UI specifically, since checking
+   one more box on top of an unnoticed stale selection would have
+   genuinely, correctly counted both. Fixed with a
+   `'vote-already-submitted'` follow-up message (`resyncPlayer`) that
+   tells the reconnecting client what's already on record, surfaced as a
+   plain-text notice (`#vote-already-voted-hint`) naming their prior
+   pick(s) — deliberately WITHOUT pre-checking any boxes, so resubmitting
+   stays a clean replacement rather than an accidental stack. Asserts the
+   notice's exact wording, that nothing is pre-checked on reconnect, and
+   that the final tally only ever reflects the latest vote.
+
+5. `05-no-seat-reclaim-plus-test-mode` — regression test for a reported
+   security issue: a disconnected player's seat used to be reclaimable by
+   ANY new connection just by picking their name off a list
+   (`handleClaimSeat`), with zero verification — letting anyone quietly
+   peek at someone else's role and disconnect again. That whole mechanism
+   (the `'reclaimable-seats'`/`'claim-seat'`/`'claim-accepted'`/
+   `'claim-failed'` messages, `screen-player-reclaim-seat`,
+   `entry.overCapacityTemp`'s over-capacity admission) has been removed
+   entirely — a device can now ONLY ever rejoin as whichever identity its
+   own persisted session (`savePlayerSession`) proves it is; a fresh
+   connection with no matching session is always a genuinely new, separate
+   player, even if it types someone else's exact display name. **Part 1**
+   confirms this directly: a fresh device sees only the plain name-entry
+   screen (no seat picker exists in the DOM at all), typing an existing
+   player's name gets a freshly-dealt role and a genuinely separate
+   dossier entry, and the real player's own role is untouched throughout.
+   The removal has a real side effect worth covering too: self-serve
+   reclaim used to be how the same machine's browser could plausibly run
+   multiple simulated players; without it, testing needs a real mechanism
+   for that, so the setup screen gained a **Test Mode** checkbox
+   (`App.setTestMode`/`state.testMode`, plumbed through `server.js`'s
+   room object and the `'joined'` reply) that persists a session in
+   per-tab `sessionStorage` instead of the normally-shared `localStorage`,
+   with the choice baked into the stored payload itself so it survives a
+   refresh without needing a fresh round trip to re-learn it. **Part 2**
+   verifies the mechanism directly against each device's own storage
+   (sessionStorage holds it, localStorage is pruned, a real reconnect
+   still works fine within that one tab) rather than attempting to fake
+   real cross-tab storage sharing, which — unlike an actual browser —
+   jsdom never does between independently-created windows in the first
+   place. A **control** case confirms a normal (non-Test-Mode) game is
+   completely unchanged, still using localStorage as before.
+
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this
 harness also had.

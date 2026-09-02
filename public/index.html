@@ -344,6 +344,10 @@
       <input type="text" id="input-host-self-name" maxlength="24" autocomplete="off" data-i18n-placeholder="namePlaceholder">
     </div>
     <div class="field">
+      <label class="shield-toggle"><input type="checkbox" id="test-mode-toggle" onchange="App.setTestMode(this.checked)"> <span data-i18n="testModeToggle"></span></label>
+      <div class="hint" data-i18n="hintTestMode"></div>
+    </div>
+    <div class="field">
       <label data-i18n="labelRolesInPlay"></label>
       <div class="hint" dir="rtl" style="margin-bottom:10px; text-align:right;" data-i18n="hintRolesInPlay"></div>
       <div id="role-checklist" class="stack"></div>
@@ -610,19 +614,6 @@
     </div>
   </div>
 
-  <!-- PLAYER RECLAIM SEAT (fresh connection, no persisted session) — the
-       host reports one or more NAMED seats are currently disconnected. Lets
-       someone who closed their browser / switched devices get straight back
-       into their own seat by name instead of being treated as brand new. -->
-  <div class="screen" id="screen-player-reclaim-seat">
-    <div class="eyebrow" data-i18n="reclaimSeatEyebrow"></div>
-    <h2 style="font-size:26px; margin:10px 0 8px;" data-i18n="reclaimSeatTitle"></h2>
-    <p class="hint" style="margin-bottom:18px;" data-i18n="reclaimSeatHint"></p>
-    <div id="reclaim-seat-list" class="stack"></div>
-    <div class="grow"></div>
-    <button class="btn btn-ghost" onclick="App.declineReclaim()" data-i18n="btnImNew"></button>
-  </div>
-
   <!-- PLAYER NAME -->
   <div class="screen" id="screen-player-name">
     <div class="eyebrow" data-i18n="connectedLabel"></div>
@@ -737,6 +728,7 @@
   <div class="screen" id="screen-player-vote">
     <div class="eyebrow" id="vote-title"></div>
     <h2 style="font-size:24px; margin:10px 0 10px;" data-i18n="castYourVote"></h2>
+    <p class="banner" id="vote-already-voted-hint" style="display:none;" data-i18n="alreadyVotedNotice"></p>
     <p class="hint" id="vote-multi-hint" style="margin-bottom:14px;" data-i18n="pickAsMany"></p>
     <div id="vote-candidate-list" class="stack"></div>
     <p class="hint" id="vote-empty-hint" style="display:none; margin-top:10px;" data-i18n="noOneElseToVote"></p>
@@ -1036,6 +1028,8 @@
       labelZodiacFrequency: 'شلیک زودیاک', zodiacEveryNightToggle: 'زودیاک، اگر آن نقش در بازی باشد، هر شب شلیک کند (در غیر این صورت یک شب در میان).',
       noGodModeToggle: 'حالت بدون گاد (بدون میزبان فعال)',
       hintNoGodMode: 'کل بازی کاملاً بدون دخالت پیش می‌رود — هیچ‌کس، حتی برای تخصیص نقش‌ها یا شروع بازی، نیازی نیست روی گوشی میزبان کلیک کند. به محض این‌که همه بازیکنان اعلام‌شده اسم خود را وارد کردند، نقش‌ها خودکار تخصیص داده شده و بازی پس از چند ثانیه شروع می‌شود. هر تصمیمی (شبانه یا روزانه) و هر رأی‌گیری یک مهلت دارد؛ اگر کسی در آن زمان اقدام نکند، بازی خودش جلو می‌رود. (توجه: باز هم یک دستگاه باید نقش میزبان را اجرا کند و طول بازی روشن بماند — فقط لازم نیست کسی آن را دستی جلو ببرد.)',
+      testModeToggle: '🧪 حالت تست (چند بازیکن از یک دستگاه)',
+      hintTestMode: 'فقط برای آزمایش — هرگز برای یک بازی واقعی روشن نکنید. به‌طور معمول، اگر چند تب مرورگر روی یک دستگاه باز کنید، همه آن‌ها یک نشست ذخیره‌شده مشترک دارند و روی هم می‌نویسند. با روشن‌بودن این گزینه، هر بازیکنی که به این اتاق بپیوندد نشست خودش را جدا، فقط در همان تب مرورگر، نگه می‌دارد — تازه‌کردن صفحه هنوز کار می‌کند، ولی بستن آن تب یعنی آن نشست از بین رفته.',
       godModeToggle: 'حالت گاد-بازیکن (میزبان هم بازی می‌کند)',
       hintGodMode: 'میزبان هم یکی از بازیکن‌هاست — اسم خودش را هم پایین همین صفحه وارد می‌کند و مثل بقیه نقش می‌گیرد، اما فقط نقش خودش را می‌بیند، نه کل لیست. رأی و اقدام شبانه‌اش را از یک کارت شناور روی همین صفحه انجام می‌دهد، نه یک مرورگر جدا. تا وقتی زنده است، به داشبورد کامل (نقش همه، لاگ شب، پنل دیباگ) دسترسی ندارد؛ همین‌که با رأی یا شلیک از بازی خارج شد، دسترسی کامل باز می‌شود. مثل حالت بدون گاد، مراحل بازی خودش خودکار جلو می‌روند.',
       labelYourNameGodMode: 'اسم شما (شما هم بازی می‌کنید)',
@@ -1114,10 +1108,6 @@
       welcomeBackEyebrow: 'دوباره خوش آمدید', welcomeBackHint: 'به نظر می‌رسد قبلاً به این اتاق پیوسته بودید.',
       btnContinueAs: 'ادامه به‌عنوان {name} ←', btnJoinAsNewPlayer: 'شما نیستید؟ به‌عنوان بازیکن جدید بپیوندید',
       btnBackToStart: 'بازگشت به صفحه اصلی',
-      reclaimSeatEyebrow: 'اتصال دوباره', reclaimSeatTitle: 'کدام‌یک از شما هستید؟',
-      reclaimSeatHint: 'این افراد در حال حاضر قطع شده‌اند. اگر یکی از آن‌ها شما هستید، اسمتان را بزنید تا به جایگاه خودتان برگردید.',
-      btnImNew: 'من جدیدم، اسم من در این لیست نیست', claimSeatFailed: 'آن جایگاه دیگر در دسترس نیست. لطفاً اسم خود را وارد کنید.',
-      roomFullCantJoin: 'اتاق پر است. اگر یکی از بازیکنانی هستید که قطع شده، اسمتان را از لیست انتخاب کنید.',
       namePlaceholder: 'مثلاً سارا',
       youreIn: '{name}، شما وارد شدید.', waitingForRoles: 'منتظر تخصیص نقش‌ها توسط میزبان…',
       yourRoleKeepSecret: 'نقش شما · مخفی نگه دارید', tapToReveal: 'برای نمایش لمس کنید', caseFile: 'پرونده',
@@ -1137,6 +1127,8 @@
       voteSkippedWaiting: 'شما رأی ندادید — منتظر بقیه…',
       whoSuspect: 'به چه کسی شک دارید؟', castYourVote: 'رأی خود را ثبت کنید',
       pickAsMany: 'هر تعداد که می‌خواهید انتخاب کنید، یا هیچ‌کدام.',
+      alreadyVotedNotice: 'شما قبلاً در این دور به {names} رأی داده بودید. اگر می‌خواهید نظرتان را عوض کنید، فرد جدید را انتخاب و دوباره ثبت کنید — رأی جدید جای رأی قبلی را می‌گیرد، نه اضافه بر آن.',
+      alreadyVotedNoticeAbstained: 'شما قبلاً در این دور رأی سفید داده بودید (به کسی شک نکرده بودید). اگر می‌خواهید نظرتان را عوض کنید، فردی را انتخاب و دوباره ثبت کنید.',
       noOneElseToVote: 'الان کس دیگری برای رأی نیست — لطفاً صبر کنید.',
       btnSubmitVote: 'ثبت رأی', finalVoteTitle: 'رأی‌گیری نهایی',
       defenseYouOnTrial: 'شما محاکمه می‌شوید',
@@ -1251,6 +1243,8 @@
       labelZodiacFrequency: "زودیاک's Shooting", zodiacEveryNightToggle: 'زودیاک, if that role is in play, shoots every night (otherwise, every other night).',
       noGodModeToggle: 'No God Mode (no active host)',
       hintNoGodMode: "The whole game drives itself with zero intervention — nobody needs to tap anything on the host's phone, not even to assign roles or start the game. The moment every declared player has entered their name, roles are assigned automatically and the game begins a few seconds later. Every decision (night or day) and every vote gets a deadline; if nobody acts in time, the game moves on by itself. (Note: a device still needs to run the host role and stay open for the whole game — it just never needs a manual push.)",
+      testModeToggle: '🧪 Test Mode (multiple players from one device)',
+      hintTestMode: "Testing only — never enable this for a real game. Normally, several browser tabs on the same device share one saved session and overwrite each other. With this on, every player who joins this room keeps their own session separate, confined to just that one browser tab — refreshing that tab still works, but closing it loses that session for good.",
       godModeToggle: 'God Mode (host plays too)',
       hintGodMode: "The host is a player too — enter your own name below, and you'll be dealt into role assignment like everyone else, seeing only your own role, never the full list. Vote and act at night from a floating card right on this screen, no second browser needed. While you're alive, the full dashboard (everyone's roles, the night log, the debug panel) stays hidden from you — it unlocks the moment you're voted or shot out. Like No God Mode, the game paces itself automatically.",
       labelYourNameGodMode: "Your name (you're playing too)",
@@ -1329,10 +1323,6 @@
       welcomeBackEyebrow: 'Welcome Back', welcomeBackHint: "Looks like you already joined this room before.",
       btnContinueAs: 'Continue as {name} →', btnJoinAsNewPlayer: 'Not you? Join as a new player',
       btnBackToStart: 'Back to start',
-      reclaimSeatEyebrow: 'Reconnecting', reclaimSeatTitle: 'Which one of you is this?',
-      reclaimSeatHint: "These players are currently disconnected. If one of them is you, tap your name to get back into your seat.",
-      btnImNew: "I'm new, my name isn't in this list", claimSeatFailed: 'That seat is no longer available. Please enter your name.',
-      roomFullCantJoin: "This room is full. If you're one of the disconnected players, pick your name from the list instead.",
       namePlaceholder: 'e.g. Priya',
       youreIn: "You're in, {name}.", waitingForRoles: 'Waiting for the host to assign roles…',
       yourRoleKeepSecret: 'Your Role · Keep it secret', tapToReveal: 'Tap to Reveal', caseFile: 'Case File',
@@ -1352,6 +1342,8 @@
       voteSkippedWaiting: "You chose not to vote — waiting for the others…",
       whoSuspect: 'Who do you suspect?', castYourVote: 'Cast your vote',
       pickAsMany: 'Pick as many as you want, or none at all.',
+      alreadyVotedNotice: "You already voted for {names} this round. To change your mind, pick someone else and submit again — that replaces your old vote, it doesn't add to it.",
+      alreadyVotedNoticeAbstained: "You already abstained this round (voted for no one). To change your mind, pick someone and submit again.",
       noOneElseToVote: 'No one else to vote on right now — please wait.',
       btnSubmitVote: 'Submit Vote', finalVoteTitle: 'Final vote',
       defenseYouOnTrial: "You're on trial",
@@ -1554,6 +1546,7 @@
     deadlineTimer: null,    // (host only) the pending setTimeout handle for deadlineExpiresAt
     room: null,
     hostToken: null,       // (host) secret generated at App.createLobby() time, proves a later 'reclaim-room' is really this same host (see server.js HOST_GRACE_MS)
+    testMode: false,       // (host, set at setup) dev/testing aid only — told to every joining player via 'joined', so they persist their own session in per-TAB sessionStorage instead of shared localStorage, letting one person open several tabs on one machine as several distinct players. (player) also holds this same flag once learned from 'joined' — see savePlayerSession/loadPlayerSession/peekPlayerSession/clearPlayerSession, all storage-mode-aware.
     hostReconnectInProgress: false, // (host) guards against overlapping reclaim attempts
     rolesAssigned: false,  // (host) true from App.assignRoles() onward — once true, a brand-new joiner draws from state.pendingRoleSlots instead of just sitting in the lobby (see the 'name' handler)
     pendingRoleSlots: [],  // (host) role defs reserved for seats not yet filled at assignRoles() time, drawn from as latecomers join
@@ -1602,6 +1595,8 @@
     voteRound: null,        // (player) 1 or 2, which round the current vote screen is for
     voteCandidates: [],     // (player) candidates offered for the current vote
     selectedCandidateIds: new Set(), // (player) chosen candidates before submit; may be empty
+    voteAlreadySubmitted: false, // (player) true when this vote screen is a RECONNECT resync's re-prompt for a round already voted on — see resyncPlayer's 'vote-already-submitted' follow-up and renderVoteScreen
+    previousVoteNames: [], // (player) names this player already voted for this round, when voteAlreadySubmitted is true (empty = they abstained, not "never voted" — see the same follow-up)
     nightActionRole: null,       // (player) which role this night-action prompt is for
     selectedNightTargetId: null, // (player) chosen target before submit
     selectedDayGunTargetId: null, // (player) chosen target for the day-gun decision before submit
@@ -1704,13 +1699,35 @@
     try{ if(window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID(); }catch(e){}
     return 'p-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
+  const PLAYER_SESSION_KEY = 'mafia-player-session';
+  // Test Mode support (see state.testMode / the setup screen's checkbox): a
+  // session normally lives in localStorage, shared across every tab on this
+  // device/origin — exactly what makes a real refresh or a reopened browser
+  // correctly resume the same player. Test Mode instead keeps it in
+  // sessionStorage, private to the ONE tab that created it, so several tabs
+  // on the same machine can each be a different simulated player without
+  // overwriting each other. Which storage a given session actually lives in
+  // isn't known ahead of a read — sessionStorage is always checked FIRST
+  // (a real, non-test tab's sessionStorage is simply empty, costing nothing
+  // to check) and localStorage is the fallback.
+  function readPlayerSession(){
+    let s = null;
+    try{ const raw = sessionStorage.getItem(PLAYER_SESSION_KEY); if(raw) s = JSON.parse(raw); }catch(e){}
+    if(!s){ try{ const raw = localStorage.getItem(PLAYER_SESSION_KEY); if(raw) s = JSON.parse(raw); }catch(e){} }
+    // Re-hydrate state.testMode from the session itself, not just from a
+    // fresh 'joined' reply — this resets to false on every page load, but
+    // a Test Mode tab's own saved session already knows it's one, so
+    // savePlayerSession's very next call (e.g. beginFreshPlayerJoin's
+    // immediate re-save on a Welcome Back) correctly keeps using
+    // sessionStorage-only instead of transiently recreating a stale,
+    // cross-tab-colliding localStorage copy while waiting on a new
+    // 'joined' round trip to confirm it all over again.
+    if(s && s.testMode) state.testMode = true;
+    return s;
+  }
   function loadPlayerSession(room){
-    try{
-      const raw = localStorage.getItem('mafia-player-session');
-      if(!raw) return null;
-      const s = JSON.parse(raw);
-      if(s && s.room === room && s.token) return s;
-    }catch(e){}
+    const s = readPlayerSession();
+    if(s && s.room === room && s.token) return s;
     return null;
   }
   // Same idea as loadPlayerSession, but without needing to already know
@@ -1720,19 +1737,29 @@
   // aggressively — backgrounding, low memory, or just a cold app-switcher
   // relaunch), not just the WebRTC connection dropping.
   function peekPlayerSession(){
-    try{
-      const raw = localStorage.getItem('mafia-player-session');
-      if(!raw) return null;
-      const s = JSON.parse(raw);
-      if(s && s.room && s.token) return s;
-    }catch(e){}
+    const s = readPlayerSession();
+    if(s && s.room && s.token) return s;
     return null;
   }
   function savePlayerSession(session){
-    try{ localStorage.setItem('mafia-player-session', JSON.stringify(session)); }catch(e){}
+    // Bakes the CURRENT state.testMode into the stored payload itself —
+    // see readPlayerSession's own re-hydration comment for why that
+    // matters across a refresh, not just within one already-connected tab.
+    const payload = Object.assign({}, session, { testMode: !!state.testMode });
+    try{ sessionStorage.setItem(PLAYER_SESSION_KEY, JSON.stringify(payload)); }catch(e){}
+    if(state.testMode){
+      // Actively prune the shared copy every time, not just once — a
+      // stale one left over from before test mode was confirmed (or from
+      // a moment this tab didn't yet know) must not linger where another
+      // tab's own fallback read could pick it up.
+      try{ localStorage.removeItem(PLAYER_SESSION_KEY); }catch(e){}
+    } else {
+      try{ localStorage.setItem(PLAYER_SESSION_KEY, JSON.stringify(payload)); }catch(e){}
+    }
   }
   function clearPlayerSession(){
-    try{ localStorage.removeItem('mafia-player-session'); }catch(e){}
+    try{ sessionStorage.removeItem(PLAYER_SESSION_KEY); }catch(e){}
+    try{ localStorage.removeItem(PLAYER_SESSION_KEY); }catch(e){}
   }
 
   /* ---------------- WebSocket signaling ---------------- */
@@ -1879,6 +1906,17 @@
       clearCriticalReplyTimeout();
       state.playerId = msg.playerId;
       state.room = msg.room;
+      // See state.testMode / savePlayerSession — this is the FIRST point a
+      // player's own client actually learns whether this room is in Test
+      // Mode (the host decides it at setup, before any player exists to
+      // ask). beginFreshPlayerJoin already saved the session a moment ago,
+      // not yet knowing this (so it went to both storages) — re-saving now
+      // both bakes the confirmed flag into the payload itself and prunes
+      // the now-stale shared localStorage copy (see savePlayerSession).
+      if(msg.testMode && !state.testMode){
+        state.testMode = true;
+        savePlayerSession({ room: state.room, token: state.myPlayerToken, name: state.myPlayerName });
+      }
       $('connecting-title').textContent = t('waitingForHost');
       $('connecting-hint').textContent = t('hostWillConnect');
       startConnectingTimeout();
@@ -2182,6 +2220,13 @@
     state.noGodMode = !!checked;
     renderSetupValues();
   };
+  // Dev/testing aid only, never meant for a real game — see the state.testMode
+  // comment and savePlayerSession/loadPlayerSession/peekPlayerSession for what
+  // this actually changes (nothing about game rules; purely which browser
+  // storage each joining player's session lives in).
+  App.setTestMode = function(checked){
+    state.testMode = !!checked;
+  };
   App.setGodMode = function(checked){
     state.godMode = !!checked;
     renderSetupValues();
@@ -2204,6 +2249,8 @@
     if(zodiacToggle) zodiacToggle.checked = state.zodiacShootsEveryNight;
     const noGodToggle = $('no-god-mode-toggle');
     if(noGodToggle) noGodToggle.checked = state.noGodMode;
+    const testModeToggle = $('test-mode-toggle');
+    if(testModeToggle) testModeToggle.checked = state.testMode;
     const deadlineFields = $('no-god-deadline-fields');
     if(deadlineFields) deadlineFields.style.display = state.noGodMode ? 'block' : 'none';
     $('val-act-deadline').textContent = state.actDeadlineMinutes;
@@ -2245,7 +2292,7 @@
   // resend the EXACT same request without redoing name validation / lobby
   // setup — see armCriticalReplyTimeout's own comment for why this exists.
   function sendCreateRoom(){
-    wsSend({ type: 'create-room', hostToken: state.hostToken });
+    wsSend({ type: 'create-room', hostToken: state.hostToken, testMode: !!state.testMode });
     armCriticalReplyTimeout(retryCreateRoom);
   }
   function retryCreateRoom(){
@@ -2329,23 +2376,21 @@
     // treating them as a new joiner, and let them back in even if the room
     // is otherwise "full" (they already have a seat).
     const existing = state.players.get(playerId);
-    // Reject brand-new joiners only once every declared seat is actually
-    // filled AND there's no one currently disconnected — a full-looking
-    // room might just have a seat sitting disconnected (phone died, browser
-    // closed) that a fresh connection is about to reclaim by name (see the
-    // 'reclaimable-seats' offer in setupHostDataChannel and handleClaimSeat)
-    // instead of taking a NEW seat, so it shouldn't be turned away just
-    // because the declared headcount is nominally reached. Assigning roles
-    // does NOT close the room either way — App.assignRoles reserves a role
-    // for every seat up front (state.pendingRoleSlots), so a brand-new
-    // joiner arriving after that point still gets dealt a real role the
-    // moment they pick a name (see the 'name' handler below), the same as
-    // everyone who was already in. An existing entry (same persisted token
-    // reconnecting) is always let back in regardless — they already have a
-    // seat.
-    const anyDisconnected = Array.from(state.players.values()).some(e => !e.connected);
-    const overCapacity = !existing && state.players.size >= state.numPlayers;
-    if(overCapacity && !anyDisconnected){
+    // Reject a brand-new joiner (no persisted token match) once every
+    // declared seat is already filled — a currently-disconnected seat does
+    // NOT free up room for a stranger any more: reconnecting as someone
+    // else's seat is no longer possible at all (see the removed
+    // reclaim-by-name flow — a device can only ever rejoin as whichever
+    // identity ITS OWN persisted token proves it is), so "someone's
+    // disconnected" is no longer a reason to let anyone else in over
+    // capacity. Assigning roles does NOT close the room either way —
+    // App.assignRoles reserves a role for every seat up front
+    // (state.pendingRoleSlots), so a brand-new joiner arriving before the
+    // room is actually full still gets dealt a real role the moment they
+    // pick a name (see the 'name' handler below). An existing entry (same
+    // persisted token reconnecting) is always let back in regardless —
+    // they already have a seat.
+    if(!existing && state.players.size >= state.numPlayers){
       return;
     }
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -2360,14 +2405,6 @@
       entry = existing;
     } else {
       entry = { name: null, connected: false, pc, dc, role: null, roleId: null, alive: true, independent: false, activityLog: [] };
-      // This connection only got past the check above because SOME OTHER
-      // seat is disconnected, not because there's genuine free capacity —
-      // it must either claim that disconnected seat by name (handleClaimSeat
-      // clears this flag by deleting the entry outright) or get turned away
-      // once it tries to register as a brand-new name instead (see the
-      // 'name' handler), so the room never silently grows past the God's
-      // declared player count.
-      entry.overCapacityTemp = overCapacity;
       state.players.set(playerId, entry);
     }
     renderLobby();
@@ -2428,18 +2465,17 @@
         renderLobby();
         if(isReconnect){
           resyncPlayer(entry, playerId);
-        } else {
-          // A genuinely fresh connection (new token — the player closed
-          // their browser and lost the persisted one that would have made
-          // this an automatic reconnect above). If any NAMED seat is
-          // currently sitting disconnected, offer them a chance to claim it
-          // by name before falling through to the normal "pick a name" flow
-          // — see handleClaimSeat and the 'claim-seat' branch below.
-          const reclaimable = Array.from(state.players.entries())
-            .filter(([pid, e]) => pid !== playerId && e.name && !e.connected)
-            .map(([, e]) => e.name);
-          if(reclaimable.length) sendToPlayer(entry, { type: 'reclaimable-seats', names: reclaimable });
         }
+        // A genuinely fresh connection (no persisted-token match) just
+        // falls through to the normal player-side "pick a name" screen on
+        // its own (see setupPlayerDataChannel's dc.onopen) — nothing to do
+        // here. There used to be a "claim a disconnected seat by name"
+        // offer at this point (a whole handleClaimSeat mechanism, since
+        // removed) — deliberately dropped: it let ANY new connection claim
+        // ANY disconnected player's seat, role included, with zero
+        // verification. A device can only ever rejoin as whichever
+        // identity its OWN persisted session (see savePlayerSession)
+        // proves it is now.
       }
     };
     dc.onmessage = (e) => {
@@ -2448,21 +2484,6 @@
         if(msg.type === 'name'){
           const entry = state.players.get(playerId);
           if(entry){
-            // This connection was only admitted because some OTHER seat was
-            // disconnected (see hostBeginConnectionTo), not genuine free
-            // capacity — picking a brand-new name here instead of claiming
-            // that seat would silently exceed the declared player count.
-            // Re-check against the CURRENT roster (not the moment-of-
-            // connection snapshot) in case a slot has genuinely freed up
-            // since (the God kicked someone, say) before turning it away.
-            if(entry.overCapacityTemp && !entry.name){
-              const othersCount = Array.from(state.players.keys()).filter(pid => pid !== playerId).length;
-              if(othersCount >= state.numPlayers){
-                sendToPlayer(entry, { type: 'room-full' });
-                return;
-              }
-              entry.overCapacityTemp = false;
-            }
             const wasReconnect = entry.name === msg.name;
             entry.name = msg.name;
             // Roles were already handed out, but this is someone who wasn't
@@ -2497,8 +2518,6 @@
           handleOceanChat(playerId, msg.text);
         } else if(msg.type === 'zodiac-chat'){
           handleZodiacChat(playerId, msg.text);
-        } else if(msg.type === 'claim-seat'){
-          handleClaimSeat(playerId, msg.name);
         }
       }catch(err){}
     };
@@ -2509,52 +2528,6 @@
       // disconnected.
       if(entry && entry.dc === dc){ entry.connected = false; renderLobby(); }
     };
-  }
-
-  // A brand-new connection (fresh id/token — the player lost whatever would
-  // normally let them reconnect automatically, e.g. they closed the browser
-  // or switched devices) asking to take over a specific named seat that's
-  // currently disconnected. Deliberately no host-confirmation gate: if a
-  // disconnected entry with that exact name exists, hand it the live
-  // connection outright. This is a casual in-person party game — everyone's
-  // in the same room and the God can see who's claiming what — so the
-  // low-friction reattach is worth more than guarding against someone
-  // typing a name that isn't theirs.
-  function handleClaimSeat(tempPlayerId, name){
-    const tempEntry = state.players.get(tempPlayerId);
-    if(!tempEntry) return;
-    const match = Array.from(state.players.entries())
-      .find(([pid, e]) => pid !== tempPlayerId && e.name === name && !e.connected);
-    if(!match){
-      sendToPlayer(tempEntry, { type: 'claim-failed' });
-      return;
-    }
-    const [targetId, targetEntry] = match;
-    // Move the live pc/dc off the throwaway temp entry onto the real one,
-    // closing out whatever stale connection the real entry still had first
-    // (shouldn't be an open one — it's marked disconnected — but be safe).
-    try{ targetEntry.dc && targetEntry.dc.close(); }catch(e){}
-    try{ targetEntry.pc && targetEntry.pc.close(); }catch(e){}
-    targetEntry.pc = tempEntry.pc;
-    targetEntry.dc = tempEntry.dc;
-    targetEntry.connected = true;
-    state.players.delete(tempPlayerId);
-    // Rebind the channel's handlers to close over targetId instead of
-    // tempPlayerId — every message from here on must be attributed to the
-    // real seat, not the throwaway one. The channel is already open, so
-    // its onopen won't refire; do what it would have done by hand below.
-    setupHostDataChannel(targetEntry.dc, targetId, true);
-    // Tell the player their real seat id, BEFORE anything else — they were
-    // signaling under the throwaway temp id this whole time (that's how the
-    // WebRTC handshake found its way to them at all), and need to switch
-    // their persisted session over to the real one so a FUTURE disconnect
-    // reconnects them automatically instead of landing back on this same
-    // reclaim screen every time (see the 'claim-accepted' handler).
-    sendToPlayer(targetEntry, { type: 'claim-accepted', playerId: targetId, name });
-    if(!targetEntry.lastPhase && state.currentPhaseSnapshot) targetEntry.lastPhase = state.currentPhaseSnapshot;
-    resyncPlayer(targetEntry, targetId);
-    renderLobby();
-    toast(t('toastPlayerReconnected', { name }));
   }
 
   /* ---------------- Role assignment ---------------- */
@@ -2886,6 +2859,32 @@
       sendToPlayer(entry, { type: 'eliminated' });
     } else if(entry.lastPhase){
       sendToPlayer(entry, entry.lastPhase);
+      // A reconnecting player mid-vote used to just get that cached phase
+      // message replayed verbatim — indistinguishable from a totally
+      // fresh, unanswered prompt, even if they'd already voted before
+      // disconnecting. That's confusing on its own (reported as "asked to
+      // vote again" for something they'd already done) and, worse, left no
+      // visible sign their prior pick was still safely recorded — nothing
+      // stops them from voting again either way (handlePlayerVote just
+      // overwrites their one entry in state.votesRound1/2 by voterId, so
+      // it was never actually double-counted), but presenting it as a
+      // blank slate reads as if the earlier vote was lost, and any
+      // resubmission looks like it's adding to rather than replacing it.
+      // Tell them plainly instead, as a separate follow-up message (NOT
+      // folded into the 'phase' object above) — that object is cached
+      // as-is into entry.lastPhase/state.currentPhaseSnapshot by
+      // sendToPlayer and can be reused verbatim for a totally different
+      // brand-new joiner (see the 'name' handler), so baking THIS player's
+      // own vote into it would leak across players. undefined (never
+      // voted) vs. an empty array (voted, chose to abstain) are kept
+      // distinct on purpose. See the 'vote-already-submitted' handler and
+      // renderVoteScreen for the player-side half of this.
+      const phase = entry.lastPhase;
+      if(phase.phase === 'voting1' || phase.phase === 'voting2'){
+        const votes = phase.phase === 'voting1' ? state.votesRound1 : state.votesRound2;
+        const already = votes.get(playerId);
+        if(already !== undefined) sendToPlayer(entry, { type: 'vote-already-submitted', round: phase.phase === 'voting1' ? 1 : 2, ids: already });
+      }
     }
     // Tracked separately from entry.lastPhase (see promptGunHolder) since
     // it can be pending at the SAME TIME as whatever entry.lastPhase just
@@ -5067,6 +5066,34 @@
           state.zodiacChatLog = msg.log || [];
           renderZodiacChat();
         }
+        else if(msg.type === 'vote-already-submitted'){
+          // Follow-up to a resync's replayed voting phase (see
+          // resyncPlayer) — arrives right after it, over the same ordered
+          // data channel, so this always lands after that phase message's
+          // own renderVoteScreen() call already ran once. Only actually
+          // apply it if we're still looking at that exact round (a stray/
+          // late message for a round that's already moved on shouldn't
+          // resurrect anything).
+          //
+          // Deliberately does NOT pre-check msg.ids' boxes — this is a
+          // multi-select list (you can accuse several people at once), so
+          // pre-checking a prior pick and then tapping ONE new candidate
+          // (without consciously unchecking the old one first) would leave
+          // BOTH checked and both would genuinely, correctly count — not a
+          // bug, but exactly the kind of accidental "stacking" this whole
+          // fix exists to prevent. Leaving the boxes blank keeps
+          // submitting-again a clean, safe REPLACEMENT (handlePlayerVote
+          // already only ever keeps one entry per voter) while the notice
+          // below still tells them in plain text what their standing vote
+          // currently is, so nothing is silently lost from their view.
+          if(state.voteRound === msg.round){
+            state.voteAlreadySubmitted = true;
+            state.previousVoteNames = (msg.ids || [])
+              .map(id => { const c = state.voteCandidates.find(cand => cand.id === id); return c ? c.name : null; })
+              .filter(Boolean);
+            if($('screen-player-vote').classList.contains('active')) renderVoteScreen();
+          }
+        }
         else if(msg.type === 'vote-history'){
           state.voteHistory = msg.history || [];
           updateVoteHistoryLinkVisibility();
@@ -5074,35 +5101,6 @@
           // now (e.g. a live update while browsing it) — otherwise it's
           // just cached for whenever App.viewVoteHistory() is next opened.
           if(document.getElementById('screen-player-vote-history').classList.contains('active')) renderVoteHistory();
-        }
-        else if(msg.type === 'reclaimable-seats'){
-          // Only relevant while we're still an unnamed brand-new connection
-          // sitting on the name-entry screen — if we've already submitted a
-          // name (or are mid-reconnect with one), this is stale/irrelevant.
-          if(!state.myPlayerName) renderReclaimSeatScreen(msg.names || []);
-        }
-        else if(msg.type === 'claim-accepted'){
-          // The host just handed our connection over to a specific existing
-          // (disconnected) seat by name — adopt its real id as our own going
-          // forward so a FUTURE drop reconnects us automatically via the
-          // normal token-based flow instead of landing back on this same
-          // reclaim screen every time.
-          state.myPlayerToken = msg.playerId;
-          state.myPlayerName = msg.name;
-          savePlayerSession({ room: state.room, token: state.myPlayerToken, name: msg.name });
-          setDebugBadge(msg.name);
-        }
-        else if(msg.type === 'claim-failed'){
-          toast(t('claimSeatFailed'));
-          showScreen('screen-player-name');
-        }
-        else if(msg.type === 'room-full'){
-          // Only reachable via the rare edge case where this connection was
-          // let through solely because SOME OTHER seat was disconnected
-          // (see hostBeginConnectionTo/handleClaimSeat), and this device
-          // then declined to claim it and tried to register as a genuinely
-          // new player instead, with no free seat actually available.
-          toast(t('roomFullCantJoin'));
         }
       }catch(err){}
     };
@@ -5119,39 +5117,6 @@
       attemptPlayerReconnect();
     };
   }
-
-  // Offered right after connecting, only when the host reports at least one
-  // NAMED seat currently sitting disconnected (see the 'reclaimable-seats'
-  // handler above) — lets someone who lost their persisted session (closed
-  // the browser, switched devices) get straight back into their own seat by
-  // tapping their name, instead of being funneled into "pick a name" and
-  // ending up as a brand-new extra player.
-  function renderReclaimSeatScreen(names){
-    const box = $('reclaim-seat-list');
-    box.innerHTML = '';
-    names.forEach(name => {
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-ghost';
-      btn.textContent = name;
-      btn.onclick = () => App.claimSeat(name);
-      box.appendChild(btn);
-    });
-    showScreen('screen-player-reclaim-seat');
-  }
-
-  App.claimSeat = function(name){
-    try{ state.playerDC.send(JSON.stringify({ type: 'claim-seat', name })); }
-    catch(e){ toast(t('lostHostConnection')); return; }
-    $('connecting-title').textContent = t('almostThere');
-    $('connecting-hint').textContent = t('finalizingConnection');
-    showScreen('screen-player-connecting');
-  };
-
-  // "That's not me" escape hatch — falls through to the normal fresh-name
-  // flow instead of claiming anyone else's seat.
-  App.declineReclaim = function(){
-    showScreen('screen-player-name');
-  };
 
   App.playerSubmitName = function(){
     const val = $('input-player-name').value.trim();
@@ -5194,6 +5159,13 @@
       state.voteRound = msg.phase === 'voting1' ? 1 : 2;
       state.voteCandidates = msg.candidates || [];
       state.selectedCandidateIds = new Set();
+      // Whether this is actually a re-prompt (reconnecting mid-vote) is
+      // decided by a separate 'vote-already-submitted' follow-up that may
+      // arrive right after this one (see resyncPlayer) — default to "no"
+      // here so a genuinely fresh round never carries over a stale flag
+      // (or a stale previousVoteNames list) from an earlier one.
+      state.voteAlreadySubmitted = false;
+      state.previousVoteNames = [];
       renderVoteScreen();
     } else if(msg.phase === 'defense'){
       renderDefenseScreen(msg);
@@ -5361,6 +5333,20 @@
 
   function renderVoteScreen(){
     $('vote-title').textContent = state.voteRound === 1 ? t('whoSuspect') : t('finalVoteTitle');
+    // Reconnecting mid-vote (see resyncPlayer/'vote-already-submitted')
+    // would otherwise look exactly like a totally fresh, unanswered
+    // prompt — this notice is the only thing that actually says
+    // otherwise, naming whatever's currently on record, so it doesn't
+    // read as if the earlier vote had been lost. The candidate list
+    // itself stays blank either way (see the 'vote-already-submitted'
+    // handler's own comment for why it's deliberately NOT pre-checked).
+    const hintEl = $('vote-already-voted-hint');
+    hintEl.style.display = state.voteAlreadySubmitted ? 'block' : 'none';
+    if(state.voteAlreadySubmitted){
+      hintEl.textContent = state.previousVoteNames.length
+        ? t('alreadyVotedNotice', { names: state.previousVoteNames.join(', ') })
+        : t('alreadyVotedNoticeAbstained');
+    }
     const list = $('vote-candidate-list');
     list.innerHTML = '';
     const hasCandidates = state.voteCandidates.length > 0;
