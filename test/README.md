@@ -258,6 +258,37 @@ classes), not on anything internal to `index.html`.
    the night kill, the detective's investigation target, and the final
    winner line.
 
+7. `07-vote-history-always-visible` — regression test for a reported bug:
+   "the vote history should be visible by all players in all scenarios and
+   all games at all times — i see in god mode players don't see that when
+   voting prompt is active." The `.vote-history-link` button
+   (`App.viewVoteHistory`) was only ever present on 4 of a real player's
+   ~16 in-game screens — notably absent from `screen-player-vote` itself
+   (the exact screen the report called out), `screen-player-night-action`,
+   and every inquiry/waiting/result/eliminated/game-over screen. Not
+   God-Mode-specific — every real player in every mode was missing it on
+   those screens, the user just happened to notice it while testing God
+   Mode. Fixed by adding it to all 15 remaining in-game player screens
+   (`index.html`) — the same universal-access treatment `.activity-link`
+   ("My Activity") already got in an earlier pass; the existing
+   `updateVoteHistoryLinkVisibility()` needed no changes at all, since its
+   `querySelectorAll('.vote-history-link')` already picks up every newly-
+   added button automatically. **Part A** (a normal game) confirms the link
+   is correctly HIDDEN on Day 1 (no vote has happened yet), then visible on
+   the Day-2 result screen, an ACTIVE Night-2 night-action prompt, and —
+   the exact reported case — an ACTIVE Day-3 voting prompt. **Part B**
+   confirms the same for a real player inside an actual **God Mode** game,
+   plus that God Mode's own separate, pre-existing host-self vote-history
+   button (`host-self-vote-history-btn`) still works too, untouched by this
+   change. Both parts deliberately pin `numPlayers`/`numMafia` down (rather
+   than relying on the default 6p/2m split) and pick the Day-2 elimination
+   target by checking who ISN'T Mafia (`mafiaNames`, not a hardcoded seat)
+   — an earlier draft of this scenario picked a fixed player name and hit
+   real, reproducible flakiness: whenever the random role shuffle happened
+   to deal Mafia to that exact name, eliminating them ended the game
+   immediately (0 or equal Mafia left) before the scenario ever reached the
+   night/Day-3 checks it needed.
+
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this
 harness also had.
