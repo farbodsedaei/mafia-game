@@ -556,6 +556,7 @@
     <h2 style="font-size:30px; margin:10px 0 16px;" id="game-over-title">&mdash;</h2>
     <div class="card"><div id="game-over-roster" class="stack"></div></div>
     <p class="hint" style="margin-top:14px;" data-i18n="rolesRevealed"></p>
+    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewGameLog()" data-i18n="viewGameLog"></button>
     <div class="grow"></div>
     <button class="btn btn-primary" onclick="App.newGame()" data-i18n="btnStartNewGame"></button>
   </div>
@@ -674,6 +675,20 @@
     <button class="link-btn" style="margin:0 auto 6px;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="link-btn activity-link" style="display:none; margin:0 auto 6px;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
     <button class="btn btn-ghost" onclick="App.closeVoteHistory()" data-i18n="back"></button>
+  </div>
+
+  <!-- GAME LOG (host, real player, and God Mode's host-self all share this
+       one screen — same precedent as My Role/My Activity/Vote History,
+       see showScreen's own comment) — only ever reachable once the game
+       has actually ended, from a game-over screen's own link. Full
+       chronological recap: every day's votes + outcome, every night's
+       decisions (revealed now that the game's over) + outcome, ending
+       with the winner. See renderGameLogInto/App.viewGameLog. -->
+  <div class="screen" id="screen-player-game-log">
+    <div class="eyebrow" style="margin-bottom:16px;" data-i18n="gameLogTitle"></div>
+    <div id="game-log-list" class="stack" style="overflow-y:auto;"></div>
+    <div class="grow"></div>
+    <button class="btn btn-ghost" onclick="App.closeGameLog()" data-i18n="back"></button>
   </div>
 
   <!-- PLAYER: DAY -->
@@ -836,6 +851,7 @@
     <div class="card"><div id="game-over-roster-player" class="stack"></div></div>
     <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+    <button class="link-btn" style="margin:0 auto;" onclick="App.viewGameLog()" data-i18n="viewGameLog"></button>
   </div>
 
 </div>
@@ -1114,6 +1130,7 @@
       shielded: 'دارای شیلد', tapCardHide: 'دوباره روی کارت بزنید تا پنهان شود.', back: 'بازگشت →',
       myActivity: 'فعالیت من', nothingYet: 'هنوز چیزی نیست.',
       voteHistory: 'تاریخچه رأی‌گیری', voteHistoryEmpty: 'هنوز رأی‌گیری‌ای انجام نشده است.',
+      gameLogTitle: 'گزارش کامل بازی', gameLogEmpty: 'چیزی برای نمایش نیست.', viewGameLog: 'مشاهده گزارش کامل بازی',
       voteHistoryVotedFor: '{voter} به {targets} رأی داد.',
       voteHistoryAbstained: '{voter} رأی سفید داد (به کسی رأی نداد).',
       voteHistoryDidNotVote: '{voter} اصلاً رأی نداد.',
@@ -1329,6 +1346,7 @@
       shielded: 'Shielded', tapCardHide: 'Tap the card again to hide it.', back: '← Back',
       myActivity: 'My Activity', nothingYet: 'Nothing yet.',
       voteHistory: 'Voting History', voteHistoryEmpty: 'No votes yet.',
+      gameLogTitle: 'Full Game Log', gameLogEmpty: 'Nothing to show.', viewGameLog: 'View Full Game Log',
       voteHistoryVotedFor: '{voter} voted for {targets}.',
       voteHistoryAbstained: '{voter} abstained (voted for no one).',
       voteHistoryDidNotVote: '{voter} did not vote at all.',
@@ -1576,6 +1594,7 @@
     inquiriesRemaining: 0,  // (host) inquiries left to spend this game
     votesInquiry: new Map(),// (host) voterId -> 'yes' | 'no'
     voteHistory: [],        // (host: authoritative; player: local copy) every completed round ever — [{day, round, rows:[{voter, targets}]}], see recordVoteHistory
+    gameLog: [],             // (host: authoritative; player: local copy, only ever received once the game ends) full chronological narrative — [{day, phase:'day'|'night'|'final', text}], see logGameEvent. Night entries include normally-PRIVATE per-role decisions (who blocked/saved/investigated/shot whom) — safe to compile since this is never sent to anyone before App.showGameOver. Built specifically for a game nobody was actively narrating (No God Mode above all, but sent in every mode) — see App.viewGameLog/renderGameLogInto.
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
     night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] }, // (host) this night's decisions
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
@@ -1606,6 +1625,7 @@
     hasActivityLog: false,       // (player) whether to show the "My Activity" link at all
     activityReturnScreen: null,  // (player) screen to return to after viewing activity log
     voteHistoryReturnScreen: null, // (player) screen to return to after viewing vote history
+    gameLogReturnScreen: null, // (host or player) screen to return to after viewing the full game log — see App.viewGameLog
     lastPhaseMsg: null,          // (player) most recent 'phase' message, for re-rendering on language switch
     amAlive: true,                // (player) tracks eliminated/revived so the mafia chat drawer hides once out
     gameEnded: false,            // (player) true once game-over arrives, so a stale night phase can't keep the chat drawer open
@@ -2854,7 +2874,7 @@
     }
     if(state.winner){
       const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role, independent: !!e.independent }));
-      sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster });
+      sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster, log: state.gameLog });
     } else if(!entry.alive){
       sendToPlayer(entry, { type: 'eliminated' });
     } else if(entry.lastPhase){
@@ -2965,6 +2985,7 @@
     }
     else if(obj.type === 'game-over'){
       state.gameEnded = true;
+      state.gameLog = obj.log || [];
       updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
     }
     else if(obj.type === 'revived'){
@@ -3395,6 +3416,7 @@
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'day-gun-result', text, isDeath: !!isDeath }));
     if(isDeath) showDayGunDeathBanner(text); else toast(text, 5000);
     updateGunPendingNote();
+    logGameEvent('day', text); // full game log (see logGameEvent) — same text everyone already saw
     // A day-gun kill CAN end the game outright (e.g. it's the last Mafia)
     // — that DOES need to interrupt everything, unlike the plain
     // announcement above, so this still routes straight to game-over.
@@ -3546,12 +3568,15 @@
       const villagerOut = eliminated.filter(e => e.role === 'villager' && !e.independent).length;
       const independentOut = eliminated.filter(e => e.independent).length;
       aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: true, mafiaOut, villagerOut, independentOut, zodiacInPlay }));
+      const detail = t(zodiacInPlay ? 'inquiryDetail' : 'inquiryDetailNoZodiac', { mafiaOut, villagerOut, independentOut, remaining: state.inquiriesRemaining });
       $('inquiry-result-title').textContent = t('inquiryGranted');
-      $('inquiry-result-detail').textContent = t(zodiacInPlay ? 'inquiryDetail' : 'inquiryDetailNoZodiac', { mafiaOut, villagerOut, independentOut, remaining: state.inquiriesRemaining });
+      $('inquiry-result-detail').textContent = detail;
+      logGameEvent('day', t('inquiryGranted') + ' ' + detail);
     } else {
       aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: false }));
       $('inquiry-result-title').textContent = t('noInquiryToday');
       $('inquiry-result-detail').textContent = t('notEnoughVotes');
+      logGameEvent('day', t('noInquiryToday') + ' ' + t('notEnoughVotes'));
     }
     showScreen('screen-host-inquiry-result');
   };
@@ -3923,17 +3948,28 @@
     });
 
     $('result-day').textContent = t('dayLabel', { n: state.day });
+    let resultTitle, resultDetail, logDetail;
     if(eliminatedEntry){
-      $('result-title').textContent = t('votedOut', { name: eliminatedEntry.name });
-      $('result-detail').textContent = note || t('rolePrivate');
+      resultTitle = t('votedOut', { name: eliminatedEntry.name });
+      resultDetail = note || t('rolePrivate');
+      // rolePrivate ("their role stays private") is superseded by the
+      // full roster reveal at game-over — skip it specifically in the log
+      // rather than repeating a promise the log itself is about to break.
+      logDetail = note || null;
     } else {
-      $('result-title').textContent = t('noOneEliminated');
-      $('result-detail').textContent = note || t('didntReachMajority');
+      resultTitle = t('noOneEliminated');
+      resultDetail = note || t('didntReachMajority');
+      logDetail = resultDetail; // didntReachMajority IS real context, worth keeping
     }
+    $('result-title').textContent = resultTitle;
+    $('result-detail').textContent = resultDetail;
     $('result-continue-btn').textContent = state.winner
       ? t('seeResults')
       : t('continueToNight');
     showScreen('screen-host-result');
+    // Full game log (see logGameEvent) — the same day-vote outcome
+    // everyone just saw.
+    logGameEvent('day', resultTitle + (logDetail ? ' ' + logDetail : ''));
   }
 
   App.proceedAfterResult = function(){
@@ -3949,8 +3985,15 @@
   App.showGameOver = function(){
     state.gamePhase = 'game-over';
     const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role, independent: !!e.independent }));
+    // Full game log's very last line — the winner, rendered on its own
+    // outside any day/night grouping (see logGameEvent/renderGameLogInto).
+    // Bundled straight into the SAME 'game-over' message below rather than
+    // a separate send — this is the one moment the whole log first becomes
+    // safe to reveal (see state.gameLog's own comment on why it was never
+    // sent before now).
+    logGameEvent('final', winnerLabel(state.winner));
     for(const entry of state.players.values()){
-      sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster });
+      sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster, log: state.gameLog });
     }
 
     $('game-over-title').textContent = winnerLabel(state.winner);
@@ -4356,6 +4399,19 @@
     refreshDebugPanelIfOpen();
   }
 
+  // Appends one line to the permanent, whole-game narrative (see
+  // state.gameLog) — public outcomes as they're announced (day results,
+  // inquiry results, day-gun results) PLUS, separately, each night's
+  // normally-private decisions once that night resolves (see resolveNight)
+  // — safe either way since gameLog itself is never sent to anyone until
+  // App.showGameOver. 'final' is its own pseudo-phase for the last-ever
+  // line (the winner announcement), rendered outside any day/night
+  // grouping. Built mainly for a No God Mode game nobody was actively
+  // narrating, but populated (and sent) in every mode.
+  function logGameEvent(phase, text){
+    state.gameLog.push({ day: state.day, phase, text });
+  }
+
   function handleNightAction(voterId, role, targetId, recruit){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
@@ -4662,10 +4718,19 @@
     const parts = [];
     if(deadNames.length) parts.push(t('foundDead', { names: deadNames.join(', ') }));
     if(revivedName) parts.push(t('backAmongLiving', { name: revivedName }));
-    $('night-result-title').textContent = parts.length ? parts.join(' ') : (state.day === 1 ? t('mafiaOnlyNightResult') : t('everyoneMadeIt'));
+    const nightResultText = parts.length ? parts.join(' ') : (state.day === 1 ? t('mafiaOnlyNightResult') : t('everyoneMadeIt'));
+    $('night-result-title').textContent = nightResultText;
     $('night-result-continue-btn').textContent = state.winner ? t('seeResults') : t('continueToDay', { n: state.day + 1 });
     showScreen('screen-host-night-result');
     armRevealPause(App.proceedAfterNight);
+
+    // Full game log (see logGameEvent/state.gameLog): every individual
+    // decision this night, PRIVATE until now, in the order they were made
+    // — then the same public outcome line everyone just saw above. Night 1
+    // never has any (mafia-introduction only, see runNightStep), so this
+    // naturally logs nothing but the "everyone just got acquainted" line.
+    state.night.decisionsLog.forEach(d => logGameEvent('night', d.player + ' (' + d.role + ') — ' + d.text));
+    logGameEvent('night', nightResultText);
   }
 
   App.proceedAfterNight = function(){
@@ -4687,6 +4752,7 @@
     state.defendingIds = [];
     state.votesInquiry = new Map();
     state.voteHistory = [];
+    state.gameLog = [];
     state.inquiriesRemaining = 0;
     state.winner = null;
     state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
@@ -5411,6 +5477,7 @@
 
   function handleGameOver(msg){
     state.gameEnded = true;
+    state.gameLog = msg.log || [];
     updateMafiaChatVisibility();
     updateOceanChatVisibility();
     updateZodiacChatVisibility();
@@ -5675,6 +5742,99 @@
       });
     });
   }
+
+  // Full game recap — the whole point being a game NOBODY actively
+  // narrated (No God Mode above all, but this shows up in every mode)
+  // still leaves something behind clarifying how it actually played out.
+  // Only ever reachable from a game-over screen (host's own, a real
+  // player's, or God Mode's host-self minibar — all three call the exact
+  // same App.viewGameLog(), same precedent as My Role/My Activity/Vote
+  // History already being shared player-style screens the host also
+  // briefly visits — see showScreen's own comment on that pattern), so
+  // state.gameLog is always already populated by the time this runs; no
+  // separate visibility toggle needed the way vote-history's link has
+  // (that one can turn on mid-game, this can't).
+  //
+  // Merges state.gameLog (public outcomes AS they were announced, PLUS —
+  // safe now that the game's over — each night's previously-private
+  // decisions, see logGameEvent) with state.voteHistory (already its own
+  // continuously-updated feed, see recordVoteHistory) into one
+  // chronological, day-by-day narrative, rather than duplicating vote rows
+  // into gameLog itself.
+  function renderGameLogInto(containerId, log, voteHistory){
+    const box = $(containerId);
+    if(!box) return;
+    box.innerHTML = '';
+    log = log || [];
+    voteHistory = voteHistory || [];
+    if(!log.length){
+      box.innerHTML = '<p class="hint">' + escapeHtml(t('gameLogEmpty')) + '</p>';
+      return;
+    }
+    const maxDay = log.reduce((m, e) => Math.max(m, e.day), 1);
+
+    const addHeading = (text) => {
+      const heading = document.createElement('div');
+      heading.className = 'eyebrow';
+      heading.style.margin = '14px 0 6px';
+      heading.textContent = text;
+      box.appendChild(heading);
+    };
+    const addLine = (text) => {
+      const line = document.createElement('div');
+      line.className = 'slot';
+      line.innerHTML = '<div class="name" style="white-space:normal;">' + escapeHtml(text) + '</div>';
+      box.appendChild(line);
+    };
+
+    for(let day = 1; day <= maxDay; day++){
+      const dayEntries = log.filter(e => e.day === day && e.phase === 'day');
+      const dayVotes = voteHistory.filter(v => v.day === day);
+      // Day 1 has no voting and nothing else day-phase-logged (see
+      // App.startVoting's Day-1 no-op) — this naturally skips straight to
+      // Night 1 below instead of showing an empty "Day 1" heading.
+      if(dayVotes.length || dayEntries.length){
+        addHeading(t('dayLabel', { n: day }));
+        dayVotes.forEach(v => {
+          const roundHeading = document.createElement('div');
+          roundHeading.className = 'hint';
+          roundHeading.style.margin = '6px 0 4px';
+          roundHeading.textContent = v.round === 1 ? t('firstVote') : t('finalVote');
+          box.appendChild(roundHeading);
+          v.rows.forEach(row => addLine(voteHistoryRowText(row)));
+        });
+        dayEntries.forEach(e => addLine(e.text));
+      }
+
+      const nightEntries = log.filter(e => e.day === day && e.phase === 'night');
+      if(nightEntries.length){
+        addHeading(t('nightLabel', { n: day }));
+        nightEntries.forEach(e => addLine(e.text));
+      }
+    }
+
+    // The winner announcement — always exactly one, always last, rendered
+    // outside any day/night grouping since it isn't really "part of" a
+    // specific day the way everything above is.
+    const finalEntries = log.filter(e => e.phase === 'final');
+    if(finalEntries.length){
+      const banner = document.createElement('p');
+      banner.className = 'banner';
+      banner.style.marginTop = '16px';
+      banner.textContent = finalEntries.map(e => e.text).join(' ');
+      box.appendChild(banner);
+    }
+  }
+
+  App.viewGameLog = function(){
+    const current = document.querySelector('.screen.active');
+    state.gameLogReturnScreen = current ? current.id : (state.role === 'host' ? 'screen-host-game-over' : 'screen-player-game-over');
+    renderGameLogInto('game-log-list', state.gameLog, state.voteHistory);
+    showScreen('screen-player-game-log');
+  };
+  App.closeGameLog = function(){
+    showScreen(state.gameLogReturnScreen || (state.role === 'host' ? 'screen-host-game-over' : 'screen-player-game-over'));
+  };
 
   /* ---------------- Dev/troubleshooting: God's debug console ---------------- */
   // Shows every player's real role + shield status and the complete activity

@@ -226,6 +226,38 @@ classes), not on anything internal to `index.html`.
    place. A **control** case confirms a normal (non-Test-Mode) game is
    completely unchanged, still using localStorage as before.
 
+6. `06-no-god-mode-full-game-log` — feature test for a reported request:
+   "in No God Mode where the app drives the game with no host or god, at
+   the end of the game the app should produce a full log — actions and
+   votes — clarifying how the game was done." A No God Mode game genuinely
+   has nobody watching the host device as it plays out, so nothing about
+   HOW it actually unfolded (who blocked whom, what a detective's
+   investigation actually found, who Mafia actually shot) was ever visible
+   anywhere once the moment passed — only the bare public outcome. Added
+   `state.gameLog` (`index.html`): every public day/night/inquiry/day-gun
+   outcome gets one line the moment it's announced (`logGameEvent`), and —
+   safe only once the game has fully ended — each night's individual,
+   previously-PRIVATE decisions (already comprehensively tracked per
+   night-acting role via the existing `recordNightDecision`/
+   `state.night.decisionsLog`) get folded in too, right when that night
+   resolves. Bundled into the existing `'game-over'` message (a new `log`
+   field) and rendered — merged chronologically with the already-separate,
+   continuously-updated `state.voteHistory` feed — behind a new "View Full
+   Game Log" link on every game-over screen (host's own, and every real
+   player's, via the shared `App.viewGameLog()`/`renderGameLogInto` — same
+   precedent as My Role/My Activity/Vote History already being screens the
+   host also visits, see `showScreen`'s own comment on that pattern). This
+   scenario runs a real 5-player No God Mode game entirely hands-off (zero
+   manual role-assign/begin/vote-open calls — only the 3 genuinely
+   auto-triggered moments are waited on, never driven) through two day-vote
+   eliminations and one real night (a Mafia kill + a detective
+   investigation) to a Mafia win, then checks the FINAL rendered log — on
+   the host's own screen AND independently on an eliminated player's
+   device (proving the `'game-over'` message's own log data, not just the
+   host's local copy) — actually contains all of it: both eliminations,
+   the night kill, the detective's investigation target, and the final
+   winner line.
+
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this
 harness also had.
