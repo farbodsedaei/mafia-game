@@ -11,18 +11,21 @@
 //
 //   1. God Mode makes autoPacingOn() true (see index.html's own
 //      autoPacingOn — it's shared with No God Mode), which changes the
-//      game's pacing in exactly three places: maybeAutoStartGame deals
-//      roles and begins the game itself once every seat has a name;
-//      goToDayScreen auto-starts that day's voting for any day > 1 (no
-//      stable screen-host-day to observe); and broadcastDefensePhase
-//      auto-starts the final vote the instant round 1's tally closes (no
-//      stable screen-host-defense moment either — round 1's own tally can't
-//      be read reliably, so this scenario goes straight from
-//      fullVoteRound1 into fullVoteFinal everywhere). This scenario
-//      therefore never calls App.assignRoles/beginGame/startVoting/
-//      startFinalVote directly — see game-flow.js's autoAssignRolesAndBegin
-//      / playDay1AndSkipNight1AutoPaced and the fullVoteRound1/fullVoteFinal
-//      helpers, which wait for the auto-started screens instead.
+//      game's pacing in two places where something auto-starts with no
+//      stable screen to wait on first: maybeAutoStartGame deals roles and
+//      begins the game itself once every seat has a name; goToDayScreen
+//      auto-starts that day's voting for any day > 1 (no stable
+//      screen-host-day to observe). This scenario therefore never calls
+//      App.assignRoles/beginGame/startVoting directly — see game-flow.js's
+//      autoAssignRolesAndBegin/playDay1AndSkipNight1AutoPaced, which wait
+//      for the auto-started screens instead. (broadcastDefensePhase used
+//      to behave the same way — auto-starting the final vote the instant
+//      round 1's tally closed, no stable screen-host-defense moment to
+//      observe — until the defense-deadline fix in scenario 09 gave it a
+//      real, observable deadline of its own instead; fullVoteFinal now
+//      waits for that screen and taps App.startFinalVote() itself, so this
+//      scenario's own fullVoteRound1-straight-into-fullVoteFinal calls
+//      below needed no changes.)
 //   2. The host's own seat (named Reza below) has no real device of its
 //      own — see game-flow.js's hostSelfVote/hostSelfNightAction/
 //      hostSelfInquiryVote/hostSelfDayGunDecision and device.js's

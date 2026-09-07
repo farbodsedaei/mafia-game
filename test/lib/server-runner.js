@@ -37,13 +37,29 @@ function waitForHttpUp(port, timeoutMs) {
   });
 }
 
-// opts: { hostGraceMs } — mirrors server.js's own HOST_GRACE_MS_OVERRIDE test
-// hook, for reconnect scenarios that don't want to wait the real 90s.
+// opts: { hostGraceMs, turn } — hostGraceMs mirrors server.js's own
+// HOST_GRACE_MS_OVERRIDE test hook, for reconnect scenarios that don't want
+// to wait the real 90s. turn: {url, username, credential} makes this run
+// with a TURN server actually configured (see server.js's buildIceServers);
+// omitted (the default, and what nearly every scenario wants), TURN_URL/
+// TURN_USERNAME/TURN_CREDENTIAL are explicitly deleted from the spawned
+// process's env — deterministic STUN-only regardless of whatever the host
+// machine's own environment happens to have set, rather than silently
+// inheriting it.
 async function startServer(opts) {
   opts = opts || {};
   const port = await findFreePort();
   const env = Object.assign({}, process.env, { PORT: String(port) });
   if (opts.hostGraceMs) env.HOST_GRACE_MS_OVERRIDE = String(opts.hostGraceMs);
+  if (opts.turn) {
+    env.TURN_URL = opts.turn.url;
+    env.TURN_USERNAME = opts.turn.username;
+    env.TURN_CREDENTIAL = opts.turn.credential;
+  } else {
+    delete env.TURN_URL;
+    delete env.TURN_USERNAME;
+    delete env.TURN_CREDENTIAL;
+  }
 
   const child = spawn(process.execPath, [SERVER_PATH], {
     env,

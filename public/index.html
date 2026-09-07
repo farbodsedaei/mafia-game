@@ -272,6 +272,13 @@
   <div class="screen" id="screen-host-setup">
     <div class="eyebrow" data-i18n="hostSetupEyebrow"></div>
     <h2 style="font-size:28px; margin:10px 0 26px;" data-i18n="hostSetupTitle"></h2>
+    <!-- See renderSetupValues/turnConfigured — hidden by default (starts
+         optimistic until the /api/ice-config fetch actually resolves), so
+         this only ever appears once the server has genuinely confirmed no
+         TURN server is set. Not a validation error (never blocks Create
+         Lobby) — just visibility for a real, easy-to-miss cause of "some
+         players can't connect", worse with more players. -->
+    <p class="banner warning" id="turn-not-configured-warning" style="display:none; margin-bottom:16px;" data-i18n="turnNotConfiguredWarning"></p>
     <div class="field">
       <label data-i18n="labelNumPlayers"></label>
       <div class="stepper">
@@ -1014,8 +1021,18 @@
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
   ];
+  // Surfaced to the HOST as an in-app warning on the setup screen (see
+  // renderSetupValues) instead of this being a silent gap only visible by
+  // reading server.js's own comments — see that file's turnConfigured
+  // field. Starts true (no false alarm) until the fetch actually confirms
+  // otherwise; a request that fails outright leaves it true for the same
+  // reason — don't warn about something this specific check couldn't
+  // actually determine either way.
+  let turnConfigured = true;
   fetch('/api/ice-config').then(r => r.json()).then(data => {
     if(data && Array.isArray(data.iceServers) && data.iceServers.length) ICE_SERVERS = data.iceServers;
+    turnConfigured = !!(data && data.turnConfigured);
+    renderSetupValues(); // idempotent — updates the warning banner if the host is already looking at setup
   }).catch(() => { /* keep the STUN-only default above */ });
 
   // Night-action roles are identified by exact role name. Because the role
@@ -1046,6 +1063,7 @@
       landingTagline: 'با هم از هر جا بازی کنید. نقش‌ها مخفیانه و مستقیم به هر گوشی داده می‌شود.',
       btnHost: 'من میزبانم', btnHostGod: '— گاد', btnPlayer: 'من بازیکنم', btnRolesShields: 'نقش‌ها و شیلدها',
       hostSetupEyebrow: 'میزبان · نشست جدید', hostSetupTitle: 'بازی را تنظیم کنید',
+      turnNotConfiguredWarning: '⚠️ سرور TURN تنظیم نشده. برخی بازیکنان — مخصوصاً با اینترنت موبایل یا شبکه‌های محدودشده (وای‌فای مهمان، شرکتی و مانند آن) — ممکن است نتوانند وصل شوند، به‌خصوص هرچه تعداد بازیکنان بیشتر باشد.',
       labelNumPlayers: 'تعداد بازیکنان', labelNumMafia: 'تعداد مافیا',
       villagersWillBe: '{n} نفر شهروند خواهند بود.',
       labelNumInquiries: 'تعداد استعلام‌ها',
@@ -1076,6 +1094,8 @@
       lobbyNeedMoreHint: 'برای شروع حداقل به {n} بازیکن آماده نیاز دارید.',
       lobbyMinReadyHint: 'نیازی نیست منتظر پیوستن همه بمانید — هر وقت خواستید می‌توانید نقش‌ها را تخصیص دهید. هر کس بعداً بپیوندد، به‌محض ورود نقش خودش را دریافت می‌کند.',
       statusConnecting: 'در حال اتصال…', statusWaitingForPlayer: 'منتظر پیوستن بازیکن با لینک…',
+      statusConnectingStuck: 'اتصال طول کشیده…', btnRetryConnection: 'تلاش دوباره',
+      toastRetryingConnection: 'در حال تلاش دوباره برای اتصال آن بازیکن…',
       toastPlayerJoined: '{name} به بازی پیوست.', toastPlayerReconnected: '{name} دوباره وصل شد.',
       rolesAssignedEyebrow: 'نقش‌ها تخصیص یافت', rolesDealtTitle: 'نقش‌ها پخش شدند',
       rolesDealtHint: 'نقش‌ها به‌صورت خصوصی به هر گوشی ارسال شد — از جمله گوشی شما اگر شما هم بازی می‌کنید. در حال حاضر، تا وقتی بازی در حال ساخته‌شدن است، این نقش‌ها پایین همین صفحه هم به شما نشان داده می‌شوند.',
@@ -1262,6 +1282,7 @@
       landingTagline: 'Play together from anywhere. Roles are dealt in secret, straight to each phone.',
       btnHost: "I'm the Host", btnHostGod: '— God', btnPlayer: "I'm a Player", btnRolesShields: 'Roles & Shields',
       hostSetupEyebrow: 'Host · New Session', hostSetupTitle: 'Set up the game',
+      turnNotConfiguredWarning: "⚠️ No TURN server is configured. Some players — especially on cellular data or a restrictive network (guest/corporate WiFi and similar) — may not be able to connect, more likely the more players there are.",
       labelNumPlayers: 'Number of players', labelNumMafia: 'Number of Mafia',
       villagersWillBe: '{n} will be Villagers.',
       labelNumInquiries: 'Number of Inquiries',
@@ -1292,6 +1313,8 @@
       lobbyNeedMoreHint: 'You need at least {n} players ready before you can start.',
       lobbyMinReadyHint: "You don't have to wait for everyone — you can assign roles whenever you're ready. Anyone who joins later gets their role the moment they do.",
       statusConnecting: 'Connecting…', statusWaitingForPlayer: 'Waiting for player to join with the link…',
+      statusConnectingStuck: 'Taking a while…', btnRetryConnection: 'Retry',
+      toastRetryingConnection: "Retrying that player's connection…",
       toastPlayerJoined: '{name} joined the game.', toastPlayerReconnected: '{name} reconnected.',
       rolesAssignedEyebrow: 'Roles Assigned', rolesDealtTitle: 'Roles have been dealt',
       rolesDealtHint: "Roles were sent privately to each phone — including yours if you're playing too. For now, while the game is still being built, they're also listed below on this screen.",
@@ -2271,6 +2294,8 @@
     renderSetupValues();
   };
   function renderSetupValues(){
+    const turnWarn = $('turn-not-configured-warning');
+    if(turnWarn) turnWarn.style.display = turnConfigured ? 'none' : 'block';
     $('val-players').textContent = state.numPlayers;
     $('val-mafia').textContent = state.numMafia;
     $('mafia-hint').textContent = t('villagersWillBe', { n: state.numPlayers - state.numMafia });
@@ -2283,7 +2308,12 @@
     const testModeToggle = $('test-mode-toggle');
     if(testModeToggle) testModeToggle.checked = state.testMode;
     const deadlineFields = $('no-god-deadline-fields');
-    if(deadlineFields) deadlineFields.style.display = state.noGodMode ? 'block' : 'none';
+    // God Mode drives itself off these exact same minutes (see
+    // autoPacingOn — both toggles share one auto-pacing engine), so a host
+    // who enabled ONLY God Mode (not No God Mode) still needs a way to
+    // adjust them. Used to be gated on state.noGodMode alone, leaving a
+    // God-Mode-only host with no access to this at all.
+    if(deadlineFields) deadlineFields.style.display = autoPacingOn() ? 'block' : 'none';
     $('val-act-deadline').textContent = state.actDeadlineMinutes;
     $('val-vote-deadline').textContent = state.voteDeadlineMinutes;
     const godToggle = $('god-mode-toggle');
@@ -2354,6 +2384,48 @@
     }
   };
 
+  // How long a player can sit mid-negotiation (entry exists, but
+  // connected/name never landed) before the lobby flags them as stuck
+  // instead of just "connecting" — a little ahead of the player's OWN
+  // 18s "having trouble? Try Again" hint (startConnectingTimeout), so the
+  // God can usually notice and nudge before the player even sees their
+  // own stuck message. Real-world usual cause: no TURN server configured
+  // (see turnConfigured/the setup-screen warning) — a direct peer-to-peer
+  // path just isn't possible for that one player's network, and no amount
+  // of waiting fixes that on its own; a retry can still occasionally help
+  // (fresh ICE gathering/ports/timing), which is what the button below is
+  // for — but it's not guaranteed the way it would be with TURN.
+  const LOBBY_STUCK_THRESHOLD_MS = 12000;
+  // Re-renders the lobby every couple of seconds for as long as anyone's
+  // still mid-negotiation — nothing else would otherwise notice a slot
+  // crossing LOBBY_STUCK_THRESHOLD_MS and flip it to "stuck" purely from
+  // time passing (every other renderLobby() call is event-driven, e.g.
+  // dc.onopen/onclose). Self-clearing the instant nobody's left waiting,
+  // so this never runs during normal play once everyone's in.
+  let lobbyConnectingTicker = null;
+  function ensureLobbyConnectingTicker(){
+    if(lobbyConnectingTicker) return;
+    lobbyConnectingTicker = setInterval(() => {
+      const anyConnecting = Array.from(state.players.values()).some(p => !(p.connected && p.name));
+      if(!anyConnecting){ clearInterval(lobbyConnectingTicker); lobbyConnectingTicker = null; return; }
+      if(document.getElementById('screen-host-lobby').classList.contains('active')) renderLobby();
+    }, 2000);
+    if(lobbyConnectingTicker && typeof lobbyConnectingTicker.unref === 'function') lobbyConnectingTicker.unref();
+  }
+  // Host-initiated version of the player's own App.retryJoin() — tears
+  // down whatever pc/dc that player currently has (however stuck) and
+  // starts a genuinely fresh negotiation, exactly like hostBeginConnectionTo
+  // already does for any reconnect. Doesn't require the STUCK PLAYER to
+  // notice or tap anything themselves; the fresh offer reaches them
+  // unprompted over the signaling relay (see playerHandleSignal's own
+  // unconditional 'offer' handling) as long as their WebSocket is still
+  // alive to receive it.
+  App.retryPlayerConnection = function(id){
+    if(!state.players.has(id)) return;
+    hostBeginConnectionTo(id);
+    toast(t('toastRetryingConnection'));
+  };
+
   function renderLobby(){
     const connectedCount = Array.from(state.players.values()).filter(p => p.connected && p.name).length;
     $('lobby-eyebrow').textContent = t('lobbyJoinedCount', { n: connectedCount, total: state.numPlayers });
@@ -2365,11 +2437,17 @@
       const ready = p.connected && p.name;
       const row = document.createElement('div');
       row.className = 'slot' + (ready ? ' connected' : '');
+      if(ready){
+        row.innerHTML = '<div class="num">' + i + '</div><div class="name">' + escapeHtml(p.name) + '</div><div class="check">&#10003;</div>';
+        list.appendChild(row);
+        continue;
+      }
+      const stuck = p.connectingSince && (Date.now() - p.connectingSince > LOBBY_STUCK_THRESHOLD_MS);
       row.innerHTML =
         '<div class="num">' + i + '</div>' +
-        (ready
-          ? '<div class="name">' + escapeHtml(p.name) + '</div><div class="check">&#10003;</div>'
-          : '<div class="status">' + escapeHtml(t('statusConnecting')) + '</div>');
+        '<div class="status">' + escapeHtml(stuck ? t('statusConnectingStuck') : t('statusConnecting')) + '</div>' +
+        (stuck ? '<button class="link-btn" style="padding:6px 0; flex-shrink:0;">' + escapeHtml(t('btnRetryConnection')) + '</button>' : '');
+      if(stuck) row.querySelector('button').onclick = () => App.retryPlayerConnection(id);
       list.appendChild(row);
     }
     const remaining = state.numPlayers - state.players.size;
@@ -2433,12 +2511,18 @@
       existing.pc = pc;
       existing.dc = dc;
       existing.connected = false;
+      // Reset on every fresh attempt (including a host- or player-
+      // triggered retry) — see LOBBY_STUCK_THRESHOLD_MS/renderLobby — so a
+      // retry gets its own full window before being flagged stuck again,
+      // rather than staying flagged from the original attempt's clock.
+      existing.connectingSince = Date.now();
       entry = existing;
     } else {
-      entry = { name: null, connected: false, pc, dc, role: null, roleId: null, alive: true, independent: false, activityLog: [] };
+      entry = { name: null, connected: false, pc, dc, role: null, roleId: null, alive: true, independent: false, activityLog: [], connectingSince: Date.now() };
       state.players.set(playerId, entry);
     }
     renderLobby();
+    ensureLobbyConnectingTicker();
 
     setupHostDataChannel(dc, playerId, !!existing);
 
@@ -3828,16 +3912,22 @@
 
   function broadcastDefensePhase(){
     const names = state.defendingIds.map(id => state.players.get(id).name);
+    // The defense gets its own dedicated talk window under auto-pacing —
+    // the same per-player-alive formula as voting itself (armVoteDeadline:
+    // voteDeadlineMinutes x however many are alive), armed BEFORE the
+    // phase messages go out so the deadline badge actually reflects it
+    // right away (see sendToPlayer's DEADLINE_CARRYING_TYPES piggyback).
+    // Used to fold the defense straight into the SAME window as final
+    // voting (calling App.startFinalVote immediately) — no dedicated time
+    // to actually talk before voting could start. A no-op in a normally-
+    // hosted game, same as every other armVoteDeadline call — the God
+    // taps Start Final Vote whenever they judge it's done instead.
+    armVoteDeadline(App.startFinalVote);
     aliveEntries().forEach(([id, entry]) => {
       sendToPlayer(entry, { type: 'phase', phase: 'defense', day: state.day, defendingNames: names, onTrial: state.defendingIds.includes(id) });
     });
     renderDefenseList();
     showScreen('screen-host-defense');
-    // No God Mode: same reasoning as goToDayScreen — nobody's there to judge
-    // when the defense has run its course and tap Start Final Vote, so the
-    // final vote opens right away too, folding the defense statement itself
-    // into the same voting window (see App.startFinalVote's own deadline).
-    if(autoPacingOn()) App.startFinalVote();
   }
 
   function renderDefenseList(){

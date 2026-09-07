@@ -316,6 +316,18 @@ async function fullVoteRound1(host, players, hostSelfName, target, log) {
   if (hostSelfName) await hostSelfVote(host, log, hostSelfName === target ? [] : [target]);
 }
 async function fullVoteFinal(host, players, hostSelfName, target, log) {
+  // Round 1 closing into a defendant now opens a REAL, dedicated defense
+  // deadline under auto-pacing (see broadcastDefensePhase/armVoteDeadline
+  // in index.html) instead of folding straight into this final round —
+  // skip ahead manually here, exactly like a real host tapping "Start
+  // Final Vote" early once everyone's ready, rather than every scenario
+  // that chains fullVoteRound1 into this having to wait out the real
+  // multi-minute deadline itself. Always safe: fullVoteRound1's own
+  // full-participation targeting is designed to reliably produce a
+  // defendant, so screen-host-defense is always reachable here.
+  await waitFor(() => activeScreenId(host) === 'screen-host-defense',
+    { message: 'round 1 never produced a defendant to defend' });
+  host.App.startFinalVote();
   const voters = players.filter((p) => p.label !== target);
   const choices = {};
   voters.forEach((p) => { choices[p.label] = [target]; });

@@ -289,6 +289,99 @@ classes), not on anything internal to `index.html`.
    immediately (0 or equal Mafia left) before the scenario ever reached the
    night/Day-3 checks it needed.
 
+8. `08-godmode-deadline-fields-visible` — regression test for a reported
+   bug: "in god as player mode (host mode), we should still be able to
+   adjust the number of minutes for actions and talking during day."
+   `#no-god-deadline-fields` (the act-deadline/vote-deadline minute
+   steppers) was shown only when `state.noGodMode` was on — but God Mode
+   drives itself off those exact same two numbers too, via the same shared
+   `autoPacingOn()` engine (`armActDeadline`/`armVoteDeadline`), so a host
+   who enabled ONLY God Mode had no way to see or adjust them at all, even
+   though their own game was actively timing everything against those
+   defaults. Fixed with a one-line change (`index.html`) — gate the
+   fields' visibility on `autoPacingOn()` instead of `state.noGodMode`
+   directly; `App.stepActDeadline`/`stepVoteDeadline` themselves were never
+   mode-gated to begin with, so no other change was needed. A pure
+   setup-screen check, no lobby/game required — confirms the fields are
+   hidden by default, appear under God Mode ALONE, that adjusting them
+   actually changes the underlying values (not just visibility), and that
+   the original No-God-Mode-alone path (and both together) still work.
+
+9. `09-defense-gets-its-own-deadline` — regression test for a reported
+   bug: "the time for defence should be default time per player (i.e. 5
+   mins) to talk." Under auto-pacing, `broadcastDefensePhase` used to call
+   `App.startFinalVote()` immediately once round 1 produced a defendant —
+   folding the defense statement into the exact same window as final
+   voting itself, so the accused got literally zero dedicated time to
+   actually talk before voting could reopen. Fixed with a one-line change
+   (`index.html`): arm the SAME per-player-alive deadline formula voting
+   already uses (`armVoteDeadline` — `voteDeadlineMinutes` × however many
+   are alive) for the defense phase specifically, before opening the final
+   vote — a no-op in a normally-hosted game, same as every other
+   `armVoteDeadline` call. Uses the test-only `mafia-deadline-ms-override`
+   localStorage key (read live on every arm by `armAutoDeadlineMs`) to
+   force the deadline down to ~400ms instead of real minutes, so the
+   eventual auto-advance can actually be observed. **Part A** (No God
+   Mode) confirms the host lands on, and genuinely STAYS on, the defense
+   screen right after round 1 closes (doesn't fold straight into voting
+   any more), then that the overridden deadline expires on its own and
+   opens the final vote with no manual click. **Part B** (a normally-
+   hosted game, same override deliberately still set) confirms the defense
+   screen never auto-advances there at all — `armAutoDeadlineMs` itself
+   no-ops without `autoPacingOn()` — and that the God's manual "Start
+   Final Vote" tap still works exactly as before.
+
+   **This changed a shared test helper**: `fullVoteRound1`/`fullVoteFinal`
+   (`lib/game-flow.js`) used to chain straight into each other with no
+   stable `screen-host-defense` moment to wait on, per `broadcastDefensePhase`'s
+   old instant-transition behavior (see scenarios 01/03's own comments on
+   this, now outdated) — `fullVoteFinal` now waits for the defense screen
+   and taps `App.startFinalVote()` itself before casting the final round's
+   votes, so every scenario using the pair together (01, 02, 03, 06, 07)
+   keeps working against the new real deadline with no per-scenario
+   changes needed, except one: scenario 07's Part A had ALSO been manually
+   waiting-for-defense-and-tapping-Start-Final-Vote itself before calling
+   `fullVoteFinal` — now redundant (and actually broken, since by the time
+   `fullVoteFinal` ran the screen had already moved past defense) — removed
+   in favor of letting the shared helper handle it.
+
+10. `10-turn-warning-and-stuck-connection` — feature test for a reported
+    bug: "whenever we try to start the game, especially with more than 10
+    people, there is always at least one person who can't connect... I
+    end up recreating the room." Investigated with the user before
+    touching code — landed on: no TURN server configured, and WebRTC
+    without one can only succeed via direct peer-to-peer hole-punching,
+    which reliably fails for anyone on a restrictive network (cellular,
+    corporate/guest WiFi, carrier-grade NAT) no matter how many times you
+    retry — a deployment/config fix, not something the app can route
+    around on its own. What WAS fixed in-app: (1) `index.html`'s setup
+    screen now warns the host outright when `/api/ice-config` reports no
+    TURN configured (`server.js` gained a `turnConfigured` field on that
+    response), instead of this being a silent, undiagnosable "waiting for
+    host" hang; (2) the lobby now shows a distinct "taking a while..."
+    status + a Retry button for any specific player whose connection has
+    been pending past a threshold (`LOBBY_STUCK_THRESHOLD_MS`, a bit ahead
+    of the player's own 18s self-serve hint) — tapping it re-runs JUST
+    that player's negotiation (`App.retryPlayerConnection` →
+    `hostBeginConnectionTo`, already-existing plumbing, no new player-side
+    code needed) without touching anyone else or recreating the room.
+    **Part A** confirms the warning starts hidden, appears once the server
+    genuinely confirms no TURN, and stays hidden when TURN IS configured
+    (`server-runner.js`'s `startServer` gained a `turn` option for this —
+    and now always explicitly clears `TURN_URL`/etc. from the spawned
+    env by default, so every OTHER scenario stays deterministically
+    STUN-only regardless of what the host machine's own environment
+    happens to have set). **Part B** simulates a genuinely stuck
+    negotiation deterministically — one player's own `setRemoteDescription`
+    is made to return a promise that never resolves, the same shape a
+    real no-response WebRTC handshake takes — confirms their lobby slot
+    flips to "taking a while" with a Retry button (using a `Date.now`
+    monkey-patch on the host's window to fake time passing, rather than
+    a real ~12s wait), then confirms tapping that Retry button alone
+    (after un-hanging their connection) recovers them all the way to
+    fully connected, with zero action needed on the stuck player's own
+    device.
+
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this
 harness also had.
@@ -304,9 +397,9 @@ directly for a target whose death ends the game, not the intermediate
 elimination screen — a `waitFor` on the latter will simply time out.
 
 **God Mode / No God Mode** (`state.godMode`/`state.noGodMode`) both make
-`autoPacingOn()` true, which changes the game's own pacing in exactly three
-places (confirmed by grepping every `autoPacingOn()` call site in
-`index.html`):
+`autoPacingOn()` true, which changes the game's own pacing in exactly two
+places where something auto-STARTS with no stable screen to wait on first
+(confirmed by grepping every `autoPacingOn()` call site in `index.html`):
 - `maybeAutoStartGame()` — deals roles and begins the game itself the
   instant every declared seat has a name, after two chained ~8s reveal
   pauses (so wait generously — `timeout: 20000` — rather than calling
@@ -314,17 +407,18 @@ places (confirmed by grepping every `autoPacingOn()` call site in
 - `goToDayScreen()` — for any day > 1, calls `App.startVoting()` itself the
   moment the day screen would otherwise show. There is no stable
   `screen-host-day` to observe first; wait for the vote screen instead.
-- `broadcastDefensePhase()` — calls `App.startFinalVote()` itself the
-  instant round 1's tally closes. There is no stable `screen-host-defense`
-  moment to observe or act on either, so round 1's own tally can't be read
-  reliably — chain `fullVoteRound1` straight into `fullVoteFinal` and only
-  read the tally after the FINAL round settles on `screen-host-result`.
 
 Every other transition (`continueToNight`, `continueAfterEyesClosed`,
 `announceMorning`, `proceedAfterNight`, `proceedAfterResult`,
-`continueAfterInquiry`, `continueAfterOceanTalk`) is only ever armed as a
-real timer under auto-pacing instead of a no-op — calling these manually
-and promptly, exactly like a normal game, still works fine.
+`continueAfterInquiry`, `continueAfterOceanTalk`, and — since the
+defense-deadline fix in scenario 09 — `App.startFinalVote()` after
+`broadcastDefensePhase()`) is only ever armed as a real timer under
+auto-pacing instead of a no-op — calling these manually and promptly,
+exactly like a normal game, still works fine. `screen-host-defense`
+specifically now IS a stable, observable screen under auto-pacing (it
+wasn't before this fix) — see `fullVoteFinal` in `lib/game-flow.js`, which
+waits for it and taps `App.startFinalVote()` itself rather than every
+scenario needing to.
 
 Other lessons from building God Mode's first scenario:
 - **`fullVoteRound1`/`fullVoteFinal` need an ALIVE-filtered player list**,

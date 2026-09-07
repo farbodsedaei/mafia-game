@@ -61,13 +61,69 @@ function randomRoomCode(len) {
 // exactly what to set on the hosting platform (Render, etc.). Until they're
 // set, this silently falls back to the original STUN-only behavior — the
 // app still works exactly as before, just without the extra reliability.
-//   TURN_URL         one URL, or several comma-separated (e.g. a UDP one on
-//                     :80 and a TCP one on :443 — most providers give you
-//                     both; listing both gives WebRTC more chances to get
-//                     through a restrictive network)
-//   TURN_USERNAME     from your TURN provider
-//   TURN_CREDENTIAL   from your TURN provider
-function buildIceServers() {
+// Two ways to configure a TURN server, checked in this order:
+//
+//   1. Cloudflare Realtime TURN (CF_TURN_KEY_ID + CF_TURN_KEY_API_TOKEN) —
+//      a different shape from every other provider: instead of one static
+//      long-lived username/password, you get a "TURN key" (an ID + a
+//      secret API token) from the Cloudflare dashboard (Realtime -> TURN
+//      -> Create TURN key), and THIS SERVER calls Cloudflare's API to mint
+//      a fresh, short-lived credential pair on demand (see
+//      fetchCloudflareIceServers) — cached here and reused until it's
+//      close to expiring, rather than one call per request. Never put
+//      CF_TURN_KEY_API_TOKEN anywhere but this server's own env vars — it
+//      can mint credentials on its own, unlike the short-lived ones it
+//      hands out.
+//   2. A static provider (TURN_URL / TURN_USERNAME / TURN_CREDENTIAL) —
+//      Metered.ca's Open Relay, Xirsys, a self-hosted coturn, etc. — one
+//      long-lived username/password pair issued directly by the provider,
+//      used as-is.
+//        TURN_URL         one URL, or several comma-separated (e.g. a UDP
+//                          one on :80 and a TCP one on :443 — most
+//                          providers give you both; listing both gives
+//                          WebRTC more chances through a restrictive
+//                          network)
+//        TURN_USERNAME     from your TURN provider
+//        TURN_CREDENTIAL   from your TURN provider
+const CF_TURN_KEY_ID = process.env.CF_TURN_KEY_ID;
+const CF_TURN_KEY_API_TOKEN = process.env.CF_TURN_KEY_API_TOKEN;
+const CF_TURN_TTL_SECONDS = 6 * 60 * 60; // 6h — comfortably longer than one game night; refreshed proactively below anyway
+let cfTurnCache = null; // { iceServers, expiresAt } — process-local; fine to lose on a redeploy/restart, just regenerated on the next request
+
+async function fetchCloudflareIceServers() {
+  const now = Date.now();
+  // Reuse the cached set until it's close to expiring, rather than calling
+  // Cloudflare on every single /api/ice-config request (one per page
+  // load) — still comfortably fresh well within its own TTL.
+  if (cfTurnCache && cfTurnCache.expiresAt - now > 10 * 60 * 1000) {
+    return cfTurnCache.iceServers;
+  }
+  const res = await fetch(
+    'https://rtc.live.cloudflare.com/v1/turn/keys/' + CF_TURN_KEY_ID + '/credentials/generate-ice-servers',
+    {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + CF_TURN_KEY_API_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ttl: CF_TURN_TTL_SECONDS })
+    }
+  );
+  if (!res.ok) throw new Error('Cloudflare TURN credential request failed: ' + res.status + ' ' + (await res.text().catch(() => '')));
+  const data = await res.json();
+  if (!data || !Array.isArray(data.iceServers) || !data.iceServers.length) {
+    throw new Error('Cloudflare TURN response had no iceServers');
+  }
+  cfTurnCache = { iceServers: data.iceServers, expiresAt: now + CF_TURN_TTL_SECONDS * 1000 };
+  return data.iceServers;
+}
+
+async function buildIceServers() {
+  if (CF_TURN_KEY_ID && CF_TURN_KEY_API_TOKEN && typeof fetch === 'function') {
+    try {
+      return await fetchCloudflareIceServers();
+    } catch (e) {
+      console.error('[turn] Cloudflare credential fetch failed, falling back:', e.message);
+      // fall through to the static-provider / STUN-only path below
+    }
+  }
   const servers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
@@ -82,6 +138,18 @@ function buildIceServers() {
   return servers;
 }
 
+// Derives turnConfigured from the ACTUAL result rather than just checking
+// which env vars are present — correctly flips to false if e.g. the
+// Cloudflare API call above failed and buildIceServers had to fall back to
+// STUN-only despite CF_TURN_KEY_ID/TOKEN being set. See index.html's
+// setup-screen warning, the thing this actually drives.
+function iceServersIncludeTurn(iceServers) {
+  return iceServers.some(s => {
+    const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+    return urls.some(u => typeof u === 'string' && /^turns?:/i.test(u));
+  });
+}
+
 /* ---------------- Static file server ---------------- */
 const httpServer = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -93,8 +161,14 @@ const httpServer = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === '/api/ice-config') {
+    // turnConfigured lets the client warn the host in-app (see
+    // index.html's setup screen) instead of this being a silent fallback
+    // only visible by reading this file's own comments — real players on
+    // restrictive networks/cellular otherwise fail to connect with no
+    // obvious cause.
+    const iceServers = await buildIceServers();
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ iceServers: buildIceServers() }));
+    res.end(JSON.stringify({ iceServers, turnConfigured: iceServersIncludeTurn(iceServers) }));
     return;
   }
 

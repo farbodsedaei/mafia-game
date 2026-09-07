@@ -81,8 +81,10 @@ runScenario('07-vote-history-always-visible', async (log) => {
       log.step('Day 2: full-participation vote eliminating ' + p2.label + ' (a villager), creating real vote history...');
       host.App.startVoting();
       await fullVoteRound1(host, players, null, p2.label, log);
-      await waitFor(() => activeScreenId(host) === 'screen-host-defense', { message: 'Day 2 never reached defense' });
-      host.App.startFinalVote();
+      // fullVoteFinal itself now waits for screen-host-defense and taps
+      // Start Final Vote (skipping the defense phase's own new deadline —
+      // see index.html's broadcastDefensePhase) before casting the final
+      // round's votes.
       await fullVoteFinal(host, players, null, p2.label, log);
       await waitFor(() => activeScreenId(host) === 'screen-host-result', { message: 'Day 2 never reached result' });
       log.assert(linkVisible(p1), 'Day 2\'s result screen: the link is now visible (history exists)');
