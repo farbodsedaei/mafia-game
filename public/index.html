@@ -124,16 +124,18 @@
      debug panel, contradicting this exact comment.) */
   .toast{position:fixed; left:50%; bottom:32px; transform:translateX(-50%); background:var(--surface-2); border:1px solid var(--line-strong); color:var(--text); padding:12px 18px; border-radius:12px; font-size:13px; font-weight:600; z-index:1900; max-width:85%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
   .banner{background:var(--gold-dim); border:1px solid rgba(212,168,87,0.3); color:var(--gold); font-size:13px; padding:12px 14px; border-radius:12px; margin-bottom:16px; line-height:1.5;}
-  /* #day-gun-death-banner: a genuine day-gun ELIMINATION is a bigger deal
-     than a plain toast (see announceDayGunOutcome/showDayGunDeathBanner in
-     the script) — a whole team just got revealed to the table, and the
-     reported bug was that nobody had time to actually read the old toast.
-     Sits above the toast and every day/night overlay, same reasoning as
-     .toast for staying below the (host-only, deliberately-opened) debug
-     panel at 2000. */
-  #day-gun-death-banner{display:none; position:fixed; inset:0; z-index:1950; background:rgba(6,7,10,0.82); align-items:center; justify-content:center; padding:24px;}
-  #day-gun-death-banner .card{background:var(--surface-2); border:1px solid var(--line-strong); border-radius:16px; padding:22px 20px; max-width:420px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);}
-  #day-gun-death-banner .card p{font-size:15px; line-height:1.6; margin:0 0 16px;}
+  /* #day-gun-outcome-banner: EVERY day-gun outcome (a kill, a no-effect
+     shot, or nobody firing at all — see announceDayGunOutcome/
+     showDayGunOutcomeBanner in the script) gets this instead of a plain
+     toast — a toast can come and go while nobody's looking, and the
+     reported bug was exactly that: first for kills (a whole team just got
+     revealed to the table), then for every OTHER outcome too. Sits above
+     the toast and every day/night overlay, same reasoning as .toast for
+     staying below the (host-only, deliberately-opened) debug panel at
+     2000. */
+  #day-gun-outcome-banner{display:none; position:fixed; inset:0; z-index:1950; background:rgba(6,7,10,0.82); align-items:center; justify-content:center; padding:24px;}
+  #day-gun-outcome-banner .card{background:var(--surface-2); border:1px solid var(--line-strong); border-radius:16px; padding:22px 20px; max-width:420px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+  #day-gun-outcome-banner .card p{font-size:15px; line-height:1.6; margin:0 0 16px;}
   .banner.warning{background:var(--red-dim); border-color:rgba(196,54,75,0.35); color:var(--red-bright); margin-bottom:0;}
   .link-btn{appearance:none; background:none; border:none; color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:13px; cursor:pointer; padding:8px 0;}
   /* No God Mode's live countdown — floats above whatever screen is showing,
@@ -874,10 +876,10 @@
 
 </div>
 <div id="toast-host"></div>
-<div id="day-gun-death-banner">
+<div id="day-gun-outcome-banner">
   <div class="card">
-    <p id="day-gun-death-banner-text"></p>
-    <button class="btn btn-primary" onclick="App.dismissDayGunDeathBanner()" data-i18n="btnGotIt"></button>
+    <p id="day-gun-outcome-banner-text"></p>
+    <button class="btn btn-primary" onclick="App.dismissDayGunOutcomeBanner()" data-i18n="btnGotIt"></button>
   </div>
 </div>
 <div id="debug-badge" style="display:none; position:fixed; top:6px; left:8px; z-index:1000; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.05em; color:#EDEFF4; background:rgba(0,0,0,0.55); padding:3px 9px; border-radius:6px; pointer-events:none;"></div>
@@ -1246,10 +1248,10 @@
       gunDecisionEyebrow: 'اسلحه دست شماست', gunDecisionHint: 'می‌توانید امروز به یکی از بازیکنان شلیک کنید، یا کاری نکنید — هر وقت خواستید، چه پیش از رأی دادن و چه بعد از آن.',
       btnForceSkipGun: 'رد شدن اجباری',
       gunStillPendingNote: '{name} هنوز درباره شلیک امروز تصمیم نگرفته — رأی‌گیری منتظرش نمی‌ماند.',
-      gunHitDiedMafia: '{name} با شلیک اسلحه از بازی خارج شد — او مافیا بود.',
-      gunHitDiedZodiac: '{name} با شلیک اسلحه از بازی خارج شد — او زودیاک بود.',
-      gunHitDiedCivilian: '{name} با شلیک اسلحه از بازی خارج شد — او یک شهروند بود.',
-      gunHitNoEffect: '{name} هدف شلیک قرار گرفت، اما هیچ اتفاقی نیفتاد.',
+      gunHitDiedMafia: '{name} با شلیک اسلحهٔ {shooter} از بازی خارج شد — او مافیا بود.',
+      gunHitDiedZodiac: '{name} با شلیک اسلحهٔ {shooter} از بازی خارج شد — او زودیاک بود.',
+      gunHitDiedCivilian: '{name} با شلیک اسلحهٔ {shooter} از بازی خارج شد — او یک شهروند بود.',
+      gunHitNoEffect: '{shooter} به {name} شلیک کرد، اما هیچ اتفاقی نیفتاد.',
       gunNotFired: 'امروز اسلحه‌ای شلیک نشد.',
       btnGotIt: 'متوجه شدم',
       btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
@@ -1465,10 +1467,10 @@
       gunDecisionEyebrow: 'You have the gun', gunDecisionHint: 'You may shoot one player today, or do nothing — whenever you like, before or after voting.',
       btnForceSkipGun: 'Force Skip',
       gunStillPendingNote: "{name} still hasn't decided on today's shot — voting isn't waiting on them.",
-      gunHitDiedMafia: '{name} left the game, shot by the gun — they were Mafia.',
-      gunHitDiedZodiac: '{name} left the game, shot by the gun — they were Zodiac.',
-      gunHitDiedCivilian: '{name} left the game, shot by the gun — they were a civilian.',
-      gunHitNoEffect: "{name} was shot at, but nothing happened.",
+      gunHitDiedMafia: '{name} left the game, shot by {shooter}\'s gun — they were Mafia.',
+      gunHitDiedZodiac: '{name} left the game, shot by {shooter}\'s gun — they were Zodiac.',
+      gunHitDiedCivilian: '{name} left the game, shot by {shooter}\'s gun — they were a civilian.',
+      gunHitNoEffect: "{shooter} shot at {name}, but nothing happened.",
       gunNotFired: 'No shot was fired today.',
       btnGotIt: 'Got it',
       btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
@@ -3487,10 +3489,18 @@
       : isZodiacTeam ? 'gunHitDiedZodiac'
       : target.role === 'mafia' ? 'gunHitDiedMafia'
       : 'gunHitDiedCivilian';
-    const text = outcome === 'died' ? t(teamKey, { name: target.name })
-      : outcome === 'no-effect' ? t('gunHitNoEffect', { name: target.name })
+    // Both the death and no-effect wordings name the shooter now (see the
+    // STRINGS themselves) — only gunNotFired has no shooter to attribute,
+    // since that's specifically the "the holder chose not to fire at all"
+    // case. Same split decides whether this needs a deliberate
+    // acknowledgment below: 'died'/'no-effect' both mean a shot actually
+    // happened (see announceDayGunOutcome's own comment); 'not-fired' is a
+    // genuine non-event, nothing to actually read, and stays a toast.
+    const shooterName = shooter ? shooter.name : t('playerLabel');
+    const text = outcome === 'died' ? t(teamKey, { name: target.name, shooter: shooterName })
+      : outcome === 'no-effect' ? t('gunHitNoEffect', { name: target.name, shooter: shooterName })
       : t('gunNotFired');
-    announceDayGunOutcome(text, outcome === 'died');
+    announceDayGunOutcome(text, outcome !== 'not-fired');
   }
 
   // Public (everyone alive hears it), but — unlike the old sequential flow
@@ -3498,18 +3508,16 @@
   // is going on) may well still be active right when this fires, and
   // forcing every screen away from that just to show a gun announcement
   // would be exactly the kind of interruption this feature is meant to
-  // avoid. A plain toast covers "nothing happened"/"nobody fired" — low
-  // stakes, nothing to actually read. A genuine ELIMINATION is a bigger
-  // deal (someone's whole team just got revealed to the group) and was
-  // reported as easy to miss entirely, so that gets the more deliberate
-  // #day-gun-death-banner instead (see showDayGunDeathBanner): it stays up
-  // until dismissed or a generous safety-net timeout passes, instead of a
-  // toast nobody's guaranteed to have actually seen. See
-  // updateGunPendingNote for the small persistent note that clears now
-  // that this resolved.
-  function announceDayGunOutcome(text, isDeath){
-    aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'day-gun-result', text, isDeath: !!isDeath }));
-    if(isDeath) showDayGunDeathBanner(text); else toast(text, 5000);
+  // avoid. Used to only give a genuine ELIMINATION the more deliberate
+  // #day-gun-outcome-banner treatment (see showDayGunOutcomeBanner) and
+  // just toast "nothing happened"/"nobody fired" — but a real SHOT that
+  // didn't kill (target shielded/immune) can just as easily be missed as
+  // an actual kill, so that gets the banner too now, not just a death.
+  // "Nobody fired at all" stays a toast — a genuine non-event, nothing to
+  // actually read or acknowledge.
+  function announceDayGunOutcome(text, requiresAck){
+    aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'day-gun-result', text, requiresAck: !!requiresAck }));
+    if(requiresAck) showDayGunOutcomeBanner(text); else toast(text, 5000);
     updateGunPendingNote();
     logGameEvent('day', text); // full game log (see logGameEvent) — same text everyone already saw
     // A day-gun kill CAN end the game outright (e.g. it's the last Mafia)
@@ -3518,31 +3526,33 @@
     if(state.winner) App.showGameOver();
   }
 
-  // A more deliberate public announcement than a toast — for a genuine
-  // day-gun ELIMINATION specifically (see announceDayGunOutcome), on every
-  // device: host, every player, and God Mode's host-self alike, since
-  // host-self is the same physical document as the host's own admin view
-  // — no separate call needed there, it just sees this one directly.
-  // Stays up until dismissed or DAY_GUN_DEATH_BANNER_MS passes on its own,
-  // instead of a toast that could come and go while nobody happened to be
-  // looking — see the reported "nothing is announced, or there's no delay
-  // to observe it" bug.
-  const DAY_GUN_DEATH_BANNER_MS = 20000;
-  let dayGunDeathBannerTimer = null;
-  function showDayGunDeathBanner(text){
-    const banner = $('day-gun-death-banner');
-    const textEl = $('day-gun-death-banner-text');
+  // A more deliberate public announcement than a toast — for EVERY day-gun
+  // outcome (see announceDayGunOutcome), on every device: host, every
+  // player, and God Mode's host-self alike, since host-self is the same
+  // physical document as the host's own admin view — no separate call
+  // needed there, it just sees this one directly. Stays up until dismissed
+  // or DAY_GUN_OUTCOME_BANNER_MS passes on its own (a safety net, not the
+  // point — the point is requiring an actual "I saw this" tap), instead of
+  // a toast that could come and go while nobody happened to be looking —
+  // see the reported "nothing is announced, or there's no delay to
+  // observe it" bug, and the follow-up that a NON-kill outcome had the
+  // exact same problem.
+  const DAY_GUN_OUTCOME_BANNER_MS = 20000;
+  let dayGunOutcomeBannerTimer = null;
+  function showDayGunOutcomeBanner(text){
+    const banner = $('day-gun-outcome-banner');
+    const textEl = $('day-gun-outcome-banner-text');
     if(!banner || !textEl) return;
     textEl.textContent = text;
     banner.style.display = 'flex';
-    if(dayGunDeathBannerTimer){ clearTimeout(dayGunDeathBannerTimer); dayGunDeathBannerTimer = null; }
-    dayGunDeathBannerTimer = setTimeout(App.dismissDayGunDeathBanner, DAY_GUN_DEATH_BANNER_MS);
-    if(dayGunDeathBannerTimer && typeof dayGunDeathBannerTimer.unref === 'function') dayGunDeathBannerTimer.unref();
+    if(dayGunOutcomeBannerTimer){ clearTimeout(dayGunOutcomeBannerTimer); dayGunOutcomeBannerTimer = null; }
+    dayGunOutcomeBannerTimer = setTimeout(App.dismissDayGunOutcomeBanner, DAY_GUN_OUTCOME_BANNER_MS);
+    if(dayGunOutcomeBannerTimer && typeof dayGunOutcomeBannerTimer.unref === 'function') dayGunOutcomeBannerTimer.unref();
   }
-  App.dismissDayGunDeathBanner = function(){
-    const banner = $('day-gun-death-banner');
+  App.dismissDayGunOutcomeBanner = function(){
+    const banner = $('day-gun-outcome-banner');
     if(banner) banner.style.display = 'none';
-    if(dayGunDeathBannerTimer){ clearTimeout(dayGunDeathBannerTimer); dayGunDeathBannerTimer = null; }
+    if(dayGunOutcomeBannerTimer){ clearTimeout(dayGunOutcomeBannerTimer); dayGunOutcomeBannerTimer = null; }
   };
 
   // ---------------- Day-gun: independent deadline ----------------
@@ -5204,16 +5214,16 @@
           attachGunDecisionSection(activeScreenId());
         }
         else if(msg.type === 'day-gun-result'){
-          // Public (everyone alive hears it) — a plain toast for "nothing
-          // happened"/"nobody fired", but a genuine elimination gets the
-          // more deliberate, dismiss-or-timeout death banner instead (see
-          // showDayGunDeathBanner on the host side) so it can't be missed
-          // in the middle of an active vote or whatever else is going on.
-          // If this WAS the pending decision the subsection was showing,
-          // clear it too (covers the "someone else's deadline forced it
-          // closed" case as well as this player's own submit already
-          // having cleared it locally).
-          if(msg.isDeath) showDayGunDeathBanner(msg.text); else toast(msg.text, 5000);
+          // Public (everyone alive hears it) — a real SHOT (kill or a
+          // no-effect miss, msg.requiresAck) gets the deliberate,
+          // dismiss-or-timeout banner (see showDayGunOutcomeBanner on the
+          // host side) so it can't be missed in the middle of an active
+          // vote or whatever else is going on; "nobody fired at all"
+          // stays a brief toast. If this WAS the pending decision the
+          // subsection was showing, clear it too (covers the "someone
+          // else's deadline forced it closed" case as well as this
+          // player's own submit already having cleared it locally).
+          if(msg.requiresAck) showDayGunOutcomeBanner(msg.text); else toast(msg.text, 5000);
           state.pendingDayGunMsg = null;
           attachGunDecisionSection(activeScreenId());
         }

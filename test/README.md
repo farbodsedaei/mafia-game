@@ -382,6 +382,54 @@ classes), not on anything internal to `index.html`.
     fully connected, with zero action needed on the stuck player's own
     device.
 
+11. `11-day-gun-outcome-banner-and-shooter-name` — regression test for two
+    reported requests about the day-gun outcome announcement: "when gun
+    holder shoots during day, currently if someone gets killed we get a
+    pop up message and we should click ok before it disappears, but if the
+    shoot doesn't kill anybody there is a disappearing message... we should
+    change all those pop-up messages to stay on screen till we make sure
+    player saw that and clicks ok"; and "when gun holder shoots someone
+    (successfully or unsuccessfully) the message should say who was the gun
+    holder that made the shot." A genuine KILL already got the deliberate,
+    dismiss-or-timeout `#day-gun-outcome-banner` treatment from an earlier
+    pass (see scenario 02, which already checks the banner names the
+    target). What was missing: a shot that DOESN'T kill (a shielded target
+    — a real "the shoot doesn't kill anybody" case, distinct from nobody
+    firing at all) still just used a 5s toast, exactly as easy to miss as
+    the original kill bug was. Fixed (`index.html`) by having
+    `announceDayGunOutcome` take a `requiresAck` flag — true for BOTH
+    `'died'` and `'no-effect'` (an actual shot happened either way), false
+    only for `'not-fired'` (nobody chose to shoot at all, a genuine
+    non-event that correctly stays a plain toast, unchanged); the death and
+    no-effect STRINGS also gained a `{shooter}` placeholder naming who
+    actually pulled the trigger. Drives a real handoff (تفنگدار → a
+    recipient) and a real shielded-target shot that survives (پدر خوانده's
+    own shield absorbs it) to confirm the banner requires an explicit
+    dismissal and names BOTH the target and the shooter — on the host, the
+    shooter's own device, AND the target's device — then a second handoff
+    where the recipient declines to fire at all, confirming that path is
+    still a plain, unattended toast.
+
+    **A genuine test-harness race worth not re-discovering**: this is the
+    first scenario where تفنگدار's handoff is the ONLY pending
+    civilian-phase decision that night (no دکتر/کاراگاه/حرفه‌ای/اوشن also in
+    play to "absorb" some real async time first, unlike scenarios 01/02).
+    Calling `App.continueAfterOceanTalk()` immediately after `nightAction()`
+    submits the handoff raced ahead of the host actually having processed
+    that still-in-flight message — `continueAfterOceanTalk` unconditionally
+    calls `advanceNight()` with no phase check, so it can advance
+    `state.gamePhase` past `'night-civilian-phase'` a moment before the real
+    submission arrives, and `handleNightAction`'s
+    `state.gamePhase !== expectedPhase` guard then silently drops it (no
+    error, no thrown exception — `state.pendingGun` just quietly stays
+    `null`). Since this scenario's role pool has no اوشن at all,
+    `startOceanTalkStep` auto-skips straight to the morning-ready screen on
+    its own the instant the real civilian-phase decision lands anyway —
+    fixed by simply NOT calling `continueAfterOceanTalk()` here at all, and
+    waiting for `screen-host-night-morning` directly instead, so the wait
+    genuinely blocks on the real submission rather than forcing a phase
+    change ahead of it.
+
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this
 harness also had.
