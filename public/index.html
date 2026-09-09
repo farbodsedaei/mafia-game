@@ -138,6 +138,18 @@
   #day-gun-outcome-banner .card p{font-size:15px; line-height:1.6; margin:0 0 16px;}
   .banner.warning{background:var(--red-dim); border-color:rgba(196,54,75,0.35); color:var(--red-bright); margin-bottom:0;}
   .link-btn{appearance:none; background:none; border:none; color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:13px; cursor:pointer; padding:8px 0;}
+  /* Persistent My Role / My Activity / Vote History access (see
+     updatePlayerFooterBar) — a real row of buttons, replacing what used to
+     be each screen's own copy of these as plain text links. A normal
+     in-flow flex child of #app, right after the one active .screen — since
+     every .screen is flex:1 and only one is ever display:flex at a time,
+     this naturally lands pinned to the bottom of whatever screen is
+     showing with no position:fixed/z-index juggling needed against the
+     مافیا/اوشن/زودیاک chat drawers (those cover it while open, exactly like
+     they'd cover any other page content — closing the drawer reveals it
+     again immediately). */
+  .player-footer-bar{display:none; gap:8px; padding-top:14px; margin-top:14px; border-top:1px solid var(--line); flex-shrink:0;}
+  .player-footer-bar .btn{flex:1; padding:12px 8px; font-size:13px;}
   /* No God Mode's live countdown — floats above whatever screen is showing,
      same idea as .lang-switch/.debug-toggle-btn, since the deadline isn't
      tied to any one screen (see updateDeadlineBadge). Never shown in a
@@ -150,6 +162,11 @@
   /* Dev/troubleshooting only — lets the God see every role and the full
      activity log at a glance. Never shown to players. */
   .debug-toggle-btn{display:none; position:fixed; top:34px; left:8px; z-index:1000; appearance:none; border:none; background:rgba(0,0,0,0.55); color:#EDEFF4; font-size:13px; line-height:1; padding:5px 8px; border-radius:6px; cursor:pointer;}
+  /* Manage Players (kick, role-free) sits on the opposite side, below the
+     language switch — stays visible even while .debug-toggle-btn itself is
+     hidden (see updateAdminPanelButtonsVisibility), since it must remain
+     reachable exactly when the full debug panel is deliberately hidden. */
+  .manage-players-btn{left:auto; right:8px; top:34px;}
   .debug-panel{display:none; position:fixed; inset:0; z-index:2000; background:rgba(6,7,10,0.97); overflow-y:auto; padding:18px 18px 40px;}
   .debug-panel.open{display:block;}
   .debug-panel h3{font-size:15px; margin:18px 0 8px; color:var(--gold);}
@@ -324,6 +341,14 @@
       <label class="shield-toggle"><input type="checkbox" id="no-god-mode-toggle" onchange="App.setNoGodMode(this.checked)"> <span data-i18n="noGodModeToggle"></span></label>
       <div class="hint" data-i18n="hintNoGodMode"></div>
     </div>
+    <div class="field">
+      <label class="shield-toggle"><input type="checkbox" id="god-mode-toggle" onchange="App.setGodMode(this.checked)"> <span data-i18n="godModeToggle"></span></label>
+      <div class="hint" data-i18n="hintGodMode"></div>
+    </div>
+    <div class="field" id="host-self-name-field" style="display:none;">
+      <label data-i18n="labelYourNameGodMode"></label>
+      <input type="text" id="input-host-self-name" maxlength="24" autocomplete="off" data-i18n-placeholder="namePlaceholder">
+    </div>
     <div id="no-god-deadline-fields" style="display:none;">
       <div class="field">
         <label data-i18n="labelActDeadline"></label>
@@ -345,20 +370,7 @@
       </div>
     </div>
     <div class="field">
-      <label class="shield-toggle"><input type="checkbox" id="god-mode-toggle" onchange="App.setGodMode(this.checked)"> <span data-i18n="godModeToggle"></span></label>
-      <div class="hint" data-i18n="hintGodMode"></div>
-    </div>
-    <div class="field" id="host-self-name-field" style="display:none;">
-      <label data-i18n="labelYourNameGodMode"></label>
-      <input type="text" id="input-host-self-name" maxlength="24" autocomplete="off" data-i18n-placeholder="namePlaceholder">
-    </div>
-    <div class="field">
-      <label class="shield-toggle"><input type="checkbox" id="test-mode-toggle" onchange="App.setTestMode(this.checked)"> <span data-i18n="testModeToggle"></span></label>
-      <div class="hint" data-i18n="hintTestMode"></div>
-    </div>
-    <div class="field">
       <label data-i18n="labelRolesInPlay"></label>
-      <div class="hint" dir="rtl" style="margin-bottom:10px; text-align:right;" data-i18n="hintRolesInPlay"></div>
       <div id="role-checklist" class="stack"></div>
       <div id="role-summary" class="hint" dir="rtl" style="margin-top:12px; text-align:right;"></div>
       <div id="role-warning" class="banner warning" dir="rtl" style="display:none; margin-top:12px; text-align:right;"></div>
@@ -662,8 +674,6 @@
     </div>
     <p class="hint" style="text-align:center;" data-i18n="tapCardHide"></p>
     <button class="btn btn-ghost" id="role-back-btn" style="display:none; margin-top:14px;" onclick="App.closeMyRole()" data-i18n="back"></button>
-    <button class="link-btn activity-link" style="display:none; margin:10px auto 0;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: MY ACTIVITY -->
@@ -671,7 +681,6 @@
     <div class="eyebrow" style="margin-bottom:16px;" data-i18n="myActivity"></div>
     <div id="activity-log-list" class="stack"></div>
     <div class="grow"></div>
-    <button class="link-btn" style="margin:0 auto 6px;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
     <button class="btn btn-ghost" onclick="App.closeMyActivity()" data-i18n="back"></button>
   </div>
 
@@ -682,8 +691,6 @@
     <div class="eyebrow" style="margin-bottom:16px;" data-i18n="voteHistory"></div>
     <div id="vote-history-list" class="stack" style="overflow-y:auto;"></div>
     <div class="grow"></div>
-    <button class="link-btn" style="margin:0 auto 6px;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto 6px;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
     <button class="btn btn-ghost" onclick="App.closeVoteHistory()" data-i18n="back"></button>
   </div>
 
@@ -708,9 +715,6 @@
       <h2 style="font-size:26px;" data-i18n="talkItOut"></h2>
       <p class="hint" style="max-width:280px; margin-top:10px;" id="day-hint-player" data-i18n="shareNoticed"></p>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: INQUIRY VOTE -->
@@ -724,9 +728,6 @@
       <button class="btn btn-primary" onclick="App.submitInquiryVote('yes')" data-i18n="yes"></button>
       <button class="btn btn-outline" onclick="App.submitInquiryVote('no')" data-i18n="no"></button>
     </div>
-    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: INQUIRY WAITING -->
@@ -735,9 +736,6 @@
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
       <h3 style="font-size:20px; margin-bottom:8px;" data-i18n="voteSubmittedWaiting"></h3>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: INQUIRY RESULT -->
@@ -747,9 +745,6 @@
       <h2 style="font-size:24px;" id="inquiry-result-title-player">&mdash;</h2>
       <p class="hint" style="max-width:280px; margin-top:12px;" id="inquiry-result-detail-player"></p>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: VOTE -->
@@ -762,9 +757,6 @@
     <p class="hint" id="vote-empty-hint" style="display:none; margin-top:10px;" data-i18n="noOneElseToVote"></p>
     <div class="grow"></div>
     <button class="btn btn-primary" id="vote-submit-btn" onclick="App.submitVote()" data-i18n="btnSubmitVote"></button>
-    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: VOTE WAITING -->
@@ -773,9 +765,6 @@
       <div class="spinner" style="width:30px; height:30px; border-width:3px; border-color:rgba(255,255,255,0.15); border-top-color:var(--gold); margin-bottom:20px;"></div>
       <h3 style="font-size:20px; margin-bottom:8px;" id="vote-waiting-text" data-i18n="voteSubmittedWaiting"></h3>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: DEFENSE -->
@@ -785,9 +774,6 @@
       <h2 style="font-size:24px;" id="defense-player-title">&mdash;</h2>
       <p class="hint" style="max-width:280px; margin-top:12px;" id="defense-player-hint"></p>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: DAY RESULT -->
@@ -796,9 +782,6 @@
       <div class="eyebrow" style="margin-bottom:10px;" data-i18n="resultLabel"></div>
       <h2 style="font-size:24px;" id="day-result-title">&mdash;</h2>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: NIGHT WAITING -->
@@ -808,9 +791,6 @@
       <h2 style="font-size:26px;" id="night-waiting-title"></h2>
       <p class="hint" id="night-waiting-note" style="max-width:280px; margin-top:10px; display:none;"></p>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: NIGHT ACTION -->
@@ -824,9 +804,6 @@
       <button class="btn btn-primary" onclick="App.submitNightAction()" data-i18n="btnConfirm"></button>
       <button class="btn btn-ghost" id="night-action-skip-btn" onclick="App.skipNightAction()" data-i18n="btnDoNothingTonight"></button>
     </div>
-    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: NIGHT ANNOUNCEMENT -->
@@ -835,9 +812,6 @@
     <div class="grow center">
       <h2 style="font-size:26px;" id="night-announcement-title"></h2>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: INVESTIGATE RESULT -->
@@ -846,9 +820,6 @@
       <div class="eyebrow" style="margin-bottom:10px;" data-i18n="investigationResult"></div>
       <h2 style="font-size:24px;" id="investigate-result-title">&mdash;</h2>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: ELIMINATED -->
@@ -858,9 +829,6 @@
       <h2 style="font-size:26px;" data-i18n="youveBeenEliminated"></h2>
       <p class="hint" style="max-width:280px; margin-top:12px;" data-i18n="thanksForPlaying"></p>
     </div>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
   <!-- PLAYER: GAME OVER -->
@@ -868,10 +836,22 @@
     <div class="eyebrow" style="text-align:center; margin-bottom:16px;" data-i18n="gameOver"></div>
     <h2 style="font-size:28px; text-align:center; margin-bottom:20px;" id="game-over-title-player">&mdash;</h2>
     <div class="card"><div id="game-over-roster-player" class="stack"></div></div>
-    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-    <button class="link-btn activity-link" style="display:none; margin:0 auto;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-    <button class="link-btn vote-history-link" style="display:none; margin:0 auto;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
-    <button class="link-btn" style="margin:0 auto;" onclick="App.viewGameLog()" data-i18n="viewGameLog"></button>
+    <button class="link-btn" style="margin:10px auto 0;" onclick="App.viewGameLog()" data-i18n="viewGameLog"></button>
+  </div>
+
+  <!-- Persistent My Role / My Activity / Vote History access — see the
+       .player-footer-bar CSS comment for why this lives here (a normal
+       sibling of every .screen, not a per-screen copy) and
+       updatePlayerFooterBar (called from showScreen) for exactly which
+       screens show it and which of the three buttons apply on each.
+       .activity-link/.vote-history-link are the SAME classes the old
+       per-screen copies used, so updateVoteHistoryLinkVisibility and the
+       hasActivityLog toggle in setupPlayerDataChannel need no changes at
+       all to keep working here. -->
+  <div id="player-footer-bar" class="player-footer-bar">
+    <button class="btn btn-ghost" id="footer-role-btn" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+    <button class="btn btn-ghost activity-link" id="footer-activity-btn" style="display:none;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+    <button class="btn btn-ghost vote-history-link" id="footer-vote-history-btn" style="display:none;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
   </div>
 
 </div>
@@ -887,6 +867,21 @@
 <div class="lang-switch">
   <button id="lang-btn-fa" onclick="App.setLanguage('fa')">فا</button>
   <button id="lang-btn-en" onclick="App.setLanguage('en')">EN</button>
+</div>
+
+<!-- Kicking a disruptive player must stay available to the host even in
+     God Mode while their own host-self seat is alive — exactly when the
+     full debug panel (roles, night status, everyone's activity log) is
+     deliberately hidden, since the host is also a player right now and
+     showing it would spoil their own game (see hostSelfBlocksDebug). This
+     is a separate, always-available panel that never shows a role, team,
+     or shield — just names + connected/alive status — so it stays safe to
+     open regardless. See App.toggleManagePlayersPanel/renderManagePlayersPanel. -->
+<button id="manage-players-btn" class="debug-toggle-btn manage-players-btn" onclick="App.toggleManagePlayersPanel()">&#128101;</button>
+<div id="manage-players-panel" class="debug-panel">
+  <div class="eyebrow" data-i18n="managePlayersTitle"></div>
+  <button class="btn btn-ghost" style="margin-top:14px;" onclick="App.toggleManagePlayersPanel()" data-i18n="btnCloseManagePlayers"></button>
+  <div id="manage-players-list" style="margin-top:16px;"></div>
 </div>
 
 <!-- Dev/troubleshooting only: full roles + activity log, God's console only -->
@@ -1075,8 +1070,6 @@
       labelZodiacFrequency: 'شلیک زودیاک', zodiacEveryNightToggle: 'زودیاک، اگر آن نقش در بازی باشد، هر شب شلیک کند (در غیر این صورت یک شب در میان).',
       noGodModeToggle: 'حالت بدون گاد (بدون میزبان فعال)',
       hintNoGodMode: 'کل بازی کاملاً بدون دخالت پیش می‌رود — هیچ‌کس، حتی برای تخصیص نقش‌ها یا شروع بازی، نیازی نیست روی گوشی میزبان کلیک کند. به محض این‌که همه بازیکنان اعلام‌شده اسم خود را وارد کردند، نقش‌ها خودکار تخصیص داده شده و بازی پس از چند ثانیه شروع می‌شود. هر تصمیمی (شبانه یا روزانه) و هر رأی‌گیری یک مهلت دارد؛ اگر کسی در آن زمان اقدام نکند، بازی خودش جلو می‌رود. (توجه: باز هم یک دستگاه باید نقش میزبان را اجرا کند و طول بازی روشن بماند — فقط لازم نیست کسی آن را دستی جلو ببرد.)',
-      testModeToggle: '🧪 حالت تست (چند بازیکن از یک دستگاه)',
-      hintTestMode: 'فقط برای آزمایش — هرگز برای یک بازی واقعی روشن نکنید. به‌طور معمول، اگر چند تب مرورگر روی یک دستگاه باز کنید، همه آن‌ها یک نشست ذخیره‌شده مشترک دارند و روی هم می‌نویسند. با روشن‌بودن این گزینه، هر بازیکنی که به این اتاق بپیوندد نشست خودش را جدا، فقط در همان تب مرورگر، نگه می‌دارد — تازه‌کردن صفحه هنوز کار می‌کند، ولی بستن آن تب یعنی آن نشست از بین رفته.',
       godModeToggle: 'حالت گاد-بازیکن (میزبان هم بازی می‌کند)',
       hintGodMode: 'میزبان هم یکی از بازیکن‌هاست — اسم خودش را هم پایین همین صفحه وارد می‌کند و مثل بقیه نقش می‌گیرد، اما فقط نقش خودش را می‌بیند، نه کل لیست. رأی و اقدام شبانه‌اش را از یک کارت شناور روی همین صفحه انجام می‌دهد، نه یک مرورگر جدا. تا وقتی زنده است، به داشبورد کامل (نقش همه، لاگ شب، پنل دیباگ) دسترسی ندارد؛ همین‌که با رأی یا شلیک از بازی خارج شد، دسترسی کامل باز می‌شود. مثل حالت بدون گاد، مراحل بازی خودش خودکار جلو می‌روند.',
       labelYourNameGodMode: 'اسم شما (شما هم بازی می‌کنید)',
@@ -1085,7 +1078,6 @@
       labelActDeadline: 'مهلت هر تصمیم (دقیقه)', hintActDeadline: 'برای اقدامات شبانه، تصمیم روزانهٔ تفنگدار، و رأی‌گیری استعلام. صفحات صرفاً اطلاع‌رسانی (مثل اعلام نتیجه) فقط چند ثانیه صبر می‌کنند، نه این مدت.',
       labelVoteDeadline: 'مهلت رأی‌گیری روز (دقیقه به‌ازای هر بازیکن)', hintVoteDeadline: 'برای هر دو دور رأی‌گیری روز، ضرب در تعداد بازیکنان زنده فعلی (نه کل بازیکنان اعلام‌شده) — رأی‌گیری بلافاصله باز می‌شود تا هم زمان گفتگو باشد، هم زمان رأی دادن.',
       labelRolesInPlay: 'نقش‌های بازی',
-      hintRolesInPlay: 'هر نقش ویژه‌ای که تیک بزنید، دقیقاً به یک بازیکن اختصاص داده می‌شود. بقیهٔ آن گروه، نقش پیش‌فرض را می‌گیرند.',
       linkAdjustShields: 'تنظیم شیلدها', btnCreateLobby: 'ایجاد اتاق', btnBack: 'بازگشت',
       roleLibraryEyebrow: 'کتابخانه نقش‌ها', rolesShieldsTitle: 'نقش‌ها و شیلدها',
       rolesShieldsHint: 'این نقش‌ها ثابت هستند. تنها چیزی که اینجا می‌توانید تغییر دهید این است که هر نقش با شیلد شروع شود یا نه — و این فقط برای همین نشست مرورگر باقی می‌ماند.',
@@ -1261,6 +1253,8 @@
       btnGotIt: 'متوجه شدم',
       btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
       debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
+      managePlayersTitle: 'مدیریت بازیکنان', btnCloseManagePlayers: 'بستن',
+      managePlayersEmpty: 'هنوز هیچ بازیکنی نام خود را وارد نکرده است.',
       btnKickPlayer: 'اخراج از بازی', confirmKickPlayer: 'آیا مطمئن هستید که می‌خواهید {name} را از بازی اخراج کنید؟',
       actKickedByGod: 'شما توسط گاد از بازی اخراج شدید.', playerKicked: '{name} از بازی اخراج شد.',
       btnRevivePlayer: 'بازگرداندن به بازی', confirmRevivePlayer: 'آیا می‌خواهید {name} را دوباره به بازی بازگردانید؟',
@@ -1299,8 +1293,6 @@
       labelZodiacFrequency: "زودیاک's Shooting", zodiacEveryNightToggle: 'زودیاک, if that role is in play, shoots every night (otherwise, every other night).',
       noGodModeToggle: 'No God Mode (no active host)',
       hintNoGodMode: "The whole game drives itself with zero intervention — nobody needs to tap anything on the host's phone, not even to assign roles or start the game. The moment every declared player has entered their name, roles are assigned automatically and the game begins a few seconds later. Every decision (night or day) and every vote gets a deadline; if nobody acts in time, the game moves on by itself. (Note: a device still needs to run the host role and stay open for the whole game — it just never needs a manual push.)",
-      testModeToggle: '🧪 Test Mode (multiple players from one device)',
-      hintTestMode: "Testing only — never enable this for a real game. Normally, several browser tabs on the same device share one saved session and overwrite each other. With this on, every player who joins this room keeps their own session separate, confined to just that one browser tab — refreshing that tab still works, but closing it loses that session for good.",
       godModeToggle: 'God Mode (host plays too)',
       hintGodMode: "The host is a player too — enter your own name below, and you'll be dealt into role assignment like everyone else, seeing only your own role, never the full list. Vote and act at night from a floating card right on this screen, no second browser needed. While you're alive, the full dashboard (everyone's roles, the night log, the debug panel) stays hidden from you — it unlocks the moment you're voted or shot out. Like No God Mode, the game paces itself automatically.",
       labelYourNameGodMode: "Your name (you're playing too)",
@@ -1309,7 +1301,6 @@
       labelActDeadline: 'Deadline per decision (minutes)', hintActDeadline: 'For night actions, the day-gun decision, and the inquiry vote. Plain informational screens (like result reveals) only pause a few seconds, not this long.',
       labelVoteDeadline: 'Day voting deadline (minutes per player)', hintVoteDeadline: "For both day voting rounds, multiplied by how many players are currently alive (not the total declared headcount) — voting opens immediately, doubling as the group's discussion window.",
       labelRolesInPlay: 'Roles in play',
-      hintRolesInPlay: 'Each checked special role goes to exactly one player. Everyone else on that side gets the default role.',
       linkAdjustShields: 'Adjust shields', btnCreateLobby: 'Create Lobby', btnBack: 'Back',
       roleLibraryEyebrow: 'Role Library', rolesShieldsTitle: 'Roles & Shields',
       rolesShieldsHint: "These roles are fixed. The only thing you can adjust here is whether each one starts with a shield — and that only lasts for this browser session.",
@@ -1485,6 +1476,8 @@
       btnGotIt: 'Got it',
       btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
       debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
+      managePlayersTitle: 'Manage Players', btnCloseManagePlayers: 'Close',
+      managePlayersEmpty: "No player has named themselves yet.",
       btnKickPlayer: 'Kick from Game', confirmKickPlayer: "Are you sure you want to kick {name} from the game?",
       actKickedByGod: 'You were kicked from the game by the God.', playerKicked: '{name} was kicked from the game.',
       btnRevivePlayer: 'Bring Back Into Game', confirmRevivePlayer: 'Bring {name} back into the game?',
@@ -1610,7 +1603,6 @@
     deadlineTimer: null,    // (host only) the pending setTimeout handle for deadlineExpiresAt
     room: null,
     hostToken: null,       // (host) secret generated at App.createLobby() time, proves a later 'reclaim-room' is really this same host (see server.js HOST_GRACE_MS)
-    testMode: false,       // (host, set at setup) dev/testing aid only — told to every joining player via 'joined', so they persist their own session in per-TAB sessionStorage instead of shared localStorage, letting one person open several tabs on one machine as several distinct players. (player) also holds this same flag once learned from 'joined' — see savePlayerSession/loadPlayerSession/peekPlayerSession/clearPlayerSession, all storage-mode-aware.
     hostReconnectInProgress: false, // (host) guards against overlapping reclaim attempts
     rolesAssigned: false,  // (host) true from App.assignRoles() onward — once true, a brand-new joiner draws from state.pendingRoleSlots instead of just sitting in the lobby (see the 'name' handler)
     pendingRoleSlots: [],  // (host) role defs reserved for seats not yet filled at assignRoles() time, drawn from as latecomers join
@@ -1694,6 +1686,9 @@
     // attachGunDecisionSection's own comment. A no-op whenever nothing's
     // actually pending (the common case).
     attachGunDecisionSection(id);
+    // Persistent My Role/My Activity/Vote History bar — see its own
+    // comment. A no-op for the host's own screens (state.role !== 'player').
+    updatePlayerFooterBar();
   }
   function activeScreenId(){
     const el = document.querySelector('.screen.active');
@@ -1766,30 +1761,16 @@
     return 'p-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
   const PLAYER_SESSION_KEY = 'mafia-player-session';
-  // Test Mode support (see state.testMode / the setup screen's checkbox): a
-  // session normally lives in localStorage, shared across every tab on this
-  // device/origin — exactly what makes a real refresh or a reopened browser
-  // correctly resume the same player. Test Mode instead keeps it in
-  // sessionStorage, private to the ONE tab that created it, so several tabs
-  // on the same machine can each be a different simulated player without
-  // overwriting each other. Which storage a given session actually lives in
-  // isn't known ahead of a read — sessionStorage is always checked FIRST
-  // (a real, non-test tab's sessionStorage is simply empty, costing nothing
-  // to check) and localStorage is the fallback.
+  // A session lives in localStorage, shared across every tab on this
+  // device/origin — what makes a real refresh or a reopened browser
+  // correctly resume the same player. (An earlier "Test Mode" let several
+  // tabs on one machine simulate distinct players via per-tab
+  // sessionStorage instead — removed once the lobby's own phantom-seat
+  // recycling made that workaround unnecessary; see App.removeStuckPlayer/
+  // expirePhantomSeats.)
   function readPlayerSession(){
-    let s = null;
-    try{ const raw = sessionStorage.getItem(PLAYER_SESSION_KEY); if(raw) s = JSON.parse(raw); }catch(e){}
-    if(!s){ try{ const raw = localStorage.getItem(PLAYER_SESSION_KEY); if(raw) s = JSON.parse(raw); }catch(e){} }
-    // Re-hydrate state.testMode from the session itself, not just from a
-    // fresh 'joined' reply — this resets to false on every page load, but
-    // a Test Mode tab's own saved session already knows it's one, so
-    // savePlayerSession's very next call (e.g. beginFreshPlayerJoin's
-    // immediate re-save on a Welcome Back) correctly keeps using
-    // sessionStorage-only instead of transiently recreating a stale,
-    // cross-tab-colliding localStorage copy while waiting on a new
-    // 'joined' round trip to confirm it all over again.
-    if(s && s.testMode) state.testMode = true;
-    return s;
+    try{ const raw = localStorage.getItem(PLAYER_SESSION_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return null;
   }
   function loadPlayerSession(room){
     const s = readPlayerSession();
@@ -1808,23 +1789,9 @@
     return null;
   }
   function savePlayerSession(session){
-    // Bakes the CURRENT state.testMode into the stored payload itself —
-    // see readPlayerSession's own re-hydration comment for why that
-    // matters across a refresh, not just within one already-connected tab.
-    const payload = Object.assign({}, session, { testMode: !!state.testMode });
-    try{ sessionStorage.setItem(PLAYER_SESSION_KEY, JSON.stringify(payload)); }catch(e){}
-    if(state.testMode){
-      // Actively prune the shared copy every time, not just once — a
-      // stale one left over from before test mode was confirmed (or from
-      // a moment this tab didn't yet know) must not linger where another
-      // tab's own fallback read could pick it up.
-      try{ localStorage.removeItem(PLAYER_SESSION_KEY); }catch(e){}
-    } else {
-      try{ localStorage.setItem(PLAYER_SESSION_KEY, JSON.stringify(payload)); }catch(e){}
-    }
+    try{ localStorage.setItem(PLAYER_SESSION_KEY, JSON.stringify(session)); }catch(e){}
   }
   function clearPlayerSession(){
-    try{ sessionStorage.removeItem(PLAYER_SESSION_KEY); }catch(e){}
     try{ localStorage.removeItem(PLAYER_SESSION_KEY); }catch(e){}
   }
 
@@ -1972,17 +1939,6 @@
       clearCriticalReplyTimeout();
       state.playerId = msg.playerId;
       state.room = msg.room;
-      // See state.testMode / savePlayerSession — this is the FIRST point a
-      // player's own client actually learns whether this room is in Test
-      // Mode (the host decides it at setup, before any player exists to
-      // ask). beginFreshPlayerJoin already saved the session a moment ago,
-      // not yet knowing this (so it went to both storages) — re-saving now
-      // both bakes the confirmed flag into the payload itself and prunes
-      // the now-stale shared localStorage copy (see savePlayerSession).
-      if(msg.testMode && !state.testMode){
-        state.testMode = true;
-        savePlayerSession({ room: state.room, token: state.myPlayerToken, name: state.myPlayerName });
-      }
       $('connecting-title').textContent = t('waitingForHost');
       $('connecting-hint').textContent = t('hostWillConnect');
       startConnectingTimeout();
@@ -2236,13 +2192,20 @@
   }
   function updateDebugToggleVisibility(){
     const debugToggle = $('debug-toggle-btn');
-    if(!debugToggle) return;
-    const allowed = state.role === 'host' && !hostSelfBlocksDebug();
-    debugToggle.style.display = allowed ? 'block' : 'none';
-    if(!allowed){
-      const panel = $('debug-panel');
-      if(panel) panel.classList.remove('open');
+    if(debugToggle){
+      const allowed = state.role === 'host' && !hostSelfBlocksDebug();
+      debugToggle.style.display = allowed ? 'block' : 'none';
+      if(!allowed){
+        const panel = $('debug-panel');
+        if(panel) panel.classList.remove('open');
+      }
     }
+    // Manage Players (kick, role-free) has NO hostSelfBlocksDebug() gate —
+    // unlike the full debug panel, it never shows anything a host playing
+    // their own seat shouldn't see, so it stays available the whole time
+    // they're hosting, God Mode or not. See the button's own HTML comment.
+    const manageBtn = $('manage-players-btn');
+    if(manageBtn) manageBtn.style.display = state.role === 'host' ? 'block' : 'none';
   }
 
   App.openManageRoles = function(returnTo){
@@ -2286,13 +2249,6 @@
     state.noGodMode = !!checked;
     renderSetupValues();
   };
-  // Dev/testing aid only, never meant for a real game — see the state.testMode
-  // comment and savePlayerSession/loadPlayerSession/peekPlayerSession for what
-  // this actually changes (nothing about game rules; purely which browser
-  // storage each joining player's session lives in).
-  App.setTestMode = function(checked){
-    state.testMode = !!checked;
-  };
   App.setGodMode = function(checked){
     state.godMode = !!checked;
     renderSetupValues();
@@ -2317,8 +2273,6 @@
     if(zodiacToggle) zodiacToggle.checked = state.zodiacShootsEveryNight;
     const noGodToggle = $('no-god-mode-toggle');
     if(noGodToggle) noGodToggle.checked = state.noGodMode;
-    const testModeToggle = $('test-mode-toggle');
-    if(testModeToggle) testModeToggle.checked = state.testMode;
     const deadlineFields = $('no-god-deadline-fields');
     // God Mode drives itself off these exact same minutes (see
     // autoPacingOn — both toggles share one auto-pacing engine), so a host
@@ -2365,7 +2319,7 @@
   // resend the EXACT same request without redoing name validation / lobby
   // setup — see armCriticalReplyTimeout's own comment for why this exists.
   function sendCreateRoom(){
-    wsSend({ type: 'create-room', hostToken: state.hostToken, testMode: !!state.testMode });
+    wsSend({ type: 'create-room', hostToken: state.hostToken });
     armCriticalReplyTimeout(retryCreateRoom);
   }
   function retryCreateRoom(){
@@ -5363,6 +5317,7 @@
           state.hasActivityLog = msg.role === 'mafia' ||
             [ROLE_NAME_MATADOR, ROLE_NAME_DOCTOR, ROLE_NAME_DETECTIVE, ROLE_NAME_PROFESSIONAL, ROLE_NAME_CONSTANTINE, ROLE_NAME_OCEAN, ROLE_NAME_GUNNER, ROLE_NAME_ZODIAC, ROLE_NAME_ZODIAC_SON].includes(msg.name);
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = state.hasActivityLog ? 'block' : 'none'; });
+          updatePlayerFooterBar();
           renderRole(msg);
           showScreen('screen-player-role');
           updateMafiaChatVisibility();
@@ -5383,6 +5338,7 @@
           // the link even if their original role never granted it up front.
           state.hasActivityLog = true;
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = 'block'; });
+          updatePlayerFooterBar();
         }
         else if(msg.type === 'revived'){ handleRevived(msg); }
         else if(msg.type === 'day-gun-pending'){
@@ -5993,6 +5949,53 @@
   function updateVoteHistoryLinkVisibility(){
     const show = !!(state.voteHistory && state.voteHistory.length);
     document.querySelectorAll('.vote-history-link').forEach(el => { el.style.display = show ? 'block' : 'none'; });
+    // The class-based toggle above can fire at any time — e.g. a
+    // 'vote-history' broadcast landing WHILE the player happens to be
+    // browsing screen-player-vote-history itself (see its own call site's
+    // comment) — and would otherwise re-show that screen's own button to
+    // itself. Re-running this after gives the per-screen exclusion below
+    // the final say regardless of ordering.
+    updatePlayerFooterBar();
+  }
+
+  // Every screen that shows the persistent My Role / My Activity / Vote
+  // History bar (see the #player-footer-bar HTML/CSS comments) — every
+  // in-game player screen except the pre-game ones (join/name/connecting/
+  // reconnecting/welcome-back/waiting-for-roles) and screen-player-game-log
+  // (reachable only from game-over's own separate link, no need for a
+  // second way back to My Role/Activity/Vote History from there).
+  const PLAYER_FOOTER_SCREENS = new Set([
+    'screen-player-role', 'screen-player-activity-log', 'screen-player-vote-history',
+    'screen-player-day', 'screen-player-inquiry-vote', 'screen-player-inquiry-waiting',
+    'screen-player-inquiry-result', 'screen-player-vote', 'screen-player-vote-waiting',
+    'screen-player-defense', 'screen-player-day-result', 'screen-player-night-waiting',
+    'screen-player-night-action', 'screen-player-night-announcement',
+    'screen-player-investigate-result', 'screen-player-eliminated', 'screen-player-game-over'
+  ]);
+  // Called from showScreen (every navigation) and from every place that
+  // otherwise updates state.hasActivityLog/state.voteHistory (see their own
+  // comments) — computes each of the three buttons fully from current
+  // state every time, rather than trusting whichever of those fired most
+  // recently, so ordering between them never matters. Self-contained even
+  // though the activity/vote-history buttons also still carry the shared
+  // .activity-link/.vote-history-link classes (harmless, and keeps the
+  // class names meaningful as documentation) — this function is what
+  // actually decides their real display value.
+  function updatePlayerFooterBar(){
+    const bar = $('player-footer-bar');
+    if(!bar) return;
+    const activeId = activeScreenId();
+    if(state.role !== 'player' || !PLAYER_FOOTER_SCREENS.has(activeId)){
+      bar.style.display = 'none';
+      return;
+    }
+    bar.style.display = 'flex';
+    const roleBtn = $('footer-role-btn');
+    if(roleBtn) roleBtn.style.display = activeId === 'screen-player-role' ? 'none' : 'flex';
+    const activityBtn = $('footer-activity-btn');
+    if(activityBtn) activityBtn.style.display = (state.hasActivityLog && activeId !== 'screen-player-activity-log') ? 'flex' : 'none';
+    const voteHistoryBtn = $('footer-vote-history-btn');
+    if(voteHistoryBtn) voteHistoryBtn.style.display = (state.voteHistory && state.voteHistory.length && activeId !== 'screen-player-vote-history') ? 'flex' : 'none';
   }
 
   App.viewVoteHistory = function(){
@@ -6142,6 +6145,56 @@
     panel.classList.add('open');
   };
 
+  App.toggleManagePlayersPanel = function(){
+    const panel = $('manage-players-panel');
+    if(!panel) return;
+    if(panel.classList.contains('open')){ panel.classList.remove('open'); return; }
+    renderManagePlayersPanel();
+    panel.classList.add('open');
+  };
+  // Deliberately role/team/shield-free (unlike renderDebugPanel's own
+  // rolesBox) — see the panel's own HTML comment for why this exists at
+  // all: kicking a disruptive player has to stay possible even while the
+  // God is also playing their own seat and the full debug panel is hidden
+  // to avoid spoiling it for them. Excludes the God-Mode host's own
+  // seat (can't kick yourself) and anyone who hasn't actually named
+  // themselves yet (a still-connecting or abandoned lobby attempt — see
+  // App.removeStuckPlayer/expirePhantomSeats for THAT case instead).
+  function renderManagePlayersPanel(){
+    const box = $('manage-players-list');
+    if(!box) return;
+    box.innerHTML = '';
+    const entries = Array.from(state.players.entries()).filter(([id, e]) => !e.isHostSelf && e.name);
+    if(!entries.length){
+      box.innerHTML = '<p class="hint">' + escapeHtml(t('managePlayersEmpty')) + '</p>';
+      return;
+    }
+    entries.forEach(([id, entry]) => {
+      const row = document.createElement('div');
+      row.className = 'debug-row';
+      row.innerHTML =
+        '<strong>' + escapeHtml(entry.name) + '</strong> · ' +
+        (entry.alive ? escapeHtml(t('debugAlive')) : escapeHtml(t('debugDead'))) + ' · ' +
+        (entry.connected ? escapeHtml(t('debugConnected')) : escapeHtml(t('debugDisconnected')));
+      if(entry.alive){
+        const kickBtn = document.createElement('button');
+        kickBtn.className = 'btn btn-ghost';
+        kickBtn.style.cssText = 'margin-top:6px; padding:5px 12px; font-size:12px; color:var(--red-bright); border-color:var(--red-dim);';
+        kickBtn.textContent = t('btnKickPlayer');
+        kickBtn.onclick = () => App.kickPlayer(id);
+        row.appendChild(kickBtn);
+      } else {
+        const reviveBtn = document.createElement('button');
+        reviveBtn.className = 'btn btn-ghost';
+        reviveBtn.style.cssText = 'margin-top:6px; padding:5px 12px; font-size:12px; color:var(--gold); border-color:var(--gold-dim);';
+        reviveBtn.textContent = t('btnRevivePlayer');
+        reviveBtn.onclick = () => App.revivePlayer(id);
+        row.appendChild(reviveBtn);
+      }
+      box.appendChild(row);
+    });
+  }
+
   // The God can remove any player from the game at any time — day or
   // night, mid-phase or not — for real-world situations no in-game rule
   // anticipates (someone has to leave, a phone is unrecoverable, they're
@@ -6166,9 +6219,10 @@
     toast(t('playerKicked', { name: entry.name }));
     if(state.winner){ App.showGameOver(); return; }
     renderDebugPanel();
-    // The debug panel is an overlay — whatever host screen is underneath
-    // (the day screen's alive/eliminated lists, most commonly) needs its
-    // own separate refresh or the kicked player stays looking alive there
+    renderManagePlayersPanel();
+    // Both panels are overlays — whatever host screen is underneath (the
+    // day screen's alive/eliminated lists, most commonly) needs its own
+    // separate refresh or the kicked player stays looking alive there
     // until the host happens to navigate away and back.
     refreshCurrentHostScreen();
   };
@@ -6202,6 +6256,7 @@
     // not leave it open now that they're back in play.
     updateDebugToggleVisibility();
     renderDebugPanel();
+    renderManagePlayersPanel();
     refreshCurrentHostScreen();
   };
 
@@ -6213,6 +6268,12 @@
   function refreshDebugPanelIfOpen(){
     const panel = $('debug-panel');
     if(panel && panel.classList.contains('open')) renderDebugPanel();
+    // Same reasoning as the debug panel — whatever just changed
+    // (a kick/revive, someone joining, a death) is exactly what an ALREADY-
+    // OPEN Manage Players panel needs reflected too, so it never shows a
+    // stale alive/connected status for a row the host might act on next.
+    const managePanel = $('manage-players-panel');
+    if(managePanel && managePanel.classList.contains('open')) renderManagePlayersPanel();
   }
 
   // Whichever host screen actually has live game-state content that a

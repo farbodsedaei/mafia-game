@@ -20,6 +20,15 @@
 // querySelectorAll('.vote-history-link') on every 'vote-history' message,
 // so it picks up every newly-added button automatically.
 //
+// (Since superseded by a later, unrelated UI request: those per-screen
+// copies — along with My Role/My Activity's own — were consolidated into
+// one persistent #player-footer-bar, shown/hidden by updatePlayerFooterBar
+// per screen instead of living inside each screen's own markup. linkVisible
+// below now checks that shared footer's own button + its parent bar rather
+// than a per-screen descendant, but what it's actually testing — the link
+// genuinely reflects "does real vote history exist" on every relevant
+// screen, active prompts included — is unchanged.)
+//
 // Part A drives a normal (non-auto-paced) game through two full day votes
 // so real vote history actually exists, then checks the link is visible on
 // screen-player-vote DURING an active Day-3 voting prompt (the exact
@@ -50,8 +59,9 @@ function byLabel(players, label) {
   return players.find((p) => p.label === label);
 }
 function linkVisible(device) {
-  const el = device.document.querySelector('.screen.active .vote-history-link');
-  return !!el && el.style.display !== 'none';
+  const bar = device.document.getElementById('player-footer-bar');
+  const el = device.document.getElementById('footer-vote-history-btn');
+  return !!bar && bar.style.display !== 'none' && !!el && el.style.display !== 'none';
 }
 
 runScenario('07-vote-history-always-visible', async (log) => {

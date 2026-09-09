@@ -21,7 +21,7 @@
 //
 // (This used to also cover the reclaim-a-disconnected-seat-by-name path —
 // that whole mechanism has since been removed entirely, see
-// 05-no-seat-reclaim-by-name.js, so only the same-token path applies now.)
+// 05-no-seat-reclaim.js, so only the same-token path applies now.)
 const { startServer } = require('../lib/server-runner');
 const {
   createDevice, activeScreenId, $,

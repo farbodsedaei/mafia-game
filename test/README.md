@@ -193,38 +193,33 @@ classes), not on anything internal to `index.html`.
    notice's exact wording, that nothing is pre-checked on reconnect, and
    that the final tally only ever reflects the latest vote.
 
-5. `05-no-seat-reclaim-plus-test-mode` — regression test for a reported
-   security issue: a disconnected player's seat used to be reclaimable by
-   ANY new connection just by picking their name off a list
-   (`handleClaimSeat`), with zero verification — letting anyone quietly
-   peek at someone else's role and disconnect again. That whole mechanism
-   (the `'reclaimable-seats'`/`'claim-seat'`/`'claim-accepted'`/
-   `'claim-failed'` messages, `screen-player-reclaim-seat`,
-   `entry.overCapacityTemp`'s over-capacity admission) has been removed
-   entirely — a device can now ONLY ever rejoin as whichever identity its
-   own persisted session (`savePlayerSession`) proves it is; a fresh
-   connection with no matching session is always a genuinely new, separate
-   player, even if it types someone else's exact display name. **Part 1**
-   confirms this directly: a fresh device sees only the plain name-entry
-   screen (no seat picker exists in the DOM at all), typing an existing
-   player's name gets a freshly-dealt role and a genuinely separate
-   dossier entry, and the real player's own role is untouched throughout.
-   The removal has a real side effect worth covering too: self-serve
-   reclaim used to be how the same machine's browser could plausibly run
-   multiple simulated players; without it, testing needs a real mechanism
-   for that, so the setup screen gained a **Test Mode** checkbox
-   (`App.setTestMode`/`state.testMode`, plumbed through `server.js`'s
-   room object and the `'joined'` reply) that persists a session in
-   per-tab `sessionStorage` instead of the normally-shared `localStorage`,
-   with the choice baked into the stored payload itself so it survives a
-   refresh without needing a fresh round trip to re-learn it. **Part 2**
-   verifies the mechanism directly against each device's own storage
-   (sessionStorage holds it, localStorage is pruned, a real reconnect
-   still works fine within that one tab) rather than attempting to fake
-   real cross-tab storage sharing, which — unlike an actual browser —
-   jsdom never does between independently-created windows in the first
-   place. A **control** case confirms a normal (non-Test-Mode) game is
-   completely unchanged, still using localStorage as before.
+5. `05-no-seat-reclaim` — regression test for a reported security issue: a
+   disconnected player's seat used to be reclaimable by ANY new connection
+   just by picking their name off a list (`handleClaimSeat`), with zero
+   verification — letting anyone quietly peek at someone else's role and
+   disconnect again. That whole mechanism (the
+   `'reclaimable-seats'`/`'claim-seat'`/`'claim-accepted'`/`'claim-failed'`
+   messages, `screen-player-reclaim-seat`, `entry.overCapacityTemp`'s
+   over-capacity admission) has been removed entirely — a device can now
+   ONLY ever rejoin as whichever identity its own persisted session
+   (`savePlayerSession`) proves it is; a fresh connection with no matching
+   session is always a genuinely new, separate player, even if it types
+   someone else's exact display name. Confirms this directly: a fresh
+   device sees only the plain name-entry screen (no seat picker exists in
+   the DOM at all), typing an existing player's name gets a freshly-dealt
+   role and a genuinely separate dossier entry, and the real player's own
+   role is untouched throughout.
+
+   (This scenario used to also cover a **Test Mode** setup checkbox — a
+   real side effect of the removal above: self-serve reclaim used to be
+   how one machine's browser could plausibly run multiple simulated
+   players for testing, so Test Mode persisted each joining player's
+   session in per-tab `sessionStorage` instead of the normally-shared
+   `localStorage`. Removed once the lobby's own phantom-seat recycling
+   (see scenario 12 below — `App.removeStuckPlayer`/`expirePhantomSeats`)
+   made that workaround unnecessary; renamed from
+   `05-no-seat-reclaim-plus-test-mode` accordingly, with the Test-Mode-
+   specific Part 2 and its non-Test-Mode control case both dropped.)
 
 6. `06-no-god-mode-full-game-log` — feature test for a reported request:
    "in No God Mode where the app drives the game with no host or god, at
@@ -512,6 +507,61 @@ classes), not on anything internal to `index.html`.
     Calling the underlying `App.retryJoin()` directly, instead of
     `.click()`-ing that specific button, exercises the same logic a real
     tap would without hitting jsdom's own limitation.
+
+13. `13-footer-bar-and-role-free-kick` — feature test for two related UI
+    requests. (1) "the three options: 'view my role' 'view my activity'
+    'history of votes' should be changed to buttons at the bottom of the
+    page" — each of ~17 in-game player screens used to carry its own copy
+    of these as plain text links scattered inside the screen's own content;
+    consolidated into one persistent, real-button row (`#player-footer-bar`
+    in `index.html`) that lives as a normal sibling of every `.screen`
+    (not `position:fixed` — every `.screen` is `flex:1` and only one is
+    ever `display:flex` at a time, so it naturally lands pinned to the
+    bottom of whatever screen is showing, with zero CSS/z-index
+    interaction needed against the مافیا/اوشن/زودیاک chat drawers — they
+    just cover it while open, same as any other page content).
+    `updatePlayerFooterBar` (called from `showScreen`, plus every place
+    that already updates `state.hasActivityLog`/`state.voteHistory`)
+    recomputes all three buttons from current state on every call, so
+    ordering between those call sites never matters. (2) "Even host
+    (playing god) should be able to kick a player out of game if needed --
+    still should not see their role" — kicking used to live only inside
+    the full debug panel (roles, teams, shields, night status), which is
+    deliberately hidden for as long as a God-Mode host's own seat is alive
+    (see `hostSelfBlocksDebug`) to avoid spoiling their own game — making
+    kicking unreachable exactly when a God-Mode host most needs it. Added
+    a separate, always-available "Manage Players" panel
+    (`#manage-players-panel`, `App.toggleManagePlayersPanel`/
+    `renderManagePlayersPanel`) showing only names + alive/connected
+    status — never a role, team, or shield — reusing the existing
+    `App.kickPlayer`/`App.revivePlayer` as-is.
+
+    **Part A** drives a normal game and confirms the footer bar shows the
+    right buttons (and only those) across My Role/My Activity/Vote
+    History's own screens plus an ACTIVE night-action prompt (the exact
+    shape of the originally-reported vote-history bug from scenario 07),
+    that navigating between all three from the footer actually works, and
+    that the old per-screen copies are genuinely gone — exactly one of
+    each button exists in the whole document now, not one per screen.
+    **Part B** drives a God Mode game with the host-self seat alive and
+    confirms the full debug panel stays hidden (unchanged) but Manage
+    Players does not; that opening it shows no role or team text anywhere
+    for a roster whose real roles ARE known to the test (checking every
+    dealt role title, not just the one about to be kicked, so a leak
+    anywhere would be caught); and that kicking a real player through it
+    actually eliminates them.
+
+    **A test-authoring gotcha worth not re-hitting**: a Day-2 elimination
+    makes the very next night's transition offer a morning inquiry vote
+    (`startDayOrInquiry`'s `anyoneEliminatedYet` check) before the host
+    ever reaches the day screen — scenario 07 silently steamrolls past
+    this by calling `App.startVoting()` unconditionally regardless of
+    what's currently showing, but a scenario that explicitly `waitFor`s
+    `screen-host-day` right after the night (as this one initially did)
+    hangs forever instead, since nothing auto-resolves a pending inquiry
+    vote. Fixed the same way scenario 07's own Part B already does:
+    `host.App.stepInquiries(-1)` during setup, so there's nothing to
+    detour through in the first place.
 
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this

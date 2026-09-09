@@ -248,14 +248,7 @@ wss.on('connection', (ws) => {
       // a later 'reclaim-room' request for this code really is the same
       // host reconnecting, not some other tab guessing/hijacking the code.
       const hostToken = typeof msg.hostToken === 'string' && msg.hostToken.length > 0 && msg.hostToken.length <= 64 ? msg.hostToken : null;
-      // Dev/testing aid only (see index.html's Test Mode setup checkbox):
-      // told to every joining player via 'joined' below, so their client can
-      // persist its session in per-TAB sessionStorage instead of the
-      // normally-shared localStorage — lets one person open several browser
-      // tabs on one machine as several distinct players without their
-      // sessions overwriting each other. Never set by a real game.
-      const testMode = !!msg.testMode;
-      rooms.set(code, { host: ws, hostToken, players: new Map(), hostDeleteTimer: null, testMode });
+      rooms.set(code, { host: ws, hostToken, players: new Map(), hostDeleteTimer: null });
       ws._room = code; ws._role = 'host';
       send(ws, { type: 'room-created', room: code });
       return;
@@ -292,7 +285,7 @@ wss.on('connection', (ws) => {
       if (prior && prior !== ws) { try { prior.close(); } catch (e) {} }
       room.players.set(playerId, ws);
       ws._room = msg.room; ws._role = 'player'; ws._playerId = playerId;
-      send(ws, { type: 'joined', room: msg.room, playerId, testMode: !!room.testMode });
+      send(ws, { type: 'joined', room: msg.room, playerId });
       send(room.host, { type: 'player-hello', playerId });
       return;
     }
