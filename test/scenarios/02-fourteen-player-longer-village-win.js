@@ -296,7 +296,7 @@ runScenario('02-fourteen-player-longer-village-win', async (log) => {
     await waitFor(() => activeScreenId(byLabel(players, pv3)) === 'screen-player-eliminated',
       { message: pv3 + ' never saw their own elimination screen after the wrong-target gun shot' });
     log.death(pv3, 'villager', 'shot by ' + pv1 + '\'s gun by mistake — a real death, unlike a shielded/independent miss');
-    const gunBanner = text(host, 'day-gun-outcome-banner-text') || '';
+    const gunBanner = text(host, 'ack-banner-text') || '';
     log.assert(gunBanner.indexOf(pv3) !== -1, 'the gun-outcome banner names ' + pv3 + ' (got "' + gunBanner + '")');
     log.assert(gunBanner.indexOf(pv1) !== -1, 'the gun-outcome banner also names the shooter, ' + pv1 + ' (got "' + gunBanner + '")');
 

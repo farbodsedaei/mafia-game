@@ -39,7 +39,7 @@ function byLabel(players, label) {
   return players.find((p) => p.label === label);
 }
 function bannerVisible(device) {
-  const el = $(device, 'day-gun-outcome-banner');
+  const el = $(device, 'ack-banner');
   return !!el && el.style.display === 'flex';
 }
 
@@ -113,16 +113,16 @@ runScenario('11-day-gun-outcome-banner-and-shooter-name', async (log) => {
     await sleep(150);
 
     log.assert(bannerVisible(host), 'the host sees the deliberate outcome banner (not a toast) for a shot that didn\'t kill');
-    const bannerText1 = text(host, 'day-gun-outcome-banner-text') || '';
+    const bannerText1 = text(host, 'ack-banner-text') || '';
     log.info('banner text: "' + bannerText1 + '"');
     log.assert(bannerText1.indexOf(godfatherName) !== -1, 'the banner names the target, ' + godfatherName);
     log.assert(bannerText1.indexOf(recipient1) !== -1, 'the banner ALSO names the shooter, ' + recipient1);
     log.assert(bannerVisible(byLabel(players, recipient1)), 'the shooter themselves sees the same banner');
     log.assert(bannerVisible(byLabel(players, godfatherName)), 'the target (survived, still alive) sees it too');
 
-    host.App.dismissDayGunOutcomeBanner();
+    host.App.dismissAckBanner();
     log.assert(!bannerVisible(host), 'dismissing hides it');
-    for (const p of players) { if (bannerVisible(p)) p.App.dismissDayGunOutcomeBanner(); }
+    for (const p of players) { if (bannerVisible(p)) p.App.dismissAckBanner(); }
 
     log.assert(activeScreenId(byLabel(players, godfatherName)) !== 'screen-player-eliminated',
       'پدر خوانده is confirmed still alive — this really was a no-effect outcome, not a kill');

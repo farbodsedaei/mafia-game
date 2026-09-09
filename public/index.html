@@ -124,18 +124,17 @@
      debug panel, contradicting this exact comment.) */
   .toast{position:fixed; left:50%; bottom:32px; transform:translateX(-50%); background:var(--surface-2); border:1px solid var(--line-strong); color:var(--text); padding:12px 18px; border-radius:12px; font-size:13px; font-weight:600; z-index:1900; max-width:85%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
   .banner{background:var(--gold-dim); border:1px solid rgba(212,168,87,0.3); color:var(--gold); font-size:13px; padding:12px 14px; border-radius:12px; margin-bottom:16px; line-height:1.5;}
-  /* #day-gun-outcome-banner: EVERY day-gun outcome (a kill, a no-effect
-     shot, or nobody firing at all — see announceDayGunOutcome/
-     showDayGunOutcomeBanner in the script) gets this instead of a plain
-     toast — a toast can come and go while nobody's looking, and the
-     reported bug was exactly that: first for kills (a whole team just got
-     revealed to the table), then for every OTHER outcome too. Sits above
-     the toast and every day/night overlay, same reasoning as .toast for
-     staying below the (host-only, deliberately-opened) debug panel at
-     2000. */
-  #day-gun-outcome-banner{display:none; position:fixed; inset:0; z-index:1950; background:rgba(6,7,10,0.82); align-items:center; justify-content:center; padding:24px;}
-  #day-gun-outcome-banner .card{background:var(--surface-2); border:1px solid var(--line-strong); border-radius:16px; padding:22px 20px; max-width:420px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);}
-  #day-gun-outcome-banner .card p{font-size:15px; line-height:1.6; margin:0 0 16px;}
+  /* #ack-banner: any message that needs a genuine "I saw this" tap instead
+     of a plain toast that could come and go while nobody's looking — day-
+     gun outcomes (a kill, a no-effect shot), the day vote result, and the
+     morning inquiry result all route through this one shared element (see
+     showAckBanner in the script, and its own queue for when more than one
+     of these fires close together). Sits above the toast and every day/
+     night overlay, same reasoning as .toast for staying below the (host-
+     only, deliberately-opened) debug panel at 2000. */
+  #ack-banner{display:none; position:fixed; inset:0; z-index:1950; background:rgba(6,7,10,0.82); align-items:center; justify-content:center; padding:24px;}
+  #ack-banner .card{background:var(--surface-2); border:1px solid var(--line-strong); border-radius:16px; padding:22px 20px; max-width:420px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+  #ack-banner .card p{font-size:15px; line-height:1.6; margin:0 0 16px;}
   .banner.warning{background:var(--red-dim); border-color:rgba(196,54,75,0.35); color:var(--red-bright); margin-bottom:0;}
   .link-btn{appearance:none; background:none; border:none; color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:13px; cursor:pointer; padding:8px 0;}
   /* Persistent My Role / My Activity / Vote History access (see
@@ -862,10 +861,10 @@
 
 </div>
 <div id="toast-host"></div>
-<div id="day-gun-outcome-banner">
+<div id="ack-banner">
   <div class="card">
-    <p id="day-gun-outcome-banner-text"></p>
-    <button class="btn btn-primary" onclick="App.dismissDayGunOutcomeBanner()" data-i18n="btnGotIt"></button>
+    <p id="ack-banner-text"></p>
+    <button class="btn btn-primary" onclick="App.dismissAckBanner()" data-i18n="btnGotIt"></button>
   </div>
 </div>
 <div id="debug-badge" style="display:none; position:fixed; top:6px; left:8px; z-index:1000; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.05em; color:#EDEFF4; background:rgba(0,0,0,0.55); padding:3px 9px; border-radius:6px; pointer-events:none;"></div>
@@ -2972,6 +2971,16 @@
     const perPlayerMs = state.voteDeadlineMinutes * 60 * 1000;
     armAutoDeadlineMs(perPlayerMs * Math.max(1, aliveEntries().length), onExpire);
   }
+  // Same per-player-minutes setting as voting (voteDeadlineMinutes), but
+  // multiplied by how many people are actually ON TRIAL right now
+  // (state.defendingIds.length) instead of everyone still alive — a
+  // single defendant only needs their own talk time, not the whole
+  // table's worth; a rare multi-defendant tie gets each of them their own
+  // share. See broadcastDefensePhase.
+  function armDefenseDeadline(onExpire){
+    const perPersonMs = state.voteDeadlineMinutes * 60 * 1000;
+    armAutoDeadlineMs(perPersonMs * Math.max(1, state.defendingIds.length), onExpire);
+  }
   function armRevealPause(onExpire){ armAutoDeadlineMs(NO_GOD_REVEAL_PAUSE_MS, onExpire); }
 
   // Shared by both roles: the host reads state.deadlineExpiresAt directly
@@ -3601,7 +3610,7 @@
   // forcing every screen away from that just to show a gun announcement
   // would be exactly the kind of interruption this feature is meant to
   // avoid. Used to only give a genuine ELIMINATION the more deliberate
-  // #day-gun-outcome-banner treatment (see showDayGunOutcomeBanner) and
+  // #ack-banner treatment (see showAckBanner) and
   // just toast "nothing happened"/"nobody fired" — but a real SHOT that
   // didn't kill (target shielded/immune) can just as easily be missed as
   // an actual kill, so that gets the banner too now, not just a death.
@@ -3609,7 +3618,7 @@
   // actually read or acknowledge.
   function announceDayGunOutcome(text, requiresAck){
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'day-gun-result', text, requiresAck: !!requiresAck }));
-    if(requiresAck) showDayGunOutcomeBanner(text); else toast(text, 5000);
+    if(requiresAck) showAckBanner(text); else toast(text, 5000);
     updateGunPendingNote();
     logGameEvent('day', text); // full game log (see logGameEvent) — same text everyone already saw
     // A day-gun kill CAN end the game outright (e.g. it's the last Mafia)
@@ -3618,33 +3627,61 @@
     if(state.winner) App.showGameOver();
   }
 
-  // A more deliberate public announcement than a toast — for EVERY day-gun
-  // outcome (see announceDayGunOutcome), on every device: host, every
-  // player, and God Mode's host-self alike, since host-self is the same
-  // physical document as the host's own admin view — no separate call
-  // needed there, it just sees this one directly. Stays up until dismissed
-  // or DAY_GUN_OUTCOME_BANNER_MS passes on its own (a safety net, not the
-  // point — the point is requiring an actual "I saw this" tap), instead of
-  // a toast that could come and go while nobody happened to be looking —
-  // see the reported "nothing is announced, or there's no delay to
-  // observe it" bug, and the follow-up that a NON-kill outcome had the
-  // exact same problem.
-  const DAY_GUN_OUTCOME_BANNER_MS = 20000;
-  let dayGunOutcomeBannerTimer = null;
-  function showDayGunOutcomeBanner(text){
-    const banner = $('day-gun-outcome-banner');
-    const textEl = $('day-gun-outcome-banner-text');
+  // A more deliberate public announcement than a toast, for anything that
+  // genuinely needs "I saw this," not just "this flashed by at some
+  // point" — day-gun outcomes (see announceDayGunOutcome), the day vote
+  // result (showRoundResult), and the morning inquiry result
+  // (App.closeInquiryVote), on every device: host, every player, and God
+  // Mode's host-self alike (host-self is the same physical document as
+  // the host's own admin view, so a direct call from host-side code
+  // already covers it — no separate host-self-specific call needed,
+  // same as day-gun's own original design). Stays up until dismissed or
+  // ACK_BANNER_MS passes on its own (a safety net, not the point — the
+  // point is requiring an actual tap) — see the reported "nothing is
+  // announced, or there's no delay to observe it" bug (day-gun kills),
+  // its follow-up (a non-kill day-gun outcome had the same problem), and
+  // the later report that day-result/inquiry-result had it too.
+  // A simple FIFO queue (not just a single pending slot) since more than
+  // one of these can genuinely fire close together — e.g. a day-gun shot
+  // resolving right as the day's vote also closes — and each deserves its
+  // own full, undisturbed look rather than one silently overwriting
+  // another's text before it was ever read.
+  const ACK_BANNER_MS = 20000;
+  let ackBannerTimer = null;
+  let ackBannerQueue = [];
+  // Actually paints the banner + (re)arms its own safety-net timer, with
+  // no queue check of its own — always called either by showAckBanner
+  // (once it's confirmed nothing is currently showing) or by
+  // dismissAckBanner advancing straight into the next queued message
+  // (where the banner is deliberately STILL showing 'flex' from the one
+  // just dismissed, so re-running showAckBanner's own guard here would
+  // wrongly re-queue it instead of displaying it).
+  function displayAckBanner(text){
+    const banner = $('ack-banner');
+    const textEl = $('ack-banner-text');
     if(!banner || !textEl) return;
     textEl.textContent = text;
     banner.style.display = 'flex';
-    if(dayGunOutcomeBannerTimer){ clearTimeout(dayGunOutcomeBannerTimer); dayGunOutcomeBannerTimer = null; }
-    dayGunOutcomeBannerTimer = setTimeout(App.dismissDayGunOutcomeBanner, DAY_GUN_OUTCOME_BANNER_MS);
-    if(dayGunOutcomeBannerTimer && typeof dayGunOutcomeBannerTimer.unref === 'function') dayGunOutcomeBannerTimer.unref();
+    if(ackBannerTimer){ clearTimeout(ackBannerTimer); ackBannerTimer = null; }
+    ackBannerTimer = setTimeout(App.dismissAckBanner, ACK_BANNER_MS);
+    if(ackBannerTimer && typeof ackBannerTimer.unref === 'function') ackBannerTimer.unref();
   }
-  App.dismissDayGunOutcomeBanner = function(){
-    const banner = $('day-gun-outcome-banner');
+  function showAckBanner(text){
+    const banner = $('ack-banner');
+    if(banner && banner.style.display === 'flex'){ ackBannerQueue.push(text); return; }
+    displayAckBanner(text);
+  }
+  App.dismissAckBanner = function(){
+    if(ackBannerTimer){ clearTimeout(ackBannerTimer); ackBannerTimer = null; }
+    if(ackBannerQueue.length){
+      // Show the next queued one right away instead of hiding first — no
+      // point letting the overlay flicker off and back on between two
+      // messages that are both waiting to be seen.
+      displayAckBanner(ackBannerQueue.shift());
+      return;
+    }
+    const banner = $('ack-banner');
     if(banner) banner.style.display = 'none';
-    if(dayGunOutcomeBannerTimer){ clearTimeout(dayGunOutcomeBannerTimer); dayGunOutcomeBannerTimer = null; }
   };
 
   // ---------------- Day-gun: independent deadline ----------------
@@ -3769,11 +3806,13 @@
       $('inquiry-result-title').textContent = t('inquiryGranted');
       $('inquiry-result-detail').textContent = detail;
       logGameEvent('day', t('inquiryGranted') + ' ' + detail);
+      showAckBanner(t('inquiryGranted') + ' ' + detail);
     } else {
       aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'inquiry-result', granted: false }));
       $('inquiry-result-title').textContent = t('noInquiryToday');
       $('inquiry-result-detail').textContent = t('notEnoughVotes');
       logGameEvent('day', t('noInquiryToday') + ' ' + t('notEnoughVotes'));
+      showAckBanner(t('noInquiryToday') + ' ' + t('notEnoughVotes'));
     }
     showScreen('screen-host-inquiry-result');
   };
@@ -4015,16 +4054,20 @@
   function broadcastDefensePhase(){
     const names = state.defendingIds.map(id => state.players.get(id).name);
     // The defense gets its own dedicated talk window under auto-pacing —
-    // the same per-player-alive formula as voting itself (armVoteDeadline:
-    // voteDeadlineMinutes x however many are alive), armed BEFORE the
-    // phase messages go out so the deadline badge actually reflects it
-    // right away (see sendToPlayer's DEADLINE_CARRYING_TYPES piggyback).
-    // Used to fold the defense straight into the SAME window as final
-    // voting (calling App.startFinalVote immediately) — no dedicated time
-    // to actually talk before voting could start. A no-op in a normally-
-    // hosted game, same as every other armVoteDeadline call — the God
-    // taps Start Final Vote whenever they judge it's done instead.
-    armVoteDeadline(App.startFinalVote);
+    // voteDeadlineMinutes (the same per-player minutes setting as voting)
+    // multiplied by how many people are actually ON TRIAL, not everyone
+    // alive (see armDefenseDeadline) — armed BEFORE the phase messages go
+    // out so the deadline badge actually reflects it right away (see
+    // sendToPlayer's DEADLINE_CARRYING_TYPES piggyback). Used to fold the
+    // defense straight into the SAME window as final voting (calling
+    // App.startFinalVote immediately) — no dedicated time to actually
+    // talk before voting could start; then briefly used voting's own
+    // per-ALIVE-player formula, giving every defendant the whole table's
+    // worth of time regardless of how many were actually on trial. A
+    // no-op in a normally-hosted game, same as every other
+    // armAutoDeadlineMs call — the God taps Start Final Vote whenever
+    // they judge it's done instead.
+    armDefenseDeadline(App.startFinalVote);
     aliveEntries().forEach(([id, entry]) => {
       sendToPlayer(entry, { type: 'phase', phase: 'defense', day: state.day, defendingNames: names, onTrial: state.defendingIds.includes(id) });
     });
@@ -4170,6 +4213,11 @@
       ? t('seeResults')
       : t('continueToNight');
     showScreen('screen-host-result');
+    // Deliberate, dismiss-or-timeout banner (see showAckBanner) — under
+    // auto-pacing this screen used to just get yanked away by whatever
+    // phase message came next once armRevealPause's short timer fired,
+    // with nobody necessarily having actually read it yet.
+    showAckBanner(resultTitle + (resultDetail ? ' ' + resultDetail : ''));
     // Full game log (see logGameEvent) — the same day-vote outcome
     // everyone just saw.
     logGameEvent('day', resultTitle + (logDetail ? ' ' + logDetail : ''));
@@ -5359,14 +5407,14 @@
         else if(msg.type === 'day-gun-result'){
           // Public (everyone alive hears it) — a real SHOT (kill or a
           // no-effect miss, msg.requiresAck) gets the deliberate,
-          // dismiss-or-timeout banner (see showDayGunOutcomeBanner on the
-          // host side) so it can't be missed in the middle of an active
-          // vote or whatever else is going on; "nobody fired at all"
-          // stays a brief toast. If this WAS the pending decision the
-          // subsection was showing, clear it too (covers the "someone
-          // else's deadline forced it closed" case as well as this
-          // player's own submit already having cleared it locally).
-          if(msg.requiresAck) showDayGunOutcomeBanner(msg.text); else toast(msg.text, 5000);
+          // dismiss-or-timeout banner (see showAckBanner on the host
+          // side) so it can't be missed in the middle of an active vote
+          // or whatever else is going on; "nobody fired at all" stays a
+          // brief toast. If this WAS the pending decision the subsection
+          // was showing, clear it too (covers the "someone else's
+          // deadline forced it closed" case as well as this player's own
+          // submit already having cleared it locally).
+          if(msg.requiresAck) showAckBanner(msg.text); else toast(msg.text, 5000);
           state.pendingDayGunMsg = null;
           attachGunDecisionSection(activeScreenId());
         }
@@ -5708,8 +5756,14 @@
   }
 
   function handleDayResult(msg){
-    $('day-result-title').textContent = msg.eliminatedName ? t('votedOutPlayer', { name: msg.eliminatedName }) : t('noOneEliminatedPlayer');
+    const titleText = msg.eliminatedName ? t('votedOutPlayer', { name: msg.eliminatedName }) : t('noOneEliminatedPlayer');
+    $('day-result-title').textContent = titleText;
     showScreen('screen-player-day-result');
+    // Deliberate, dismiss-or-timeout banner (see showAckBanner) — under
+    // auto-pacing this screen used to just get yanked away by whatever
+    // phase message came next once the host's own short reveal pause
+    // fired, with no guarantee the player had actually read it yet.
+    showAckBanner(titleText);
   }
 
   App.submitInquiryVote = function(choice){
@@ -5719,14 +5773,23 @@
   };
 
   function handleInquiryResult(msg){
+    let titleText, detailText;
     if(msg.granted){
-      $('inquiry-result-title-player').textContent = t('inquiryGranted');
-      $('inquiry-result-detail-player').textContent = t(msg.zodiacInPlay ? 'inquiryDetailPlayer' : 'inquiryDetailPlayerNoZodiac', { mafiaOut: msg.mafiaOut, villagerOut: msg.villagerOut, independentOut: msg.independentOut });
+      titleText = t('inquiryGranted');
+      detailText = t(msg.zodiacInPlay ? 'inquiryDetailPlayer' : 'inquiryDetailPlayerNoZodiac', { mafiaOut: msg.mafiaOut, villagerOut: msg.villagerOut, independentOut: msg.independentOut });
     } else {
-      $('inquiry-result-title-player').textContent = t('noInquiryToday');
-      $('inquiry-result-detail-player').textContent = t('notEnoughVotes');
+      titleText = t('noInquiryToday');
+      detailText = t('notEnoughVotes');
     }
+    $('inquiry-result-title-player').textContent = titleText;
+    $('inquiry-result-detail-player').textContent = detailText;
     showScreen('screen-player-inquiry-result');
+    // Deliberate, dismiss-or-timeout banner (see showAckBanner) — this is
+    // the exact "shows up and goes away pretty quickly" report: under
+    // auto-pacing, the host's own short reveal pause used to yank this
+    // screen away for the NEXT phase long before most players had a
+    // real chance to read it.
+    showAckBanner(titleText + ' ' + detailText);
   }
 
   function handleGameOver(msg){
