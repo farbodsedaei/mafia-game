@@ -1098,6 +1098,10 @@
       statusConnecting: 'در حال اتصال…', statusWaitingForPlayer: 'منتظر پیوستن بازیکن با لینک…',
       statusConnectingStuck: 'اتصال طول کشیده…', btnRetryConnection: 'تلاش دوباره',
       toastRetryingConnection: 'در حال تلاش دوباره برای اتصال آن بازیکن…',
+      btnRemoveSeat: 'حذف این جایگاه', toastSeatRemoved: 'جایگاه آزاد شد — حالا یک نفر دیگر می‌تواند بپیوندد.',
+      toastStalledJoinReleased: 'یک تلاش برای پیوستن که رهاشده بود آزاد شد — یک جایگاه باز شد.',
+      toastJoinerTurnedAwayFull: 'شخصی تلاش کرد بپیوندد، اما همهٔ {n} جایگاه پر است. اگر جایگاهی که واقعاً کسی پشتش نیست می‌بینید، آن را حذف کنید تا او بتواند دوباره تلاش کند.',
+      seatRemovedByHost: 'میزبان این جایگاه را (به این دلیل که مدتی بدون نام باقی مانده بود) آزاد کرد. اگر هنوز اینجایید، دوباره روی لینک بزنید تا بپیوندید.',
       toastPlayerJoined: '{name} به بازی پیوست.', toastPlayerReconnected: '{name} دوباره وصل شد.',
       rolesAssignedEyebrow: 'نقش‌ها تخصیص یافت', rolesDealtTitle: 'نقش‌ها پخش شدند',
       rolesDealtHint: 'نقش‌ها به‌صورت خصوصی به هر گوشی ارسال شد — از جمله گوشی شما اگر شما هم بازی می‌کنید. در حال حاضر، تا وقتی بازی در حال ساخته‌شدن است، این نقش‌ها پایین همین صفحه هم به شما نشان داده می‌شوند.',
@@ -1151,6 +1155,7 @@
       joiningRoom: 'در حال پیوستن به اتاق {code}…', contactingHost: 'در حال تماس با میزبان.',
       connectingStuckHint: 'این کار بیشتر از حد معمول طول کشیده. اگر از آیفون استفاده می‌کنید: Private Relay آیکلاود را خاموش کنید (تنظیمات ← نام شما ← iCloud ← Private Relay)، مطمئن شوید به همان وای‌فای بقیه وصل هستید نه اینترنت همراه، و هر VPN فعالی را خاموش کنید. سپس دوباره امتحان کنید.',
       btnTryAgain: 'تلاش دوباره',
+      roomFullTitle: 'اتاق پر است', roomFullHint: 'میزبان به تعداد بازیکن‌های تعیین‌شده برای این بازی، جایگاه پُر دارد. اگر جایگاهی که واقعاً کسی پشتش نیست آزاد شود معمولاً خودش ظرف چند لحظه آزاد می‌شود — کمی صبر کنید و دوباره امتحان کنید، یا از میزبان بخواهید نگاهی به لابی بیندازد.',
       almostThere: 'تقریباً رسیدیم…', finalizingConnection: 'در حال نهایی‌کردن اتصال مستقیم.',
       connectedLabel: 'متصل شد', whatsYourName: 'اسم شما چیست؟', shownToHostOnly: 'این فقط به میزبان نشان داده می‌شود',
       reconnectingTitle: 'در حال اتصال دوباره…', reconnectingHint: 'اتصال شما قطع شده بود — در حال وصل‌شدن دوباره به بازی هستیم.',
@@ -1317,6 +1322,10 @@
       statusConnecting: 'Connecting…', statusWaitingForPlayer: 'Waiting for player to join with the link…',
       statusConnectingStuck: 'Taking a while…', btnRetryConnection: 'Retry',
       toastRetryingConnection: "Retrying that player's connection…",
+      btnRemoveSeat: 'Remove this seat', toastSeatRemoved: 'Seat freed up — someone else can join now.',
+      toastStalledJoinReleased: 'An abandoned join attempt was released — a seat opened up.',
+      toastJoinerTurnedAwayFull: 'Someone tried to join, but all {n} seats are full. If you see a seat with nobody really behind it, remove it so they can try again.',
+      seatRemovedByHost: "The host freed up this seat (it had sat with no name for a while). If you're still here, tap the link again to rejoin.",
       toastPlayerJoined: '{name} joined the game.', toastPlayerReconnected: '{name} reconnected.',
       rolesAssignedEyebrow: 'Roles Assigned', rolesDealtTitle: 'Roles have been dealt',
       rolesDealtHint: "Roles were sent privately to each phone — including yours if you're playing too. For now, while the game is still being built, they're also listed below on this screen.",
@@ -1370,6 +1379,7 @@
       joiningRoom: 'Joining room {code}…', contactingHost: 'Contacting the host.',
       connectingStuckHint: "This is taking longer than usual. If you're on an iPhone: turn off iCloud Private Relay (Settings → your name → iCloud → Private Relay), make sure you're on the same WiFi as everyone else (not cellular data), and turn off any active VPN. Then try again.",
       btnTryAgain: 'Try Again',
+      roomFullTitle: 'Room is full', roomFullHint: "The host's game already has as many seats filled as it allows. If a seat with nobody really behind it gets freed up, that usually happens within a minute or two on its own — wait a moment and try again, or ask the host to check the lobby.",
       almostThere: 'Almost there…', finalizingConnection: 'Finalizing a direct connection.',
       connectedLabel: 'Connected', whatsYourName: "What's your name?", shownToHostOnly: 'This is shown to the host only',
       reconnectingTitle: 'Reconnecting…', reconnectingHint: 'Your connection dropped — reconnecting you to the game.',
@@ -2398,16 +2408,95 @@
   // (fresh ICE gathering/ports/timing), which is what the button below is
   // for — but it's not guaranteed the way it would be with TURN.
   const LOBBY_STUCK_THRESHOLD_MS = 12000;
+  // A longer, more deliberate threshold than LOBBY_STUCK_THRESHOLD_MS,
+  // gating only the "Remove this seat" button specifically (Retry stays
+  // available from the shorter threshold — it's harmless either way, just
+  // a fresh negotiation attempt). Removing is a judgment call the host
+  // makes themselves (same as Retry already is), but it's a more
+  // consequential one to get wrong: showing it the instant a seat is
+  // merely "stuck" would tempt removing someone who's simply still typing
+  // their name — 12s in, plenty of genuine connections aren't done yet.
+  // 45s is well past any realistic "just slow to type a name" case, while
+  // still comfortably ahead of expirePhantomSeats' own much more
+  // conservative automatic thresholds below, giving the host a real window
+  // to act early on a seat they already have out-of-band confidence about
+  // (e.g. "sorry, that was my old tab" from a friend) rather than only
+  // ever removing it right as the automatic expiry would have anyway.
+  const LOBBY_REMOVABLE_THRESHOLD_MS = 45000;
+  // A never-named seat (entry exists, but nobody ever actually submitted a
+  // name for it) that's been sitting this long is treated as abandoned
+  // rather than genuinely still trying, and gets auto-released — see
+  // expirePhantomSeats. Without this, hostBeginConnectionTo's own
+  // entry-creation-on-'player-hello' means just OPENING the join link
+  // (before ever typing a name) permanently reserves one of numPlayers'
+  // seats, forever (nothing else ever calls state.players.delete) — a
+  // reload, a second tab, or a plain abandoned browser tab each burns a
+  // seat that never comes back on its own, until a brand-new real joiner
+  // gets silently turned away once the room "fills up" on phantoms alone
+  // (see the room-full rejection branch in hostBeginConnectionTo). Two
+  // different windows, since "still negotiating" and "connected fine but
+  // just never named itself" are different signals of how long is
+  // reasonable to wait before assuming abandonment:
+  //   - never connected at all (still stuck on WebRTC negotiation): give it
+  //     NEVER_CONNECTED_TIMEOUT_MS from connectingSince — generous, so a
+  //     real, still-negotiating handshake (slow network, no TURN) isn't
+  //     cut off before it might still succeed on its own or via Retry.
+  //   - connected (data channel genuinely open) but still unnamed: give it
+  //     the much longer CONNECTED_UNNAMED_TIMEOUT_MS from connectedSince —
+  //     a real person, once actually connected, essentially never takes
+  //     minutes just to type a name and tap Continue, so this window is
+  //     really just "long enough that this is almost certainly an
+  //     abandoned tab, not someone still typing."
+  const NEVER_CONNECTED_TIMEOUT_MS = 90000;
+  const CONNECTED_UNNAMED_TIMEOUT_MS = 3 * 60000;
+  // Shared by the automatic expiry below and the host's own manual "Remove
+  // this seat" tap in the lobby (App.removeStuckPlayer) — tears down
+  // whatever pc/dc this seat has (however far its negotiation got) and
+  // frees the slot for someone else to actually use. Only ever reachable
+  // for a seat that never actually named itself; a real, once-named
+  // player's seat is never removed this way, only ever kicked mid-game
+  // (App.kickPlayer) once they're actually a dealt-in player — losing a
+  // connection after naming yourself still preserves your seat for
+  // reconnect, exactly as before.
+  function releasePhantomSeat(id, opts){
+    const entry = state.players.get(id);
+    if(!entry || entry.name) return;
+    // Tell them directly, over the still-alive WebSocket signaling relay,
+    // BEFORE tearing down the WebRTC side — see playerHandleSignal's own
+    // 'seat-removed' branch for why this is what actually stops them
+    // silently reconnecting into a fresh phantom seat a moment later
+    // (dc.onclose alone would otherwise trigger exactly that).
+    wsSend({ type: 'signal', to: id, payload: { kind: 'seat-removed' } });
+    try{ entry.dc && entry.dc.close(); }catch(e){}
+    try{ entry.pc && entry.pc.close(); }catch(e){}
+    state.players.delete(id);
+    renderLobby();
+    if(opts && opts.announceToHost) toast(t('toastStalledJoinReleased'));
+  }
+  function expirePhantomSeats(){
+    const now = Date.now();
+    for(const [id, entry] of Array.from(state.players.entries())){
+      if(entry.name || entry.isHostSelf) continue;
+      const stale = entry.connected
+        ? (entry.connectedSince && (now - entry.connectedSince > CONNECTED_UNNAMED_TIMEOUT_MS))
+        : (entry.connectingSince && (now - entry.connectingSince > NEVER_CONNECTED_TIMEOUT_MS));
+      if(stale) releasePhantomSeat(id, { announceToHost: true });
+    }
+  }
   // Re-renders the lobby every couple of seconds for as long as anyone's
   // still mid-negotiation — nothing else would otherwise notice a slot
   // crossing LOBBY_STUCK_THRESHOLD_MS and flip it to "stuck" purely from
   // time passing (every other renderLobby() call is event-driven, e.g.
-  // dc.onopen/onclose). Self-clearing the instant nobody's left waiting,
-  // so this never runs during normal play once everyone's in.
+  // dc.onopen/onclose). Also where expirePhantomSeats actually gets a
+  // chance to run — same reasoning, nothing else would notice a seat
+  // crossing ITS OWN (much longer) threshold either. Self-clearing the
+  // instant nobody's left waiting, so this never runs during normal play
+  // once everyone's in.
   let lobbyConnectingTicker = null;
   function ensureLobbyConnectingTicker(){
     if(lobbyConnectingTicker) return;
     lobbyConnectingTicker = setInterval(() => {
+      expirePhantomSeats();
       const anyConnecting = Array.from(state.players.values()).some(p => !(p.connected && p.name));
       if(!anyConnecting){ clearInterval(lobbyConnectingTicker); lobbyConnectingTicker = null; return; }
       if(document.getElementById('screen-host-lobby').classList.contains('active')) renderLobby();
@@ -2427,6 +2516,19 @@
     hostBeginConnectionTo(id);
     toast(t('toastRetryingConnection'));
   };
+  // Manual, immediate version of expirePhantomSeats' auto-release, for a
+  // host who's already sure a given stuck seat has nobody real behind it
+  // and doesn't want to wait out the automatic timeout — e.g. they
+  // recognize it as their own earlier double-click, or a friend already
+  // texted "sorry, I'm in from my other tab now." Only ever does anything
+  // for a never-named seat (releasePhantomSeat's own guard) — never a way
+  // to remove an actual player's seat before the game starts.
+  App.removeStuckPlayer = function(id){
+    const entry = state.players.get(id);
+    if(!entry || entry.name) return;
+    releasePhantomSeat(id);
+    toast(t('toastSeatRemoved'));
+  };
 
   function renderLobby(){
     const connectedCount = Array.from(state.players.values()).filter(p => p.connected && p.name).length;
@@ -2445,11 +2547,22 @@
         continue;
       }
       const stuck = p.connectingSince && (Date.now() - p.connectingSince > LOBBY_STUCK_THRESHOLD_MS);
+      // "Remove" only ever applies to a seat nobody ever named — a real,
+      // once-named player who's merely disconnected still only gets Retry;
+      // their seat stays reserved for reconnect, same as always (see
+      // releasePhantomSeat's own guard).
+      const canRemove = !p.name && p.connectingSince && (Date.now() - p.connectingSince > LOBBY_REMOVABLE_THRESHOLD_MS);
       row.innerHTML =
         '<div class="num">' + i + '</div>' +
         '<div class="status">' + escapeHtml(stuck ? t('statusConnectingStuck') : t('statusConnecting')) + '</div>' +
-        (stuck ? '<button class="link-btn" style="padding:6px 0; flex-shrink:0;">' + escapeHtml(t('btnRetryConnection')) + '</button>' : '');
-      if(stuck) row.querySelector('button').onclick = () => App.retryPlayerConnection(id);
+        (stuck ? (
+          '<div style="display:flex; gap:12px; flex-shrink:0;">' +
+          '<button class="link-btn retry-btn" style="padding:6px 0;">' + escapeHtml(t('btnRetryConnection')) + '</button>' +
+          (canRemove ? '<button class="link-btn remove-btn" style="padding:6px 0; color:var(--red-bright);">' + escapeHtml(t('btnRemoveSeat')) + '</button>' : '') +
+          '</div>'
+        ) : '');
+      if(stuck) row.querySelector('.retry-btn').onclick = () => App.retryPlayerConnection(id);
+      if(canRemove) row.querySelector('.remove-btn').onclick = () => App.removeStuckPlayer(id);
       list.appendChild(row);
     }
     const remaining = state.numPlayers - state.players.size;
@@ -2502,6 +2615,19 @@
     // persisted token reconnecting) is always let back in regardless —
     // they already have a seat.
     if(!existing && state.players.size >= state.numPlayers){
+      // Previously a silent no-op: the rejected joiner just sat on
+      // "Contacting host…" forever with zero explanation, indistinguishable
+      // from a genuine WebRTC failure, and the host never even learned this
+      // person tried — no entry was ever created for them to show up as a
+      // lobby row. Relayed over the WebSocket signaling channel (not a data
+      // channel — none was ever opened for a rejected attempt) the exact
+      // same way an offer/candidate is, just a different payload kind (see
+      // playerHandleSignal's own 'room-full' branch). See
+      // expirePhantomSeats/App.removeStuckPlayer for what actually frees up
+      // a seat that's full of never-named, abandoned join attempts rather
+      // than real waiting players.
+      wsSend({ type: 'signal', to: playerId, payload: { kind: 'room-full' } });
+      toast(t('toastJoinerTurnedAwayFull', { n: state.numPlayers }));
       return;
     }
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -2579,6 +2705,13 @@
       // connection that's no longer the real one.
       if(entry && entry.dc === dc){
         entry.connected = true;
+        // Starts (or restarts, on a reconnect) the "connected but still
+        // hasn't typed a name" clock — see expirePhantomSeats, which uses
+        // this instead of connectingSince once a seat is actually
+        // connected, so a genuinely slow WebRTC negotiation isn't confused
+        // with someone who connected fine ages ago and then just never
+        // finished naming themselves (most likely an abandoned tab).
+        entry.connectedSince = Date.now();
         renderLobby();
         if(isReconnect){
           resyncPlayer(entry, playerId);
@@ -5041,6 +5174,15 @@
     state.isReconnecting = true;
     showScreen('screen-player-reconnecting');
     setTimeout(() => {
+      // Re-check rather than trusting the snapshot from 1.5s ago — a
+      // 'seat-removed' signal (see playerHandleSignal — the host force-
+      // released this exact seat as an abandoned lobby slot) can land in
+      // that window and null these out. Without this, the host closing a
+      // phantom seat's pc/dc would just trigger THIS reconnect anyway
+      // (dc.onclose already calls attemptPlayerReconnect unconditionally),
+      // silently rejoining with the same persisted token a moment later
+      // and recreating the exact phantom seat that was just removed.
+      if(!state.room || !state.myPlayerToken) return;
       if(state.ws && state.ws.readyState === WebSocket.OPEN){
         wsSend({ type: 'join-room', room: state.room, token: state.myPlayerToken });
       } else {
@@ -5127,6 +5269,46 @@
         });
     } else if(payload.kind === 'candidate'){
       if(state.playerPC) state.playerPC.addIceCandidate(payload.candidate).catch(()=>{});
+    } else if(payload.kind === 'seat-removed'){
+      // The host force-released this seat (releasePhantomSeat — either the
+      // automatic never-named-for-too-long expiry, or a manual "Remove
+      // this seat" tap) because nobody ever finished joining. Without this
+      // explicit notice, the dc.onclose this triggers would just call
+      // attemptPlayerReconnect() like any other dropped connection — which
+      // rejoins with the SAME persisted token a moment later and silently
+      // recreates the exact phantom seat that was just removed, defeating
+      // the whole point. Clearing the session and the room/token fields
+      // makes this a genuine, final end to this attempt (same treatment
+      // 'host-left' already gets for the whole room ending, just scoped to
+      // one seat instead) — a real person still sitting on this tab just
+      // sees a plain, honest "removed — rejoin if you're still here"
+      // rather than an invisible reconnect loop.
+      if(state.playerPC){ try{ state.playerPC.close(); }catch(e){} state.playerPC = null; }
+      clearConnectingTimeout();
+      clearPlayerSession();
+      state.room = null;
+      state.myPlayerToken = null;
+      state.reconnectInProgress = false;
+      state.pendingRejoinSession = null;
+      toast(t('seatRemovedByHost'));
+      showScreen('screen-player-join');
+    } else if(payload.kind === 'room-full'){
+      // hostBeginConnectionTo turned this join away outright — every
+      // declared seat is currently occupied (real players AND, very
+      // possibly, abandoned/never-named attempts still squatting one —
+      // see expirePhantomSeats). No WebRTC negotiation was ever attempted
+      // for THIS join at all, so there's nothing to time out on its own;
+      // surface it immediately instead of leaving the generic "still
+      // connecting" spinner running with no explanation until the 18s
+      // stuck-hint eventually appears and says something misleading (a
+      // TURN/network hint that isn't what's actually going on here).
+      clearConnectingTimeout();
+      $('connecting-title').textContent = t('roomFullTitle');
+      $('connecting-hint').textContent = t('roomFullHint');
+      const stuckHint = $('connecting-stuck-hint');
+      if(stuckHint) stuckHint.style.display = 'none';
+      const btn = $('connecting-retry-btn');
+      if(btn) btn.style.display = 'flex';
     }
   }
 

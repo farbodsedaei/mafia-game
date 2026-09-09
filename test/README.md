@@ -430,6 +430,89 @@ classes), not on anything internal to `index.html`.
     genuinely blocks on the real submission rather than forcing a phase
     change ahead of it.
 
+12. `12-phantom-lobby-seats-get-reclaimed` — feature test for a reported
+    bug, found while investigating the earlier "at least one person can't
+    connect" report (scenario 10): "if someone had a browser on this app
+    left open from the last game, or if they click on the game URL and
+    before putting in their name they click another one, looks like the
+    browser would keep a link open and reserved to the server which no one
+    else can use, even if the original player closes the tab." Confirmed
+    by reading the code: opening the join link alone — before ever typing
+    a name — is enough to permanently reserve one of `numPlayers`' worth of
+    capacity (`hostBeginConnectionTo` creates a real `state.players` entry,
+    `name: null`, the instant `'player-hello'` arrives). Nothing anywhere
+    in the file ever called `state.players.delete` — closing the tab, or
+    the connection just dying, only ever flipped `entry.connected` to
+    false. A reload or a second click before ever submitting a name burns
+    ANOTHER seat rather than reusing the first one (the client only
+    recognizes "I already have a seat here" once a name was actually saved
+    to its session). Once enough real + abandoned attempts fill
+    `numPlayers`, every further real joiner was silently, permanently
+    turned away — `hostBeginConnectionTo` just returned early with no
+    message to anyone and no lobby row, leaving them stuck on "Contacting
+    host…" forever, indistinguishable from a genuine WebRTC/TURN failure.
+    Fixed with three changes in `index.html`:
+    - `expirePhantomSeats` auto-releases a never-named seat once it's been
+      abandoned long enough — two different grace windows, since "still
+      negotiating" and "connected fine but just never named itself" are
+      different signals of how long is reasonable to wait:
+      `NEVER_CONNECTED_TIMEOUT_MS` (90s) for one that never even finished
+      connecting, the much longer `CONNECTED_UNNAMED_TIMEOUT_MS` (3 min)
+      for one that's fully connected but just never got named. Checked on
+      the same 2s lobby ticker that already watches for "stuck" rows.
+    - `hostBeginConnectionTo`'s capacity-rejection branch now tells the
+      turned-away player outright (a new `'room-full'` signal payload kind,
+      relayed the same way an offer/candidate already is) instead of
+      silently hanging them, and toasts the host too.
+    - `App.removeStuckPlayer` — a host-visible "Remove this seat" button
+      (`LOBBY_REMOVABLE_THRESHOLD_MS`, 45s — deliberately shorter than
+      either automatic timeout) lets the host manually free a seat they're
+      already confident is abandoned, rather than waiting out the more
+      conservative automatic window.
+
+    **A real gotcha hit building this one**: simply force-closing a
+    phantom's `pc`/`dc` does NOT actually get rid of them — the existing
+    `dc.onclose` handler on the player's own side unconditionally calls
+    `attemptPlayerReconnect()` on ANY dropped connection, which happily
+    rejoins with the SAME persisted token a few seconds later and silently
+    recreates a fresh phantom seat, completely undoing the release (this
+    reached from PRODUCTION code — no new bug — the pre-existing reconnect
+    path just had no concept of "this drop was intentional, don't try
+    again"). Fixed by adding a `'seat-removed'` signal kind
+    (`playerHandleSignal`) that clears the player's session and nulls
+    `state.room`/`state.myPlayerToken` — reached first via the still-alive
+    WebSocket in every real-world case (a genuinely abandoned tab's
+    connection drops far slower than the signaling relay's round trip) —
+    plus a defensive re-check inside `attemptPlayerReconnect`'s own delayed
+    callback (`if(!state.room || !state.myPlayerToken) return;`) so even a
+    reconnect attempt already in flight when the seat is removed can't
+    complete. Caught by first getting the test to fail in a way that looked
+    like the fix wasn't working, then temporarily adding `console.log`
+    tracing to `expirePhantomSeats`/`attemptPlayerReconnect`/
+    `hostBeginConnectionTo` (removed once diagnosed) — the trace showed the
+    exact same phantom id getting a fresh, un-stale timestamp on the very
+    next tick, which only made sense if it had silently reconnected.
+
+    **Two test-authoring bugs worth not re-hitting**: (1) the lobby always
+    pads its row list with "waiting for player" placeholder rows up to
+    `numPlayers` (`renderLobby`'s own `remaining` loop) — these share the
+    plain, unconnected `.slot` class with a genuinely still-negotiating
+    entry, so a naive `:not(.connected)` filter can never reach 0 (or any
+    exact expected count) once even one seat has ever gone unfilled; had to
+    specifically exclude rows whose status text is the placeholder's own
+    (`statusWaitingForPlayer`) to isolate rows that represent an ACTUAL
+    `state.players` entry. For the same reason, total `.slot` row count is
+    ALWAYS exactly `numPlayers` regardless of how many phantom seats get
+    removed — never a useful thing to assert on directly. (2) the
+    pre-existing player-side `#connecting-retry-btn` is wired via an inline
+    `onclick="..."` HTML attribute — jsdom's `runScripts: 'outside-only'`
+    (see `device.js`) never compiles those into a callable handler, unlike
+    a JS-property-assigned `.onclick` (e.g. the host-side lobby's own
+    Retry/Remove buttons, added by this same fix, which DO `click()` fine).
+    Calling the underlying `App.retryJoin()` directly, instead of
+    `.click()`-ing that specific button, exercises the same logic a real
+    tap would without hitting jsdom's own limitation.
+
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this
 harness also had.
