@@ -188,8 +188,14 @@
   .host-self-section.open{display:block;}
   .host-self-section-header{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
   .host-self-section-label{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold);}
-  .host-self-section-links{display:flex; gap:14px;}
-  .host-self-section-links .link-btn{padding:0;}
+  .host-self-section-links{display:flex; gap:8px; flex-wrap:wrap;}
+  /* Real buttons, matching the persistent player-footer-bar's own look —
+     a God-Mode host playing their own seat should see the exact same My
+     Role/My Activity/Vote History treatment a real player now does, not
+     the old plain text links. Overrides .btn's own width:100%/padding
+     (sized for a full-width primary action) down to something that fits
+     this compact section header. */
+  .host-self-section-links .btn{width:auto; flex:none; padding:8px 12px; font-size:12px;}
   .host-self-action-body{display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--line);}
   .host-self-card-eyebrow{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold);}
   .host-self-card-title{font-size:17px; font-weight:700; margin:4px 0 10px; color:var(--text);}
@@ -932,9 +938,9 @@
   <div class="host-self-section-header">
     <span class="host-self-section-label" data-i18n="hostSelfSectionLabel"></span>
     <div class="host-self-section-links">
-      <button class="link-btn" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
-      <button class="link-btn" id="host-self-activity-btn" style="display:none;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
-      <button class="link-btn" id="host-self-vote-history-btn" style="display:none;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
+      <button class="btn btn-ghost" onclick="App.viewMyRole()" data-i18n="viewMyRole"></button>
+      <button class="btn btn-ghost" id="host-self-activity-btn" style="display:none;" onclick="App.viewMyActivity()" data-i18n="myActivity"></button>
+      <button class="btn btn-ghost" id="host-self-vote-history-btn" style="display:none;" onclick="App.viewVoteHistory()" data-i18n="voteHistory"></button>
     </div>
   </div>
   <div class="host-self-action-body" id="host-self-action-body">
@@ -2025,7 +2031,6 @@
           '<span class="role-name">' + escapeHtml(r.name) + '</span>' +
           roleTeamTagHtml(r) +
           (r.shield ? '<span class="tag shield role-team-tag">' + escapeHtml(t('labelShield')) + '</span>' : '') +
-          (r.description ? '<div class="role-desc-small">' + escapeHtml(roleDescription(r)) + '</div>' : '') +
         '</div>';
       row.querySelector('input').onchange = (e) => {
         if(e.target.checked) state.selectedRoleIds.add(r.id);
