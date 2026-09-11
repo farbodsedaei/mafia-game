@@ -21,8 +21,9 @@ source). The console output during a run is the same transcript.
 ## How it works
 
 - **`lib/server-runner.js`** spawns the real `server.js` as a child process
-  on an ephemeral port, and can spawn it with `HOST_GRACE_MS_OVERRIDE` set
-  for reconnect scenarios that don't want to wait the real 90 seconds.
+  on an ephemeral port, and can spawn it with `ROOM_EMPTY_GRACE_MS_OVERRIDE`
+  set for room-survival/reconnect scenarios that don't want to wait the
+  real 10 minutes.
 - **`lib/mocks.js`** installs the browser APIs `index.html` needs that
   Node/jsdom don't provide, on each simulated device's `window`, *before*
   the app's own script runs (see `device.js`):
@@ -562,6 +563,111 @@ classes), not on anything internal to `index.html`.
     vote. Fixed the same way scenario 07's own Part B already does:
     `host.App.stepInquiries(-1)` during setup, so there's nothing to
     detour through in the first place.
+
+14. `14-host-resumes-from-refresh` — feature test for a reported problem:
+    "in case host's browser gets refreshed or disconnected, the room gets
+    lost." The entire game only ever lived in the host's own browser tab's
+    JS memory — a refresh wiped every role, vote, and night decision
+    outright, even with every player still sitting there connected and
+    waiting; the room itself was also unconditionally deleted 90s after
+    just the host's own socket dropped, regardless of how many players
+    were still around. Fixed with two independent pieces:
+    - **`server.js`**: a room now survives as long as ANYONE (host or any
+      player) is still connected — `isRoomEmpty`/`armEmptyDeleteTimerIfEmpty`
+      only start a teardown countdown (`ROOM_EMPTY_GRACE_MS`, 10 real
+      minutes, `ROOM_EMPTY_GRACE_MS_OVERRIDE` for tests — replaces the old
+      host-only `HOST_GRACE_MS`) once the room is genuinely empty, not a
+      fixed window tied to just the host. Players still connected get a
+      `'host-disconnected'` notice (and `'host-reconnected'` once the host's
+      back) instead of silently hanging with no explanation.
+    - **`index.html`**: the host's own browser periodically snapshots the
+      WHOLE authoritative `state` object to its own `localStorage`
+      (`saveHostSnapshot`, a Map/Set-aware JSON replacer stripping live
+      connection objects and timer handles — see `HOST_SNAPSHOT_STRIP_KEYS`)
+      while a room is active, and auto-resumes from it on the next page
+      load (`resumeAsHost`) with no confirmation prompt needed (unlike the
+      player Welcome-Back flow — there's only ever one legitimate host for
+      a room, and critically for No God Mode specifically, this device may
+      have nobody actually watching it to tap through one) — reconnecting
+      with the same `hostToken` and rebuilding every player's WebRTC
+      connection exactly like the existing same-tab reconnect path already
+      did. `resumeHostScreenForPhase` restores the host's own screen keyed
+      off `state.gamePhase`: data-bearing phases (day/voting/defense/
+      inquiry-vote/game-over/night's generic screen) just re-call the SAME
+      render functions normal play already uses; transient "tap to
+      continue" phases with nothing of their own left to show (the
+      already-broadcast day/inquiry results, the eyes-closed/ocean-talk/
+      morning-ready night beats) skip straight to whatever naturally comes
+      next instead of trying to reconstruct a screen that's already served
+      its purpose. `rearmDeadlineForResumedPhase` re-arms a fresh
+      full-length auto-pacing deadline for the resumed phase, if any (no
+      serializable reference to "what was this timer going to call"
+      survives a reload, so exact remaining time can't be preserved — a
+      minor pacing hiccup beats a No-God-Mode game silently stalling
+      forever with nobody left to nudge it). Deliberately local-only (never
+      sent anywhere) and same-device-only — a different device picking up
+      hosting entirely is a separate, bigger piece of work, not attempted
+      here (see the 2026-09-10 discussion this was scoped from).
+
+    **Part A** drives a real game to Day 2, lets a real snapshot save (the
+    test-only `'mafia-snapshot-interval-ms-override'` speed hook, mirroring
+    `armAutoDeadlineMs`'s own), then simulates "the host's browser
+    refreshes" the only way that's actually meaningful to test: a
+    brand-new device seeded with the OLD device's exact `localStorage`
+    content (`createDevice`'s new `seedLocalStorage` option — each jsdom
+    window normally has its own isolated storage, unlike real same-origin
+    tabs), with the OLD device genuinely prevented from ever reconnecting
+    on its own (see the gotcha below). Confirms the resumed host lands
+    back on the right screen, every player's connection rebuilds with no
+    action needed on their end, and the game is genuinely still playable
+    afterward (a real vote, all the way to a result) — not just
+    superficially "connected." **Part B** confirms the server-side half —
+    the room outlives the host being gone as long as a player is still
+    connected, an honest status instead of a silent hang, and a clean
+    reconnect once the host's back — driven with raw `ws` connections
+    instead of full app/jsdom devices, since this is fundamentally a
+    `server.js` behavior and the real app's own already-existing same-tab
+    auto-reconnect would otherwise immediately race to reclaim the very
+    room this part means to leave genuinely host-less for a while (see
+    Part A's own gotcha), muddying exactly what's under test.
+
+    **Two real, production bugs this surfaced — not test artifacts**:
+    (1) `playerHandleSignal`'s 'offer' handler closes whatever old
+    `state.playerPC` a player already has before accepting a fresh one —
+    correct in general (`hostBeginConnectionTo` can rebuild an
+    already-known player's connection without waiting for confirmation the
+    old side is dead first), but that close() call fired SYNCHRONOUSLY
+    into the SAME data channel's own `onclose` handler, which (correctly,
+    for a genuine disconnect) calls `attemptPlayerReconnect()` — resending
+    `'join-room'`, triggering ANOTHER unprompted offer once it arrived,
+    closing ITS OWN fresh connection into the exact same trap. A real,
+    self-sustaining reconnect loop, just one that needed a fresh, unprompted
+    offer arriving for a connection that looked fine locally but was
+    actually already orphaned to ever actually manifest — exactly the
+    shape a resumed host's very first reconnect creates. Fixed by clearing
+    `state.playerDC` before closing the old `pc`, so the dc's own staleness
+    guard (`state.playerDC !== dc`) correctly recognizes this specific
+    closure as an expected, deliberate replacement rather than a real
+    connection loss. (2) `connectWS`'s `ws.onclose` handler already,
+    correctly, calls `attemptHostReconnect()` for the host role (the
+    existing same-tab-recovers-from-a-blip feature) — a test simulating "the
+    old device is gone for good" by merely closing its WebSocket (without
+    also stopping its OWN JS from reacting to that) leaves this same
+    legitimate feature racing to reclaim the very room a replacement device
+    is also trying to take over, each side's reclaim clobbering the
+    other's freshly rebuilt player connections back and forth. Neither bug
+    is jsdom-specific — a real host's browser tab left open in a
+    background window (not fully closed) after the user opens a fresh
+    replacement tab could hit the same interaction in production. Fixed
+    test-side with two new `device.js` helpers: `killWebSocket` (force-closes
+    a device's own signaling socket via a new `mocks.js` `__wsInstances`
+    tracking array, mirroring the existing `__mockRTCConnections` pattern —
+    without unsafely tearing down the jsdom window itself, since a still-
+    mid-close socket touching a torn-down `document` afterward crashes the
+    process) and `blockFutureReconnects` (stubs the device's own
+    `WebSocket` constructor so any reconnect attempt it makes on its own
+    never actually completes) — called together, in that order, wherever a
+    scenario needs a device to be genuinely, permanently gone.
 
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this

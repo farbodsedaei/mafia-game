@@ -197,27 +197,66 @@ const httpServer = http.createServer(async (req, res) => {
 });
 
 /* ---------------- Signaling relay ---------------- */
-// rooms: Map(code -> { host: ws, hostToken, players: Map(playerId -> ws), hostDeleteTimer })
+// rooms: Map(code -> { host: ws, hostToken, players: Map(playerId -> ws), emptyDeleteTimer })
 const rooms = new Map();
 
-// How long a room survives after its host's socket closes before being torn
-// down for good. Mobile browsers (iOS Safari especially) aggressively
-// suspend a backgrounded tab's network activity — screen lock, switching
-// apps for a moment, even just showing someone the room code — which drops
-// this WebSocket even though the tab itself is still alive. Without a grace
-// window, that single blip destroyed the room instantly and permanently for
-// every player still trying to join, which is the exact "room doesn't
-// exist" failure this grace period exists to prevent. See 'reclaim-room'.
-// 90s (was 45s) — the client now proactively detects a silently-dead
-// connection itself (see index.html's WS heartbeat) rather than only
-// relying on this window to cover the browser/OS's own close detection, so
-// this is now purely a safety margin for how long a full network handover
-// (WiFi <-> cellular, DNS+TLS re-establishment and all) can reasonably take
-// end-to-end before the room gives up on the host coming back.
-const HOST_GRACE_MS = process.env.HOST_GRACE_MS_OVERRIDE ? parseInt(process.env.HOST_GRACE_MS_OVERRIDE, 10) : 90000;
+// A room used to die 90s after just the HOST's own socket closed —
+// regardless of how many players were still sitting there connected — which
+// is exactly the reported "host's browser refreshes/disconnects and the
+// whole room is gone" bug: the game's entire state lives only in the host's
+// own browser tab, so losing the room on nothing more than a host hiccup
+// threw away everyone else's progress too, even when they were all still
+// right there waiting. A room now survives as long as ANYONE — host or any
+// player — is still connected, and only starts counting down once it is
+// GENUINELY EMPTY (see isRoomEmpty/armEmptyDeleteTimer below), giving a
+// refreshed/reconnecting host (see index.html's host-side snapshot +
+// auto-resume) real time to come back without losing anything, and letting
+// players who are still around keep their own seats reserved the whole
+// time. Mobile browsers (iOS Safari especially) also aggressively suspend a
+// backgrounded tab's network activity — screen lock, switching apps for a
+// moment, even just showing someone the room code — which drops a socket
+// even though the tab itself is still alive; this same generous window
+// covers that too, for host and players alike, without needing a separate
+// short-lived grace period just for that case anymore.
+// 10 minutes by default — long enough that "everyone happens to be
+// mid-reconnect at the exact same moment" (a real network outage, not just
+// one person's blip) doesn't cost the room, short enough that a genuinely
+// abandoned room doesn't linger forever.
+const ROOM_EMPTY_GRACE_MS = process.env.ROOM_EMPTY_GRACE_MS_OVERRIDE ? parseInt(process.env.ROOM_EMPTY_GRACE_MS_OVERRIDE, 10) : 10 * 60 * 1000;
 
 function send(ws, obj) {
   if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
+}
+
+function isRoomEmpty(room) {
+  const hostConnected = room.host && room.host.readyState === 1;
+  if (hostConnected) return false;
+  for (const ws of room.players.values()) {
+    if (ws && ws.readyState === 1) return false;
+  }
+  return true;
+}
+
+// Called after any disconnect — arms the teardown timer if (and only if)
+// NOBODY is left connected right now; a room that still has even one
+// live socket (host or player) never starts this countdown at all.
+function armEmptyDeleteTimerIfEmpty(code) {
+  const room = rooms.get(code);
+  if (!room || !isRoomEmpty(room)) return;
+  if (room.emptyDeleteTimer) return; // already counting down
+  room.emptyDeleteTimer = setTimeout(() => {
+    const stillRoom = rooms.get(code);
+    // Re-check emptiness rather than trusting the state from when this was
+    // armed — someone may well have reconnected in the meantime (that path
+    // already clears this timer below, but a defensive re-check costs
+    // nothing and protects against any future call site that forgets to).
+    if (stillRoom && isRoomEmpty(stillRoom)) rooms.delete(code);
+  }, ROOM_EMPTY_GRACE_MS);
+}
+// Called after any (re)connect — a room that was counting down to deletion
+// is no longer empty, so cancel that.
+function clearEmptyDeleteTimer(room) {
+  if (room.emptyDeleteTimer) { clearTimeout(room.emptyDeleteTimer); room.emptyDeleteTimer = null; }
 }
 
 const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
@@ -235,7 +274,7 @@ wss.on('connection', (ws) => {
     // lets a client proactively detect a connection that's gone silently
     // dead (a network handover especially) instead of waiting on the OS/
     // browser to notice and fire a real close event, which can take far
-    // longer than HOST_GRACE_MS below.
+    // longer than ROOM_EMPTY_GRACE_MS below.
     if (msg.type === 'ping') {
       send(ws, { type: 'pong' });
       return;
@@ -248,7 +287,7 @@ wss.on('connection', (ws) => {
       // a later 'reclaim-room' request for this code really is the same
       // host reconnecting, not some other tab guessing/hijacking the code.
       const hostToken = typeof msg.hostToken === 'string' && msg.hostToken.length > 0 && msg.hostToken.length <= 64 ? msg.hostToken : null;
-      rooms.set(code, { host: ws, hostToken, players: new Map(), hostDeleteTimer: null });
+      rooms.set(code, { host: ws, hostToken, players: new Map(), emptyDeleteTimer: null });
       ws._room = code; ws._role = 'host';
       send(ws, { type: 'room-created', room: code });
       return;
@@ -260,7 +299,8 @@ wss.on('connection', (ws) => {
         send(ws, { type: 'room-not-found' });
         return;
       }
-      if (room.hostDeleteTimer) { clearTimeout(room.hostDeleteTimer); room.hostDeleteTimer = null; }
+      const hostWasGone = !room.host || room.host.readyState !== 1; // computed before reassigning room.host below
+      clearEmptyDeleteTimer(room);
       room.host = ws;
       ws._room = msg.room; ws._role = 'host';
       // Anyone who tried to join (or reconnect) while the host was briefly
@@ -269,12 +309,18 @@ wss.on('connection', (ws) => {
       // nowhere, since there was no live host socket to receive it. Replay
       // the full roster now so the host can catch up on all of them.
       send(ws, { type: 'room-reclaimed', room: msg.room, playerIds: Array.from(room.players.keys()) });
+      // Let anyone who was still around while the host was away know it's
+      // back — see 'host-disconnected' below for the other half of this.
+      if (hostWasGone) {
+        for (const p of room.players.values()) send(p, { type: 'host-reconnected' });
+      }
       return;
     }
 
     if (msg.type === 'join-room') {
       const room = rooms.get(msg.room);
       if (!room) { send(ws, { type: 'room-not-found' }); return; }
+      clearEmptyDeleteTimer(room);
       // A rejoining player sends back the token it was given the first time
       // (persisted client-side), so it can reclaim its same seat instead of
       // looking like a brand-new joiner — this is what makes reconnecting
@@ -307,18 +353,19 @@ wss.on('connection', (ws) => {
     const room = rooms.get(ws._room);
     if (!room) return;
     if (ws._role === 'host') {
-      // Only the room's LIVE host socket closing starts the grace timer — if
-      // a reclaim already reassigned room.host to a newer socket before this
+      // Only the room's LIVE host socket closing means anything here — if a
+      // reclaim already reassigned room.host to a newer socket before this
       // stale close event arrived, this is that old socket catching up, and
-      // must not tear down the reclaim that already happened.
+      // must not disturb the reclaim that already happened.
       if (room.host === ws) {
-        room.hostDeleteTimer = setTimeout(() => {
-          const stillRoom = rooms.get(ws._room);
-          if (stillRoom && stillRoom.host === ws) {
-            for (const p of stillRoom.players.values()) send(p, { type: 'host-left' });
-            rooms.delete(ws._room);
-          }
-        }, HOST_GRACE_MS);
+        room.host = null;
+        // Tell whoever's still here — see 'reclaim-room' for the matching
+        // 'host-reconnected' once (if) the host comes back. The room itself
+        // is NOT deleted just because the host is gone now, only once
+        // EVERYONE is (armEmptyDeleteTimerIfEmpty below) — that's the whole
+        // point of this change (see ROOM_EMPTY_GRACE_MS's own comment).
+        for (const p of room.players.values()) send(p, { type: 'host-disconnected' });
+        armEmptyDeleteTimerIfEmpty(ws._room);
       }
     } else if (ws._role === 'player') {
       // Only evict if this socket is still the live one for that player id —
@@ -328,6 +375,7 @@ wss.on('connection', (ws) => {
       if (room.players.get(ws._playerId) === ws) {
         room.players.delete(ws._playerId);
         send(room.host, { type: 'player-left', playerId: ws._playerId });
+        armEmptyDeleteTimerIfEmpty(ws._room);
       }
     }
   });

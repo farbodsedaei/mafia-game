@@ -868,6 +868,11 @@
   </div>
 </div>
 <div id="debug-badge" style="display:none; position:fixed; top:6px; left:8px; z-index:1000; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.05em; color:#EDEFF4; background:rgba(0,0,0,0.55); padding:3px 9px; border-radius:6px; pointer-events:none;"></div>
+<!-- Player-only: shown while the host's own socket is down but the room
+     is still alive (see server.js's 'host-disconnected'/'host-reconnected'
+     and ROOM_EMPTY_GRACE_MS) — a visible, honest status instead of a
+     silent hang, for however long it takes the host to come back. -->
+<p id="host-disconnected-banner" class="banner warning" style="display:none; position:fixed; top:0; left:0; right:0; z-index:1990; margin:0; border-radius:0; text-align:center;" data-i18n="hostDisconnectedBanner"></p>
 <div id="deadline-badge" class="deadline-badge"></div>
 <div class="lang-switch">
   <button id="lang-btn-fa" onclick="App.setLanguage('fa')">فا</button>
@@ -1211,9 +1216,11 @@
       backInGame: 'شما به بازی برگشتید!',
       lostServerConnection: 'اتصال به سرور قطع شد.',
       roomNotFound: 'این کد اتاق پیدا نشد. با میزبان خود چک کنید.',
-      hostEndedSession: 'میزبان بازی را تمام کرد.',
+      hostDisconnectedBanner: 'میزبان قطع شده — منتظر بازگشت او هستیم. بازی جایی که بود ادامه پیدا خواهد کرد.',
+      hostReconnectedPlayer: 'میزبان برگشت — بازی ادامه دارد.',
       hostReconnected: 'دوباره به سرور وصل شدید.',
       hostSessionLost: 'مدت زیادی قطع بودید و این اتاق دیگر در دسترس نیست. لطفاً یک بازی تازه شروع کنید.',
+      resumedHostingRoom: 'ادامهٔ میزبانی اتاق {room} — بازی از همان‌جایی که بود ادامه پیدا می‌کند.',
       linkCopied: 'لینک کپی شد.', linkCopiedPaste: 'لینک کپی شد — برای بازیکنان خود بفرستید.',
       enterRoomCode: 'کد اتاق را از میزبان خود وارد کنید.', enterNameFirst: 'ابتدا یک نام وارد کنید.',
       lostHostConnection: 'اتصال به میزبان قطع شد.', pickSomeoneFirst: 'ابتدا یک نفر را انتخاب کنید.',
@@ -1434,9 +1441,11 @@
       backInGame: "You're back in the game!",
       lostServerConnection: 'Lost connection to the server.',
       roomNotFound: 'That room code wasn’t found. Double-check it with the host.',
-      hostEndedSession: 'The host ended the session.',
+      hostDisconnectedBanner: "Host disconnected — waiting for them to come back. The game will pick up right where it left off.",
+      hostReconnectedPlayer: "Host is back — the game continues.",
       hostReconnected: 'Reconnected to the server.',
       hostSessionLost: "You were disconnected too long and this room is no longer available. Please start a new game.",
+      resumedHostingRoom: "Resumed hosting room {room} — picking up right where the game left off.",
       linkCopied: 'Link copied.', linkCopiedPaste: 'Link copied — paste it to your players.',
       enterRoomCode: 'Enter the room code from your host.', enterNameFirst: 'Enter a name first.',
       lostHostConnection: 'Lost connection to the host.', pickSomeoneFirst: 'Pick someone first.',
@@ -1800,6 +1809,102 @@
     try{ localStorage.removeItem(PLAYER_SESSION_KEY); }catch(e){}
   }
 
+  // ---------------- Host session snapshot (survive a refresh/crash) ----------------
+  // The whole game only ever lived in the host's own browser tab's JS
+  // memory — a refresh, crash, or closed tab lost every role, vote, and
+  // night decision outright, even with every player still sitting there
+  // connected and waiting. This periodically snapshots the ENTIRE
+  // authoritative `state` object to this device's own localStorage while a
+  // room is active, and resumes from it automatically on the next page
+  // load (see the bottom of this script) — reconnecting to the server with
+  // the same hostToken (server.js now keeps a room alive as long as ANYONE
+  // is still connected, not just for a fixed grace window after the host
+  // specifically drops — see ROOM_EMPTY_GRACE_MS) and rebuilding every
+  // player's WebRTC connection exactly like the existing same-tab
+  // reconnect path already does (see the 'room-reclaimed' handler).
+  // Deliberately NOT sent anywhere — this stays local to the host's own
+  // device/browser, same privacy stance as always (see server.js's own
+  // file-level comment: game data never touches the server). This only
+  // resumes hosting on the SAME device/browser profile that was already
+  // hosting; it can't hand hosting duties to a different device — see the
+  // 2026-09-10 discussion this was scoped from for why that's a
+  // deliberately separate, bigger piece of work, not attempted here.
+  const HOST_SESSION_KEY = 'mafia-host-session';
+  // How often to snapshot while a room is active. Cheap enough to just run
+  // on a timer instead of instrumenting every single mutation site in the
+  // game engine (there are dozens) — a few seconds of staleness in the
+  // rare case of an actual crash (as opposed to a deliberate refresh, which
+  // this saves right up to) is a fair trade for not needing to touch every
+  // vote/elimination/night-decision call site individually.
+  const HOST_SNAPSHOT_INTERVAL_MS = 4000;
+  let hostSnapshotTimer = null;
+
+  // Keys that hold live, per-session objects (open sockets/connections,
+  // pending setTimeout handles) rather than actual game data — meaningless
+  // once serialized (a WebSocket/RTCPeerConnection can't cross a reload at
+  // all, and a timer handle from a page that no longer exists refers to
+  // nothing) and, for the connection objects specifically, likely to
+  // contain circular references JSON.stringify can't walk anyway. Returning
+  // undefined from the replacer OMITS the key entirely rather than trying
+  // to serialize into it, so this also protects against ever recursing into
+  // one of these objects' own internals in the first place.
+  const HOST_SNAPSHOT_STRIP_KEYS = new Set([
+    'ws', 'pc', 'dc', 'playerPC', 'playerDC',
+    'deadlineTimer', 'gunDeadlineTimer', 'connectingTimeoutId'
+  ]);
+  function hostSnapshotReplacer(key, value){
+    if(HOST_SNAPSHOT_STRIP_KEYS.has(key)) return undefined;
+    if(value instanceof Map) return { __type: 'Map', entries: Array.from(value.entries()) };
+    if(value instanceof Set) return { __type: 'Set', values: Array.from(value) };
+    return value;
+  }
+  function hostSnapshotReviver(key, value){
+    if(value && typeof value === 'object' && value.__type === 'Map') return new Map(value.entries);
+    if(value && typeof value === 'object' && value.__type === 'Set') return new Set(value.values);
+    return value;
+  }
+  function saveHostSnapshot(){
+    if(state.role !== 'host' || !state.room || !state.hostToken) return;
+    try{
+      const json = JSON.stringify(state, hostSnapshotReplacer);
+      localStorage.setItem(HOST_SESSION_KEY, JSON.stringify({ room: state.room, hostToken: state.hostToken, savedAt: Date.now(), state: json }));
+    }catch(e){
+      // Genuinely shouldn't happen (the replacer strips every known
+      // problem key) — but losing one snapshot silently beats crashing the
+      // game the snapshot exists to protect.
+      console.error('Failed to save host snapshot:', e);
+    }
+  }
+  function loadHostSnapshot(){
+    try{
+      const raw = localStorage.getItem(HOST_SESSION_KEY);
+      if(!raw) return null;
+      const outer = JSON.parse(raw);
+      if(!outer || !outer.room || !outer.hostToken || !outer.state) return null;
+      return outer;
+    }catch(e){ return null; }
+  }
+  function clearHostSnapshot(){
+    try{ localStorage.removeItem(HOST_SESSION_KEY); }catch(e){}
+  }
+  function ensureHostSnapshotTimer(){
+    if(hostSnapshotTimer) return;
+    // Test-only speed hook, same pattern as armAutoDeadlineMs's own
+    // 'mafia-deadline-ms-override' — lets the automated test harness
+    // observe a real snapshot without waiting the full real interval.
+    // Never set by the app itself.
+    let intervalMs = HOST_SNAPSHOT_INTERVAL_MS;
+    try{
+      const override = localStorage.getItem('mafia-snapshot-interval-ms-override');
+      if(override) intervalMs = parseInt(override, 10);
+    }catch(e){}
+    hostSnapshotTimer = setInterval(saveHostSnapshot, intervalMs);
+    if(hostSnapshotTimer && typeof hostSnapshotTimer.unref === 'function') hostSnapshotTimer.unref();
+  }
+  function stopHostSnapshotTimer(){
+    if(hostSnapshotTimer){ clearInterval(hostSnapshotTimer); hostSnapshotTimer = null; }
+  }
+
   /* ---------------- WebSocket signaling ---------------- */
   // Messages handed to wsSend() before state.ws has actually finished
   // connecting — e.g. App.createLobby()'s 'create-room' firing because the
@@ -1924,6 +2029,7 @@
       clearCriticalReplyTimeout();
       state.room = msg.room;
       renderLobbyHeader();
+      ensureHostSnapshotTimer();
       return;
     }
     if(msg.type === 'player-hello'){
@@ -1957,9 +2063,20 @@
       // A host whose reclaim attempt (see attemptHostReconnect) arrived
       // after the server's grace window already expired gets this too —
       // the room is genuinely gone, not just this player's join attempt.
+      // Including a resumeAsHost() attempt that came back too late (the
+      // saved snapshot's room was already deleted, e.g. ROOM_EMPTY_GRACE_MS
+      // ran out with nobody around) — resumeAsHost had already restored a
+      // full (now-stale) mid-game state onto `state` via Object.assign, so
+      // App.newGame()'s own thorough reset (day/gamePhase/votes/players/
+      // the snapshot+its timer/etc.) is what actually needs to run here,
+      // not just clearing the snapshot — otherwise a NEW lobby created
+      // right after this would start out polluted with the dead game's
+      // leftover day count/phase/votes.
       if(state.role === 'host'){
         state.hostReconnectInProgress = false;
+        App.newGame();
         toast(t('hostSessionLost'));
+        App.goLanding();
         return;
       }
       clearConnectingTimeout();
@@ -1970,13 +2087,25 @@
       showScreen('screen-player-join');
       return;
     }
-    if(msg.type === 'host-left'){
-      clearConnectingTimeout();
-      clearPlayerSession();
-      state.reconnectInProgress = false;
-      state.pendingRejoinSession = null;
-      toast(t('hostEndedSession'));
-      showScreen('screen-player-join');
+    if(msg.type === 'host-disconnected'){
+      // The host's own socket dropped, but the room itself is NOT gone —
+      // it now survives as long as ANYONE (host or any player) is still
+      // connected (see server.js's ROOM_EMPTY_GRACE_MS) instead of dying
+      // 90s after just the host specifically disconnected, which is
+      // exactly what used to throw away the whole game the instant the
+      // host's browser refreshed or blipped even with players still
+      // sitting right here. Just a visible, honest status — the actual
+      // WebRTC data channel to the host will independently notice it's
+      // dead too (see the network-resilience oniceconnectionstatechange
+      // handling) and this banner covers the time in between.
+      const banner = $('host-disconnected-banner');
+      if(banner) banner.style.display = 'block';
+      return;
+    }
+    if(msg.type === 'host-reconnected'){
+      const banner = $('host-disconnected-banner');
+      if(banner) banner.style.display = 'none';
+      toast(t('hostReconnectedPlayer'));
       return;
     }
     if(msg.type === 'room-reclaimed'){
@@ -3641,22 +3770,24 @@
   // announced, or there's no delay to observe it" bug (day-gun kills),
   // its follow-up (a non-kill day-gun outcome had the same problem), and
   // the later report that day-result/inquiry-result had it too.
-  // A simple FIFO queue (not just a single pending slot) since more than
-  // one of these can genuinely fire close together — e.g. a day-gun shot
-  // resolving right as the day's vote also closes — and each deserves its
-  // own full, undisturbed look rather than one silently overwriting
-  // another's text before it was ever read.
+  // A fresh call simply REPLACES whatever's currently showing (no queue)
+  // — an earlier attempt queued instead, so every message was guaranteed
+  // its own look, but that meant a single un-dismissed banner (easy to do
+  // in a long multi-day game — nobody's built the habit of tapping "Got
+  // it" on a day-result the way they might already for a dramatic gun
+  // kill) permanently blocked every later day's announcements behind it,
+  // arriving later and later as the backlog grew. The information itself
+  // is never actually lost either way — each screen behind the banner
+  // (result/inquiry-result/day-gun) already shows the same text on its
+  // own, independent of this overlay — so always showing the LATEST
+  // announcement is the more useful default; the rare case of two
+  // genuinely simultaneous events (a day-gun shot resolving right as the
+  // day's vote also closes) means only the later one gets the deliberate
+  // overlay treatment, which is an acceptable trade-off for not silently
+  // stalling the whole game behind an unwatched banner.
   const ACK_BANNER_MS = 20000;
   let ackBannerTimer = null;
-  let ackBannerQueue = [];
-  // Actually paints the banner + (re)arms its own safety-net timer, with
-  // no queue check of its own — always called either by showAckBanner
-  // (once it's confirmed nothing is currently showing) or by
-  // dismissAckBanner advancing straight into the next queued message
-  // (where the banner is deliberately STILL showing 'flex' from the one
-  // just dismissed, so re-running showAckBanner's own guard here would
-  // wrongly re-queue it instead of displaying it).
-  function displayAckBanner(text){
+  function showAckBanner(text){
     const banner = $('ack-banner');
     const textEl = $('ack-banner-text');
     if(!banner || !textEl) return;
@@ -3666,22 +3797,10 @@
     ackBannerTimer = setTimeout(App.dismissAckBanner, ACK_BANNER_MS);
     if(ackBannerTimer && typeof ackBannerTimer.unref === 'function') ackBannerTimer.unref();
   }
-  function showAckBanner(text){
-    const banner = $('ack-banner');
-    if(banner && banner.style.display === 'flex'){ ackBannerQueue.push(text); return; }
-    displayAckBanner(text);
-  }
   App.dismissAckBanner = function(){
-    if(ackBannerTimer){ clearTimeout(ackBannerTimer); ackBannerTimer = null; }
-    if(ackBannerQueue.length){
-      // Show the next queued one right away instead of hiding first — no
-      // point letting the overlay flicker off and back on between two
-      // messages that are both waiting to be seen.
-      displayAckBanner(ackBannerQueue.shift());
-      return;
-    }
     const banner = $('ack-banner');
     if(banner) banner.style.display = 'none';
+    if(ackBannerTimer){ clearTimeout(ackBannerTimer); ackBannerTimer = null; }
   };
 
   // ---------------- Day-gun: independent deadline ----------------
@@ -4233,6 +4352,29 @@
     startDayOrInquiry();
   };
 
+  // Just the host's own screen — title + full roster/role reveal — fully
+  // re-derivable from state at any later point (state.winner, each
+  // entry's role/alive status), unlike the broadcast + log-append below,
+  // which must only ever happen once per game. Shared with
+  // resumeHostScreenForPhase, which needs the SAME screen redisplayed
+  // after a resume WITHOUT repeating those once-only side effects (each
+  // reconnecting player already gets their own 'game-over' message
+  // individually via resyncPlayer once their connection actually rebuilds
+  // — see hostBeginConnectionTo/setupHostDataChannel).
+  function renderGameOverHostScreen(){
+    $('game-over-title').textContent = winnerLabel(state.winner);
+    const box = $('game-over-roster');
+    box.innerHTML = '';
+    Array.from(state.players.values()).forEach(entry => {
+      const row = document.createElement('div');
+      row.className = 'slot' + (entry.alive ? ' connected' : '');
+      row.innerHTML =
+        '<div class="name">' + escapeHtml(entry.name) + (entry.alive ? '' : ' <span class="hint" style="font-size:11px;">' + escapeHtml(t('outLabel')) + '</span>') + '</div>' +
+        '<span class="tag ' + (entry.independent ? 'independent' : entry.role) + '" style="flex-shrink:0;">' + escapeHtml(entry.roleName || entry.role) + '</span>';
+      box.appendChild(row);
+    });
+    showScreen('screen-host-game-over');
+  }
   App.showGameOver = function(){
     state.gamePhase = 'game-over';
     const roster = Array.from(state.players.values()).map(e => ({ name: e.name, team: e.role, roleName: e.roleName || e.role, independent: !!e.independent }));
@@ -4246,19 +4388,7 @@
     for(const entry of state.players.values()){
       sendToPlayer(entry, { type: 'game-over', winner: state.winner, roster, log: state.gameLog });
     }
-
-    $('game-over-title').textContent = winnerLabel(state.winner);
-    const box = $('game-over-roster');
-    box.innerHTML = '';
-    Array.from(state.players.values()).forEach(entry => {
-      const row = document.createElement('div');
-      row.className = 'slot' + (entry.alive ? ' connected' : '');
-      row.innerHTML =
-        '<div class="name">' + escapeHtml(entry.name) + (entry.alive ? '' : ' <span class="hint" style="font-size:11px;">' + escapeHtml(t('outLabel')) + '</span>') + '</div>' +
-        '<span class="tag ' + (entry.independent ? 'independent' : entry.role) + '" style="flex-shrink:0;">' + escapeHtml(entry.roleName || entry.role) + '</span>';
-      box.appendChild(row);
-    });
-    showScreen('screen-host-game-over');
+    renderGameOverHostScreen();
   };
 
   /* ---------------- Night phase ---------------- */
@@ -4990,6 +5120,10 @@
   };
 
   App.newGame = function(){
+    // The host is deliberately moving on — nothing left worth resuming
+    // into on the next page load (see saveHostSnapshot/loadHostSnapshot).
+    stopHostSnapshotTimer();
+    clearHostSnapshot();
     for(const entry of state.players.values()){ try{ entry.pc && entry.pc.close(); }catch(e){} }
     state.players = new Map();
     state.room = null;
@@ -5084,6 +5218,13 @@
     state.myPlayerName = name;
     state.isReconnecting = !!name;
     savePlayerSession({ room: code, token, name });
+    // Stale from a previous room this same page load happened to be in
+    // (App.joinAsNewPlayer/declineWelcomeBack can reach here without an
+    // actual page reload) — a fresh join has no idea yet whether THIS
+    // room's host is up, so start optimistic rather than carrying over
+    // whatever the last one showed.
+    const hostBanner = $('host-disconnected-banner');
+    if(hostBanner) hostBanner.style.display = 'none';
     showScreen('screen-player-connecting');
     $('connecting-title').textContent = t('joiningRoom', {code: code});
     $('connecting-hint').textContent = t('contactingHost');
@@ -5216,6 +5357,132 @@
     else connectWS(reclaim);
   }
 
+  // ---------------- Resuming as host from a saved snapshot ----------------
+  // Called once, at page-load time (see Init below), when this device finds
+  // a saved host session and no '?join=' link says otherwise — the whole
+  // point of saveHostSnapshot: a refresh/crash doesn't have to mean the
+  // game (and every player's role, votes, night decisions...) is just gone.
+  function resumeAsHost(snapshot){
+    let restored;
+    try{ restored = JSON.parse(snapshot.state, hostSnapshotReviver); }catch(e){
+      console.error('Failed to parse saved host session, starting fresh:', e);
+      clearHostSnapshot();
+      return;
+    }
+    // Overwrites every field the snapshot actually carried (essentially
+    // the whole game) onto the CURRENT state object — never reassigns
+    // `state` itself (it's a const, and other closures already hold this
+    // exact reference). Fields the snapshot deliberately never carried at
+    // all (ws, pc/dc, playerPC/playerDC, deadlineTimer, gunDeadlineTimer,
+    // connectingTimeoutId — see HOST_SNAPSHOT_STRIP_KEYS) are simply absent
+    // from `restored`, so Object.assign leaves them exactly as this fresh
+    // page load already initialized them (ws in particular: whatever the
+    // real, currently-connecting-or-connected socket the caller's own
+    // connectWS already set BEFORE this function ever runs — overwriting
+    // that here would stomp a perfectly good live connection with nothing).
+    Object.assign(state, restored);
+    state.role = 'host';
+    // Both of these WOULD have been serialized (they're plain booleans,
+    // not in the strip list) and could easily have been mid-flight `true`
+    // at the exact moment a crash snapshot was taken — always start clean.
+    state.hostReconnectInProgress = false;
+    state.reconnectInProgress = false;
+    // Every real player's connection is being rebuilt from scratch (see
+    // attemptHostReconnect -> 'room-reclaimed' -> hostBeginConnectionTo
+    // below) regardless of what this snapshot happened to say about it —
+    // stale connected/timestamp values from the moment of the snapshot
+    // would otherwise misrender the lobby/stuck-seat logic until the real
+    // reconnect catches up a moment later. God Mode's host-self seat has no
+    // real connection at all and is always connected by definition — see
+    // App.createLobby's own HOST_SELF_ID entry — so it's left untouched.
+    for(const entry of state.players.values()){
+      if(entry.isHostSelf) continue;
+      entry.connected = false;
+      entry.connectingSince = null;
+      entry.connectedSince = null;
+    }
+    setDebugBadge(state.godMode && state.myPlayerName ? state.myPlayerName : 'HOST');
+    updateDebugToggleVisibility();
+    ensureHostSnapshotTimer();
+    resumeHostScreenForPhase();
+    rearmDeadlineForResumedPhase();
+    toast(t('resumedHostingRoom', { room: state.room }));
+    attemptHostReconnect();
+  }
+
+  // What the host's own screen should show right after a resume, keyed off
+  // the exact same state.gamePhase the rest of the game already drives off
+  // — every host-admin screen (day, voting, defense, inquiry-vote,
+  // game-over, night's generic "in progress" screen) shows content that's
+  // fully re-derivable from state at any later point, via the SAME render
+  // functions the game already calls during normal play, so this just
+  // calls the matching one instead of needing its own separate rendering
+  // path. A handful of phases are pure "tap to continue" pacing beats with
+  // no real content of their own (the eyes-closed/ocean-talk/morning-ready
+  // night steps, and the day-result/inquiry-result announcements) — since
+  // whatever they'd have announced was already broadcast to every player
+  // the moment it originally happened (see e.g. showRoundResult), the host
+  // re-showing that exact transient screen to itself isn't actually
+  // necessary; skipping straight to what naturally comes next is simpler
+  // and just as correct. Keep this in sync with NIGHT_STEP_ORDER and
+  // state.gamePhase's own assignment sites if either ever changes.
+  function resumeHostScreenForPhase(){
+    const phase = state.gamePhase;
+    if(!state.rolesAssigned){ showScreen('screen-host-lobby'); renderLobby(); return; }
+    if(phase === null){ showScreen('screen-host-summary'); renderDossier(); return; }
+    if(phase === 'day'){ showScreen('screen-host-day'); renderDayScreen(); return; }
+    if(phase === 'inquiry-vote'){ showScreen('screen-host-inquiry-vote'); renderInquiryTally(); return; }
+    if(phase === 'voting1'){ showScreen('screen-host-voting'); renderVotingTally(1); return; }
+    if(phase === 'voting2'){ showScreen('screen-host-voting'); renderVotingTally(2); return; }
+    if(phase === 'defense'){ showScreen('screen-host-defense'); renderDefenseList(); return; }
+    if(phase === 'game-over'){ renderGameOverHostScreen(); return; }
+    if(phase === 'night-mafia-phase' || phase === 'night-zodiac-phase' || phase === 'night-civilian-phase'){
+      $('night-day').textContent = t('nightLabel', { n: state.day });
+      showScreen('screen-host-night');
+      return;
+    }
+    // Transient, no-real-choice phases — see this function's own comment.
+    if(phase === 'result'){ App.proceedAfterResult(); return; }
+    if(phase === 'night-eyes-closed'){ App.continueAfterEyesClosed(); return; }
+    if(phase === 'night-ocean-talk'){ App.continueAfterOceanTalk(); return; }
+    if(phase === 'night-morning'){ App.announceMorning(); return; }
+    if(phase === 'night-result'){ App.proceedAfterNight(); return; }
+    // Unrecognized/future phase value — land somewhere safe and visible
+    // rather than a blank screen; the host can navigate from here.
+    showScreen('screen-host-day');
+    renderDayScreen();
+  }
+
+  // Under auto-pacing (No God Mode / God Mode), whatever deadline was
+  // ticking down at snapshot time died along with the page — there is no
+  // serializable reference to "what function was this timer going to
+  // call," so it can't be resumed with its exact remaining time. Rearms a
+  // FRESH full-length deadline for the CURRENT phase instead (same
+  // duration a real host tapping "Start Voting"/etc. right now would get) —
+  // a minor pacing hiccup (one phase runs a little longer than it
+  // otherwise would have) beats a No-God-Mode game silently stalling
+  // forever with nobody left to notice, since nobody's watching this
+  // screen to manually nudge it along. A no-op in a normally-hosted game,
+  // same as every armAutoDeadlineMs call elsewhere. Keep in sync with
+  // resumeHostScreenForPhase's own phase list.
+  function rearmDeadlineForResumedPhase(){
+    if(!autoPacingOn()) return;
+    const phase = state.gamePhase;
+    if(phase === 'voting1' || phase === 'voting2') armVoteDeadline(App.closeVoting);
+    else if(phase === 'defense') armDefenseDeadline(App.startFinalVote);
+    else if(phase === 'inquiry-vote') armActDeadline(App.closeInquiryVote);
+    else if(phase === 'night-mafia-phase' || phase === 'night-zodiac-phase' || phase === 'night-civilian-phase') armActDeadline(App.forceContinueNight);
+    // day > 1 normally auto-opens voting IMMEDIATELY on arrival (see
+    // goToDayScreen), with no deadline of its own to resume in the first
+    // place — practically unreachable for a periodic snapshot to ever
+    // catch mid-transition, but self-heal the same way just in case.
+    else if(phase === 'day' && state.day > 1) App.startVoting();
+    // 'result'/'inquiry-vote' result/night-eyes-closed/ocean-talk/morning/
+    // night-result are all handled by resumeHostScreenForPhase already
+    // skipping straight past them — nothing left to arm a deadline for by
+    // the time this runs.
+  }
+
   // Shows the same "stuck" hint + retry button startConnectingTimeout would
   // eventually show, but immediately — for cases where WebRTC actually
   // TELLS us it failed (a rejected offer/answer promise, or ICE reaching
@@ -5235,7 +5502,24 @@
 
   function playerHandleSignal(payload){
     if(payload.kind === 'offer'){
-      if(state.playerPC){ try{ state.playerPC.close(); }catch(e){} }
+      // A fresh, unprompted offer can arrive for a connection that's still
+      // technically open on THIS end even though the host on the other
+      // side of it is already gone (see hostBeginConnectionTo's own
+      // "reconnect-safe for an already-known id" comment — it doesn't wait
+      // for confirmation the old side is dead before sending a new offer).
+      // Clearing state.playerDC BEFORE closing the old pc means the old
+      // dc's own onclose handler's staleness guard (state.playerDC !== dc)
+      // correctly treats this as an expected, deliberate replacement —
+      // without this, that close() call fires SYNCHRONOUSLY into the same
+      // dc.onclose that calls attemptPlayerReconnect(), which would resend
+      // 'join-room' and trigger ANOTHER unprompted offer once it arrives,
+      // closing ITS OWN fresh connection into the exact same trap — a
+      // genuine, self-sustaining reconnect loop instead of the single
+      // clean handoff this is supposed to be.
+      if(state.playerPC){
+        state.playerDC = null;
+        try{ state.playerPC.close(); }catch(e){}
+      }
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       state.playerPC = pc;
       pc.ondatachannel = (e) => setupPlayerDataChannel(e.channel);
@@ -6577,24 +6861,37 @@
       state.role = 'player';
       setDebugBadge('PLAYER');
       startPlayerJoin(joinCode.toUpperCase());
-    } else {
-      // No room code in the URL to go on — but if this browser is holding a
-      // persisted player session (see savePlayerSession), this is very
-      // likely the SAME player's tab coming back after being killed outright
-      // rather than a fresh visitor, and they shouldn't have to remember
-      // their room code and rejoin as a brand-new player just because the
-      // in-memory connection (and the URL's '?join=' param, if it even had
-      // one) didn't survive. Route into the exact same ambiguity-safe
-      // Welcome-Back confirmation a '?join=' link would have used — it still
-      // asks before actually reconnecting (see startPlayerJoin), so a
-      // different person sharing this browser is still asked, never
-      // silently logged in as someone else.
-      const resumable = peekPlayerSession();
-      if(resumable){
-        state.role = 'player';
-        setDebugBadge('PLAYER');
-        startPlayerJoin(resumable.room);
-      }
+      return;
+    }
+    // No '?join=' link — check for a resumable HOST session first (see
+    // saveHostSnapshot/resumeAsHost): a device that was hosting an
+    // in-progress room takes priority over any stale player session it
+    // might also happen to hold, and resumes automatically rather than
+    // asking first — unlike the player Welcome-Back flow below, there's
+    // only ever one legitimate host for a given room, and (critically for
+    // No God Mode specifically) this device may be sitting somewhere with
+    // nobody actually watching it to tap a confirmation at all.
+    const hostSnapshot = loadHostSnapshot();
+    if(hostSnapshot){
+      resumeAsHost(hostSnapshot);
+      return;
+    }
+    // No room code in the URL to go on — but if this browser is holding a
+    // persisted player session (see savePlayerSession), this is very
+    // likely the SAME player's tab coming back after being killed outright
+    // rather than a fresh visitor, and they shouldn't have to remember
+    // their room code and rejoin as a brand-new player just because the
+    // in-memory connection (and the URL's '?join=' param, if it even had
+    // one) didn't survive. Route into the exact same ambiguity-safe
+    // Welcome-Back confirmation a '?join=' link would have used — it still
+    // asks before actually reconnecting (see startPlayerJoin), so a
+    // different person sharing this browser is still asked, never
+    // silently logged in as someone else.
+    const resumable = peekPlayerSession();
+    if(resumable){
+      state.role = 'player';
+      setDebugBadge('PLAYER');
+      startPlayerJoin(resumable.room);
     }
   });
 

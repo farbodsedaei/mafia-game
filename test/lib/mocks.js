@@ -151,7 +151,23 @@ class MockRTCPeerConnection {
 }
 
 function installMocks(window) {
-  window.WebSocket = WebSocket;
+  // Tracks every real WebSocket this window has created, in creation order
+  // — lets test code reach in and force-close a SPECIFIC device's own
+  // signaling connection (simulating a real disconnect/crash) without
+  // destroying the jsdom window itself, which is unsafe to do while a
+  // socket on it might still be mid-close (see device.js's teardown() own
+  // comment on that exact ordering hazard). Same pattern as
+  // window.__mockRTCConnections below, just for the (real, unmocked) `ws`
+  // package instead of the mocked RTCPeerConnection.
+  window.__wsInstances = [];
+  function TrackedWebSocket(...args) {
+    const ws = new WebSocket(...args);
+    window.__wsInstances.push(ws);
+    return ws;
+  }
+  TrackedWebSocket.prototype = WebSocket.prototype;
+  Object.setPrototypeOf(TrackedWebSocket, WebSocket);
+  window.WebSocket = TrackedWebSocket;
   // Node 18+ has a global fetch; index.html only ever calls it with a
   // relative path ('/api/ice-config'), so resolve against the window's own
   // location before handing off to the real implementation.

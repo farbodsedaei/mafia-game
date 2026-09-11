@@ -26,6 +26,19 @@ function createDevice(baseURL, opts) {
   // real (WebRTC-less, and in older jsdom WebSocket-less) globals instead.
   const dom = new JSDOM(INDEX_HTML, { url, runScripts: 'outside-only', pretendToBeVisual: true });
   installMocks(dom.window);
+  // opts.seedLocalStorage: { key: rawStringValue } — written BEFORE the
+  // app's own script runs, so its own init-time reads (loadPlayerSession/
+  // loadHostSnapshot) see it immediately, same as a real page load would
+  // for a genuinely refreshed/reopened tab. Each new JSDOM instance gets
+  // its own isolated localStorage (unlike real same-origin tabs, which
+  // share one) — this is how a scenario simulates "this is the SAME
+  // browser as an earlier device, after a refresh" without actually being
+  // able to share storage between two independently-created windows.
+  if (opts.seedLocalStorage) {
+    Object.keys(opts.seedLocalStorage).forEach((k) => {
+      dom.window.localStorage.setItem(k, opts.seedLocalStorage[k]);
+    });
+  }
   const scripts = dom.window.document.querySelectorAll('script');
   scripts.forEach((s) => { if (!s.src) dom.window.eval(s.textContent); });
 
@@ -279,6 +292,44 @@ function dropConnection(device) {
   pc._dc.close();
 }
 
+// Force-closes a device's own signaling WebSocket (see mocks.js's
+// __wsInstances tracking) WITHOUT touching the jsdom window it lives on —
+// simulates a real disconnect/crash (the server sees a genuine 'close'
+// event) while leaving the window itself perfectly safe to keep reading
+// from afterward, unlike device.close() (see teardown()'s own comment on
+// why closing the window itself, with a socket still mid-close, is unsafe
+// to do outside that specific server-stopped-first ordering).
+// .terminate() (abrupt, no closing handshake) rather than .close() (graceful)
+// — closer to what an actual crash/refresh looks like from the SERVER's
+// point of view, and fires just as reliably either way.
+function killWebSocket(device) {
+  const list = device.window.__wsInstances || [];
+  const ws = list[list.length - 1];
+  if (!ws) throw new Error('killWebSocket: no tracked WebSocket on this device');
+  ws.terminate();
+}
+
+// Simulating "this device is genuinely gone for good" (a refresh/crash, as
+// opposed to a brief blip the SAME tab recovers from on its own) needs more
+// than just killWebSocket above — index.html's own ws.onclose handler
+// already, correctly, tries to reconnect and reclaim its room on its own
+// (a real, separately-tested feature — see attemptHostReconnect). Left
+// alone, that same-tab auto-reconnect races against whatever NEW device a
+// test creates to take over (e.g. simulating the actual replacement tab
+// after a refresh), each one's reclaim clobbering the other's freshly
+// rebuilt player connections back and forth. Stubbing out the constructor
+// so any FUTURE `new WebSocket(...)` on this device just never connects
+// (no open/message/close events, ever) cleanly stops that reconnect from
+// ever actually completing, without needing to destroy the window itself
+// (unsafe — see killWebSocket's own comment on why). Call BEFORE
+// killWebSocket so the very first reconnect attempt it triggers is already
+// a dead end.
+function blockFutureReconnects(device) {
+  device.window.WebSocket = function () {
+    return { readyState: 0, send() {}, close() {}, terminate() {}, on() {}, addEventListener() {} };
+  };
+}
+
 // Closing a jsdom window tears down its `document`/globals immediately, but
 // a still-open real `ws` socket's own 'close' event fires asynchronously —
 // if that lands AFTER the window is gone, index.html's ws.onclose handler
@@ -302,6 +353,6 @@ module.exports = {
   isHostSelfActionVisible, isHostSelfGunActionVisible, pickHostSelfCandidate,
   setHostSelfRecruitCheckbox, hostSelfRoleInfo,
   sleep, waitFor,
-  dropConnection,
+  dropConnection, killWebSocket, blockFutureReconnects, lastMockConnection,
   teardown
 };

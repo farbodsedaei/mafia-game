@@ -139,6 +139,13 @@ runScenario('11-day-gun-outcome-banner-and-shooter-name', async (log) => {
       host.App.closeVoting();
     }
     await waitFor(() => activeScreenId(host) === 'screen-host-result', { message: 'Day 3 never settled on a result' });
+    // The day-vote result now gets the same deliberate ack-banner treatment
+    // as the day-gun outcome (see showRoundResult) — dismiss it before
+    // moving on, exactly like a real host/player would, so it doesn't sit
+    // there (replacing whatever shows next) all the way into Day 4's own
+    // check below.
+    host.App.dismissAckBanner();
+    for (const p of players) p.App.dismissAckBanner();
     host.App.proceedAfterResult();
 
     log.banner('NIGHT 3 — hand off the gun again (2nd of 2)');

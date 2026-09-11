@@ -37,9 +37,10 @@ function waitForHttpUp(port, timeoutMs) {
   });
 }
 
-// opts: { hostGraceMs, turn } — hostGraceMs mirrors server.js's own
-// HOST_GRACE_MS_OVERRIDE test hook, for reconnect scenarios that don't want
-// to wait the real 90s. turn: {url, username, credential} makes this run
+// opts: { roomEmptyGraceMs, turn } — roomEmptyGraceMs mirrors server.js's
+// own ROOM_EMPTY_GRACE_MS_OVERRIDE test hook, for reconnect/room-survival
+// scenarios that don't want to wait the real 10 minutes. turn: {url,
+// username, credential} makes this run
 // with a TURN server actually configured (see server.js's buildIceServers);
 // omitted (the default, and what nearly every scenario wants), TURN_URL/
 // TURN_USERNAME/TURN_CREDENTIAL are explicitly deleted from the spawned
@@ -50,7 +51,7 @@ async function startServer(opts) {
   opts = opts || {};
   const port = await findFreePort();
   const env = Object.assign({}, process.env, { PORT: String(port) });
-  if (opts.hostGraceMs) env.HOST_GRACE_MS_OVERRIDE = String(opts.hostGraceMs);
+  if (opts.roomEmptyGraceMs) env.ROOM_EMPTY_GRACE_MS_OVERRIDE = String(opts.roomEmptyGraceMs);
   if (opts.turn) {
     env.TURN_URL = opts.turn.url;
     env.TURN_USERNAME = opts.turn.username;
