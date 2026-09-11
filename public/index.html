@@ -892,6 +892,18 @@
   <div class="eyebrow" data-i18n="managePlayersTitle"></div>
   <button class="btn btn-ghost" style="margin-top:14px;" onclick="App.toggleManagePlayersPanel()" data-i18n="btnCloseManagePlayers"></button>
   <div id="manage-players-list" style="margin-top:16px;"></div>
+  <!-- Ends an in-progress game right now, whatever phase it's in — a
+       real-world dispute, someone has to leave, or the table just wants
+       to stop, without waiting for checkWinner() to ever return non-null
+       on its own (see App.endGameEarly). Lives here rather than its own
+       floating button since this panel is already the one always-
+       reachable, God-Mode-safe place for serious mid-game host actions
+       (kick/revive above) — see this panel's own top comment. Hidden
+       entirely once there's no game in progress to end (see
+       renderManagePlayersPanel). -->
+  <div id="end-game-section" style="margin-top:22px; padding-top:16px; border-top:1px solid var(--line-strong);">
+    <button id="end-game-btn" class="btn btn-ghost" style="width:100%; color:var(--red-bright); border-color:var(--red-dim);" onclick="App.endGameEarly()" data-i18n="btnEndGame"></button>
+  </div>
 </div>
 
 <!-- Dev/troubleshooting only: full roles + activity log, God's console only -->
@@ -1148,7 +1160,7 @@
       nightLabel: 'شب {n}', nightResultLabel: 'شب {n} · نتیجه',
       morningReadyTitle: 'همه تصمیم خود را گرفتند', morningReadyHint: 'وقتی آماده بودید، نتیجه شب را برای همه اعلام کنید.',
       btnAnnounceMorning: 'اعلام صبح ←',
-      gameOver: 'پایان بازی', civiliansWin: 'شهروندان بردند!', mafiaWins: 'مافیا برد!', zodiacWins: 'زودیاک برد!',
+      gameOver: 'پایان بازی', civiliansWin: 'شهروندان بردند!', mafiaWins: 'مافیا برد!', zodiacWins: 'زودیاک برد!', gameEndedEarly: 'بازی زودتر پایان یافت',
       rolesRevealed: 'حالا که بازی تمام شد، نقش‌ها برای همه نمایش داده می‌شود.',
       btnStartNewGame: 'شروع بازی جدید', outLabel: '(خارج)',
       playerLabel: 'بازیکن', joinSessionTitle: 'به بازی بپیوندید', btnJoinGame: 'پیوستن به بازی',
@@ -1271,6 +1283,7 @@
       actKickedByGod: 'شما توسط گاد از بازی اخراج شدید.', playerKicked: '{name} از بازی اخراج شد.',
       btnRevivePlayer: 'بازگرداندن به بازی', confirmRevivePlayer: 'آیا می‌خواهید {name} را دوباره به بازی بازگردانید؟',
       actRevivedByGod: 'گاد شما را دوباره به بازی بازگرداند.', playerRevived: '{name} دوباره به بازی بازگشت.',
+      btnEndGame: 'پایان دادن به بازی', confirmEndGame: 'آیا مطمئن هستید که می‌خواهید بازی را همین الان، بدون برنده مشخص، پایان دهید؟ این کار قابل بازگشت نیست.',
       debugStillWaitingLabel: 'در انتظار تصمیم', debugDecidedLabel: 'تصمیم‌گیری‌شده',
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
       debugInquiriesLabel: 'استعلام‌های باقی‌مانده', debugNightStatusHeading: 'وضعیت امشب',
@@ -1373,7 +1386,7 @@
       nightLabel: 'Night {n}', nightResultLabel: 'Night {n} · Result',
       morningReadyTitle: 'Everyone has decided', morningReadyHint: "When you're ready, announce the night's results to everyone.",
       btnAnnounceMorning: 'Announce Morning →',
-      gameOver: 'Game Over', civiliansWin: 'Civilians Win!', mafiaWins: 'Mafia Wins!', zodiacWins: 'زودیاک Wins!',
+      gameOver: 'Game Over', civiliansWin: 'Civilians Win!', mafiaWins: 'Mafia Wins!', zodiacWins: 'زودیاک Wins!', gameEndedEarly: 'Game Ended Early',
       rolesRevealed: 'Roles are revealed to everyone now that the game has ended.',
       btnStartNewGame: 'Start a New Game', outLabel: '(out)',
       playerLabel: 'Player', joinSessionTitle: 'Join the session', btnJoinGame: 'Join Game',
@@ -1496,6 +1509,7 @@
       actKickedByGod: 'You were kicked from the game by the God.', playerKicked: '{name} was kicked from the game.',
       btnRevivePlayer: 'Bring Back Into Game', confirmRevivePlayer: 'Bring {name} back into the game?',
       actRevivedByGod: 'The God brought you back into the game.', playerRevived: '{name} is back in the game.',
+      btnEndGame: 'End Game Now', confirmEndGame: 'Are you sure you want to end the game right now, with no winner declared? This cannot be undone.',
       debugStillWaitingLabel: 'Still Deciding', debugDecidedLabel: 'Decided',
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
       debugInquiriesLabel: 'Inquiries remaining', debugNightStatusHeading: "Tonight's Status",
@@ -1546,11 +1560,18 @@
     return role.description;
   }
   // 'village' / 'mafia' / 'zodiac' — three distinct win outcomes now that
-  // زودیاک can win on its own without the rest of the civilians.
+  // زودیاک can win on its own without the rest of the civilians. A null/
+  // unrecognized winner used to silently fall through to "Mafia Wins!" —
+  // harmless back when checkWinner() returning non-null was the ONLY way
+  // to ever reach a game-over screen, so state.winner was never actually
+  // null there. That's no longer true: App.endGameEarly lets the host end
+  // the game at any point with no winner decided at all, and a real null
+  // now needs its own honest label instead of falsely crediting Mafia.
   function winnerLabel(winner){
     if(winner === 'village') return t('civiliansWin');
     if(winner === 'zodiac') return t('zodiacWins');
-    return t('mafiaWins');
+    if(winner === 'mafia') return t('mafiaWins');
+    return t('gameEndedEarly');
   }
 
   // The full role list is fixed in code so it can never be lost to a server
@@ -6583,6 +6604,14 @@
   function renderManagePlayersPanel(){
     const box = $('manage-players-list');
     if(!box) return;
+    // Ending the game only makes sense once there IS one in progress —
+    // hidden in the lobby (nothing dealt out yet) and once the game has
+    // already ended on its own (App.showGameOver already ran; the "Start
+    // New Game" button on that screen is the equivalent action there).
+    const endGameSection = $('end-game-section');
+    if(endGameSection){
+      endGameSection.style.display = (state.rolesAssigned && state.gamePhase !== 'game-over') ? 'block' : 'none';
+    }
     box.innerHTML = '';
     const entries = Array.from(state.players.entries()).filter(([id, e]) => !e.isHostSelf && e.name);
     if(!entries.length){
@@ -6678,6 +6707,36 @@
     renderDebugPanel();
     renderManagePlayersPanel();
     refreshCurrentHostScreen();
+  };
+
+  // Lets the host (or, in God Mode, the host's own host-self seat) abandon
+  // an in-progress game at any point — a real-world dispute at the table,
+  // someone has to leave, or the group just wants to stop — instead of
+  // being stuck waiting for checkWinner() to eventually return non-null on
+  // its own. Deliberately reuses the EXACT SAME game-over machinery every
+  // real win already goes through (App.showGameOver: broadcasts to every
+  // player, reveals the full roster/roles, appends the final log line)
+  // rather than inventing a separate "aborted game" path — the only
+  // difference is state.winner is left null instead of whatever
+  // checkWinner() would have said. winnerLabel/renderGameOverHostScreen/
+  // the player-side 'game-over' handler all already need to render a null
+  // winner sensibly now (see winnerLabel's own comment) since this makes
+  // that a real, reachable outcome rather than a value that could never
+  // actually occur.
+  App.endGameEarly = function(){
+    if(state.role !== 'host' || !state.rolesAssigned || state.gamePhase === 'game-over') return;
+    if(!confirm(t('confirmEndGame'))) return;
+    // Whatever auto-pacing timer (a vote/act/defense deadline, or the
+    // day-gun decision's own separate one — see armGunDeadline) happens to
+    // be in flight for the phase being abandoned must not fire moments
+    // later into a game that already moved on to game-over; its onExpire
+    // callback assumes the phase it was armed for is still current.
+    clearAutoDeadline();
+    clearGunDeadline();
+    state.winner = null;
+    const panel = $('manage-players-panel');
+    if(panel) panel.classList.remove('open');
+    App.showGameOver();
   };
 
   App.adjustInquiriesRemaining = function(delta){
