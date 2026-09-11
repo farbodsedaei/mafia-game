@@ -35,7 +35,7 @@
 const { runScenario } = require('../lib/scenario');
 const { startServer } = require('../lib/server-runner');
 const {
-  createDevice, activeScreenId, text, selectRoleInPlay, waitFor, sleep, teardown, readGameOverRoster
+  createDevice, activeScreenId, text, selectRoleInPlay, waitFor, sleep, teardown, readGameOverRoster, readDebugStateText
 } = require('../lib/device');
 const {
   joinPlayers, assignRolesAndBegin, playDay1AndSkipNight1, castVotes, logTally,
@@ -299,6 +299,13 @@ runScenario('02-fourteen-player-longer-village-win', async (log) => {
     const gunBanner = text(host, 'ack-banner-text') || '';
     log.assert(gunBanner.indexOf(pv3) !== -1, 'the gun-outcome banner names ' + pv3 + ' (got "' + gunBanner + '")');
     log.assert(gunBanner.indexOf(pv1) !== -1, 'the gun-outcome banner also names the shooter, ' + pv1 + ' (got "' + gunBanner + '")');
+    // The complementary half of 15-gunner-cancellation-rules.js's own check
+    // (a shot that DOESN'T kill must never cancel) — this IS a genuine,
+    // unavoidable kill of a non-Mafia target, so it must actually cancel
+    // تفنگدار's remaining uses (see resolveDayGunAction's own comment).
+    const gunDebugState = readDebugStateText(host);
+    log.assert(gunDebugState.indexOf('لغو شده: بله') !== -1,
+      'a genuine wrong-target KILL correctly cancels any remaining handovers — debug panel: "' + gunDebugState + '"');
 
     const deadSoFarDay4 = [pv2, pv4, zodiacName, godfatherName, pv3];
     const aliveDay4 = players.filter((p) => !deadSoFarDay4.includes(p.label));

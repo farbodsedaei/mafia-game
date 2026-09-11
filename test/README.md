@@ -44,8 +44,11 @@ source). The console output during a run is the same transcript.
   open a WebSocket and fetch `/api/ice-config`) hit the mocks, not jsdom's
   own (missing/incomplete) versions of those APIs. It also exposes small
   DOM-driving helpers (`checkVoteCandidate`, `pickNightTarget`, `roleInfo`,
-  `waitFor`, ...) that scenarios use instead of ever reaching into the app's
-  internal (and deliberately closured-private) `state` object.
+  `waitFor`, `readDebugStateText` (opens the real debug panel just long
+  enough to read fields like `gunsCancelled`/`gunsRemaining` that are never
+  otherwise rendered anywhere), ...) that scenarios use instead of ever
+  reaching into the app's internal (and deliberately closured-private)
+  `state` object.
 - **`lib/game-flow.js`** has the multi-device sequences every scenario needs
   (join the lobby, assign roles + begin, play through Day 1 into Night 1,
   cast a round of votes) so a scenario script reads as the story of one
@@ -668,6 +671,42 @@ classes), not on anything internal to `index.html`.
     `WebSocket` constructor so any reconnect attempt it makes on its own
     never actually completes) — called together, in that order, wherever a
     scenario needs a device to be genuinely, permanently gone.
+
+15. `15-gunner-cancellation-rules` — regression test for a reported gunner
+    (تفنگدار) rule question: "if the gun receiver shoots a civilian and
+    ends up dead, the gun feature goes away from that point on... but if
+    the gun is used against a civilian and for any reason the civilian
+    doesn't die (blocked, shielded), the gunner should still be able to
+    hand over guns the next night, if there are more bullets left. If the
+    gun is used against Mafia or زودیاک, the gunner never loses the
+    ability regardless of the result." The app was NOT built this way:
+    `resolveDayGunAction` (`index.html`) set `state.gunsCancelled = true`
+    for ANY non-Mafia target the instant the gun was fired at them —
+    before even checking whether the shot actually killed anyone. A
+    shielded civilian surviving the shot (their shield absorbed it) or the
+    immune زودیاک surviving it (never actually killable by the gun at all)
+    both incorrectly burned the gunner's remaining uses anyway, identically
+    to a real kill. Fixed to only cancel once `outcome === 'died'` AND the
+    target wasn't Mafia — a shot that's blocked/shielded/survived, or lands
+    on the immune زودیاک, now correctly leaves the gun's remaining uses
+    untouched.
+
+    Drives تفنگدار's full two-handoff budget (`GUNNER_MAX_GUNS`) through
+    exactly the two "should NOT cancel" cases the report described — a
+    shielded کنستانتین surviving the first shot, then the immune زودیاک
+    surviving the second (and last) — asserting `gunsCancelled` stays
+    `false` after each via the new `readDebugStateText` helper (the debug
+    panel is the only place that field is ever actually rendered), and that
+    a second handoff is genuinely still offered after the first non-kill
+    shot — the concrete, user-visible symptom of the bug. Also confirms
+    `gunsRemaining` hitting 0 on its own afterward (the separate,
+    already-correct whole-game handoff cap) isn't being conflated with
+    `gunsCancelled`, and that تفنگدار correctly gets no third handoff
+    prompt at all once it has. The complementary half — an ACTUAL kill of a
+    non-Mafia target DOES cancel — is exercised by scenario 02's own Day 4
+    (a genuine wrong-target gun kill); this pass added the matching
+    `gunsCancelled === true` assertion there too, so both halves of the
+    rule are pinned down by a real, dedicated check rather than only one.
 
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this

@@ -1542,7 +1542,7 @@
     'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish. This is only possible once in the whole game.',
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
-    'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If the gun is fired at a civilian by mistake, any remaining guns are cancelled and won't be handed over again.",
+    'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If a civilian is fired at by mistake AND actually dies from it, any remaining guns are cancelled and won't be handed over again — a shielded or otherwise-surviving civilian, or a shot at زودیاک (who's immune either way), costs nothing and leaves your remaining guns intact.",
     'role-zodiac': "You're an independent role. Your goal is to get every Mafia member out of the game before Mafia eliminates all the civilians. Mafia, حرفه‌ای, and تفنگدار can all target you, but none of them can ever actually kill you — the only way you can be removed is a day vote. As long as you're alive, Mafia can never win, even if civilians drop below Mafia's own count. Each night (every night or every other night, depending on the game's settings), after Mafia's turn and before the civilian roles act, you may target one person and shoot them.",
     'role-zodiac-son': "You're زودیاک's companion. While زودیاک is still in the game, you count as a regular civilian — you can be targeted and killed at night, and if کاراگاه investigates you, the result reads positive, indistinguishable from a real Mafia hit. If زودیاک leaves the game (only possible by a day vote), all of its abilities — including immunity to night kills and its own nightly shot — transfer to you, and you become the new زودیاک."
   };
@@ -1589,7 +1589,7 @@
     { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید. این کار فقط یک‌بار در کل بازی ممکن است.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
-    { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد.', shield: false, independent: false, builtin: false },
+    { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود و او واقعاً کشته شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد — اما اگر همان شهروند زنده بماند (مثلاً به‌خاطر شیلد) یا هدف زودیاک باشد (که در هر صورت کشته نمی‌شود)، اسلحه‌های باقی‌مانده دست‌نخورده باقی می‌مانند.', shield: false, independent: false, builtin: false },
     { id: 'role-zodiac', team: 'villager', name: 'زودیاک', description: 'شما یک نقش مستقل هستید. هدف شما این است که همه اعضای مافیا از بازی خارج شوند، پیش از آنکه مافیا همه شهروندان را از بین ببرد. مافیا، حرفه‌ای و تفنگدار می‌توانند شما را هدف بگیرند، اما هیچ‌کدام هرگز نمی‌توانند واقعاً شما را بکشند — تنها راه حذف شما رأی‌گیری روز است. تا وقتی شما زنده‌اید، حتی اگر تعداد شهروندان از مافیا کمتر شود، مافیا برنده بازی نمی‌شود. هر شب (بسته به تنظیمات بازی، هر شب یا یک شب در میان)، بعد از نوبت مافیا و پیش از نوبت نقش‌های شهروندی، می‌توانید یک نفر را هدف بگیرید و به او شلیک کنید.', shield: false, independent: true, builtin: false },
     { id: 'role-zodiac-son', team: 'villager', name: 'زودیاک پسر', description: 'شما همراه زودیاک هستید. تا وقتی زودیاک در بازی است، شما یک شهروند عادی محسوب می‌شوید — می‌توان شما را شب‌ها هدف قرار داد و کشت، و اگر کاراگاه شما را بررسی کند، نتیجه مثبت می‌شود، درست مثل یک اصابت واقعی به مافیا. اگر زودیاک از بازی خارج شود (که فقط با رأی‌گیری روز ممکن است)، تمام توانایی‌های او — از جمله مصونیت در برابر شلیک شبانه و شلیک شبانهٔ خودش — به شما منتقل می‌شود و شما زودیاک جدید می‌شوید.', shield: false, independent: false, builtin: false }
   ];
@@ -2147,11 +2147,7 @@
       // already-known id (closes out whatever pc/dc it had and rebuilds
       // fresh) — a brief, harmless renegotiation blip for anyone who
       // DIDN'T actually need it beats leaving anyone who DID stuck
-      // forever with no way to be told to retry. If that player's OWN
-      // connection also just broke and they're independently mid-reconnect
-      // (see attemptPlayerReconnect), hostBeginConnectionTo's own short
-      // debounce (see REBUILD_DEBOUNCE_MS) keeps this from piling a second
-      // overlapping rebuild attempt on top of the one already in flight.
+      // forever with no way to be told to retry.
       (msg.playerIds || []).forEach(pid => { hostBeginConnectionTo(pid); });
       return;
     }
@@ -2625,7 +2621,7 @@
   // alive to receive it.
   App.retryPlayerConnection = function(id){
     if(!state.players.has(id)) return;
-    hostBeginConnectionTo(id, true);
+    hostBeginConnectionTo(id);
     toast(t('toastRetryingConnection'));
   };
   // Manual, immediate version of expirePhantomSeats' auto-release, for a
@@ -2706,7 +2702,7 @@
   }
 
   /* ---------------- Host: WebRTC per player ---------------- */
-  function hostBeginConnectionTo(playerId, force){
+  function hostBeginConnectionTo(playerId){
     // An existing entry for this id means it's a reconnect (same persisted
     // token as before) — reattach the fresh connection to it instead of
     // treating them as a new joiner, and let them back in even if the room
@@ -2726,35 +2722,6 @@
     // pick a name (see the 'name' handler below). An existing entry (same
     // persisted token reconnecting) is always let back in regardless —
     // they already have a seat.
-    // A rebuild for this exact id that was JUST started (still mid-
-    // negotiation, hasn't had a chance to open OR fail yet) gets a short
-    // grace window before piling on another one. Without this, two
-    // independent triggers landing close together for the same player —
-    // e.g. the host's own blanket 'room-reclaimed' replay (every known id,
-    // unconditionally) racing that same player's own dc-death-triggered
-    // attemptPlayerReconnect (a genuinely separate signal, since THEIR
-    // connection really did just break too) — each tear down and replace
-    // entry.pc with a fresh generation. A signal (answer/candidate) that
-    // was actually meant for the OLDER generation but is still in flight
-    // when the newer one lands gets applied to entry.pc anyway (see
-    // hostHandleSignal, which always targets whatever entry.pc currently
-    // is) — usually harmless once just ONE stray generation is involved
-    // (the real matching answer still catches up right after), but three
-    // or more overlapping generations in quick succession can leave the
-    // LATEST one waiting on an answer that never actually arrives for IT
-    // specifically, stuck forever with no further trigger left to retry —
-    // exactly the reported "flickering, then stuck reconnecting" bug.
-    // Debouncing here removes most of the overlap that lets that pile-up
-    // happen in the first place, rather than only relying on the player-
-    // side ICE-failure fallback (see playerHandleSignal's offer branch) to
-    // recover from it after the fact.
-    // An explicit host tap (App.retryPlayerConnection) always bypasses
-    // this — that's a deliberate, informed decision to retry right now,
-    // not an automatic trigger racing another one.
-    const REBUILD_DEBOUNCE_MS = 4000;
-    if(!force && existing && !existing.connected && existing.connectingSince && (Date.now() - existing.connectingSince) < REBUILD_DEBOUNCE_MS){
-      return;
-    }
     if(!existing && state.players.size >= state.numPlayers){
       // Previously a silent no-op: the rejected joiner just sat on
       // "Contacting host…" forever with zero explanation, indistinguishable
@@ -3737,7 +3704,6 @@
 
     let outcome = target ? 'no-effect' : 'not-fired';
     if(target && !neutralized){
-      if(target.role !== 'mafia') state.gunsCancelled = true; // wrong target (civilian or زودیاک) — no more handovers, ever
       // زودیاک never actually dies to the gun either — same "nothing happened",
       // no shield consumed, indistinguishable from any other no-effect case.
       if(!target.independent){
@@ -3749,6 +3715,16 @@
           sendToPlayer(target, { type: 'eliminated' });
         }
       }
+      // Cancelling every remaining handover is a real, permanent penalty —
+      // reserved for an actual, unavoidable wrong-target KILL, not merely
+      // firing at one. A shot that lands on a civilian but doesn't actually
+      // take them out (their shield absorbed it, same as above) is
+      // indistinguishable from any other no-effect shot and must not cost
+      // تفنگدار their remaining uses — nor does a shot at the immune زودیاک,
+      // who can never reach outcome === 'died' at all (see the
+      // !target.independent guard just above), regardless of team. Only
+      // Mafia is ever a "safe" kill target either way.
+      if(outcome === 'died' && target.role !== 'mafia') state.gunsCancelled = true;
     }
 
     state.pendingGun = null;

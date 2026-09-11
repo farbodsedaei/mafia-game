@@ -70,6 +70,23 @@ function activeScreenId(device) {
   return el ? el.id : null;
 }
 
+// Opens the debug panel (host-only, always reachable on a plain non-God-Mode
+// host — see hostSelfBlocksDebug in index.html) just long enough to read its
+// real, currently-rendered state text (day/phase/winner/guns-remaining/
+// guns-cancelled/etc — see renderDebugPanel), then restores whatever
+// open/closed state it was already in. This is the only place several
+// host-only fields (state.gunsCancelled in particular) are ever actually
+// exposed to the UI at all, so it's the real way to assert on them from a
+// scenario without reaching into the app's own closed-over `state`.
+function readDebugStateText(device) {
+  const panel = $(device, 'debug-panel');
+  const wasOpen = panel && panel.classList.contains('open');
+  if (!wasOpen) device.App.toggleDebugPanel();
+  const stateText = text(device, 'debug-state') || '';
+  if (!wasOpen) device.App.toggleDebugPanel();
+  return stateText;
+}
+
 // Finds a candidate row (vote list / night-action list) by the player's
 // visible name and drives its checkbox/radio the same way a real tap would
 // — via the exact onXXX handler the app itself assigned to that input, not
@@ -345,7 +362,7 @@ async function teardown(server, devices) {
 
 module.exports = {
   createDevice,
-  $, text, setValue, activeScreenId,
+  $, text, setValue, activeScreenId, readDebugStateText,
   checkVoteCandidate, pickNightTarget, selectRoleInPlay, deselectRoleInPlay, isRoleInPlay,
   pickDayGunTarget, isGunDecisionVisible, setRecruitCheckbox,
   roleInfo, roomCode, connectedNamedCount,
