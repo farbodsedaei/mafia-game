@@ -2126,7 +2126,11 @@
       // already-known id (closes out whatever pc/dc it had and rebuilds
       // fresh) — a brief, harmless renegotiation blip for anyone who
       // DIDN'T actually need it beats leaving anyone who DID stuck
-      // forever with no way to be told to retry.
+      // forever with no way to be told to retry. If that player's OWN
+      // connection also just broke and they're independently mid-reconnect
+      // (see attemptPlayerReconnect), hostBeginConnectionTo's own short
+      // debounce (see REBUILD_DEBOUNCE_MS) keeps this from piling a second
+      // overlapping rebuild attempt on top of the one already in flight.
       (msg.playerIds || []).forEach(pid => { hostBeginConnectionTo(pid); });
       return;
     }
@@ -2600,7 +2604,7 @@
   // alive to receive it.
   App.retryPlayerConnection = function(id){
     if(!state.players.has(id)) return;
-    hostBeginConnectionTo(id);
+    hostBeginConnectionTo(id, true);
     toast(t('toastRetryingConnection'));
   };
   // Manual, immediate version of expirePhantomSeats' auto-release, for a
@@ -2681,7 +2685,7 @@
   }
 
   /* ---------------- Host: WebRTC per player ---------------- */
-  function hostBeginConnectionTo(playerId){
+  function hostBeginConnectionTo(playerId, force){
     // An existing entry for this id means it's a reconnect (same persisted
     // token as before) — reattach the fresh connection to it instead of
     // treating them as a new joiner, and let them back in even if the room
@@ -2701,6 +2705,35 @@
     // pick a name (see the 'name' handler below). An existing entry (same
     // persisted token reconnecting) is always let back in regardless —
     // they already have a seat.
+    // A rebuild for this exact id that was JUST started (still mid-
+    // negotiation, hasn't had a chance to open OR fail yet) gets a short
+    // grace window before piling on another one. Without this, two
+    // independent triggers landing close together for the same player —
+    // e.g. the host's own blanket 'room-reclaimed' replay (every known id,
+    // unconditionally) racing that same player's own dc-death-triggered
+    // attemptPlayerReconnect (a genuinely separate signal, since THEIR
+    // connection really did just break too) — each tear down and replace
+    // entry.pc with a fresh generation. A signal (answer/candidate) that
+    // was actually meant for the OLDER generation but is still in flight
+    // when the newer one lands gets applied to entry.pc anyway (see
+    // hostHandleSignal, which always targets whatever entry.pc currently
+    // is) — usually harmless once just ONE stray generation is involved
+    // (the real matching answer still catches up right after), but three
+    // or more overlapping generations in quick succession can leave the
+    // LATEST one waiting on an answer that never actually arrives for IT
+    // specifically, stuck forever with no further trigger left to retry —
+    // exactly the reported "flickering, then stuck reconnecting" bug.
+    // Debouncing here removes most of the overlap that lets that pile-up
+    // happen in the first place, rather than only relying on the player-
+    // side ICE-failure fallback (see playerHandleSignal's offer branch) to
+    // recover from it after the fact.
+    // An explicit host tap (App.retryPlayerConnection) always bypasses
+    // this — that's a deliberate, informed decision to retry right now,
+    // not an automatic trigger racing another one.
+    const REBUILD_DEBOUNCE_MS = 4000;
+    if(!force && existing && !existing.connected && existing.connectingSince && (Date.now() - existing.connectingSince) < REBUILD_DEBOUNCE_MS){
+      return;
+    }
     if(!existing && state.players.size >= state.numPlayers){
       // Previously a silent no-op: the rejected joiner just sat on
       // "Contacting host…" forever with zero explanation, indistinguishable
@@ -5331,6 +5364,21 @@
       // silently rejoining with the same persisted token a moment later
       // and recreating the exact phantom seat that was just removed.
       if(!state.room || !state.myPlayerToken) return;
+      // Also re-check that a reconnect is STILL actually needed — this
+      // same 1.5s window is exactly long enough for an entirely different
+      // trigger to have already fixed the connection on its own (most
+      // commonly: the host proactively rebuilt every player's connection
+      // after its own resume/reclaim — see the 'room-reclaimed' handler —
+      // which can easily land and succeed before this timer fires). That
+      // path already flips reconnectInProgress back to false the moment
+      // its own data channel opens (setupPlayerDataChannel's dc.onopen).
+      // Without this check, this now-pointless join-room still goes out,
+      // the host sees it as a fresh 'player-hello' and tears down the
+      // perfectly good connection that was just established to rebuild it
+      // AGAIN — a self-inflicted, entirely avoidable extra reconnect cycle
+      // (visible as the reported "players screens start flickering" after
+      // a host resume) for a connection that never actually needed it.
+      if(!state.reconnectInProgress) return;
       if(state.ws && state.ws.readyState === WebSocket.OPEN){
         wsSend({ type: 'join-room', room: state.room, token: state.myPlayerToken });
       } else {
@@ -5528,6 +5576,11 @@
       };
       pc.oniceconnectionstatechange = () => {
         if(pc.iceConnectionState !== 'failed' && pc.iceConnectionState !== 'disconnected') return;
+        // This pc has already been superseded by an even newer one (another
+        // offer arrived and replaced it — see the top of this offer branch)
+        // — its own ICE finally catching up to being dead now is old news,
+        // not something the CURRENT connection attempt should react to.
+        if(state.playerPC !== pc) return;
         // Still on the initial handshake screen — same "stuck, offer a
         // retry" behavior as before. Past that (mid-game, this connection
         // HAD been working), it's a live connection that just died —
@@ -5541,6 +5594,21 @@
           showConnectingStuck();
         } else if(state.playerDC){
           try{ state.playerDC.close(); }catch(e){}
+        } else {
+          // Neither of the above: this is an UNPROMPTED offer's own
+          // connection (e.g. the host proactively rebuilding every player
+          // after its own resume/reclaim — see 'room-reclaimed') that
+          // never got as far as opening a data channel before its ICE
+          // failed. state.playerDC is still whatever the PREVIOUS
+          // connection left behind — null, since it was explicitly cleared
+          // at the top of this same branch before this pc was even
+          // created — so there is no dc left to close into
+          // attemptPlayerReconnect via its onclose. Call it directly
+          // instead, or this player is left stuck on the "reconnecting"
+          // screen forever with genuinely nothing left to ever retry it
+          // (the exact reported "browsers would stay in reconnecting
+          // mode" bug).
+          attemptPlayerReconnect();
         }
       };
       pc.setRemoteDescription(payload.sdp)
