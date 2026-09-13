@@ -147,8 +147,15 @@
      مافیا/اوشن/زودیاک chat drawers (those cover it while open, exactly like
      they'd cover any other page content — closing the drawer reveals it
      again immediately). */
-  .player-footer-bar{display:none; gap:8px; padding-top:14px; margin-top:14px; border-top:1px solid var(--line); flex-shrink:0;}
-  .player-footer-bar .btn{flex:1; padding:12px 8px; font-size:13px;}
+  .player-footer-bar{display:none; gap:6px; padding-top:14px; margin-top:14px; border-top:1px solid var(--line); flex-shrink:0;}
+  /* Bumped from 13px (smaller than even .btn-ghost's 14px) — this is the
+     most-used, most persistent nav in the whole app and was reported as
+     hard to read; now matches .btn's normal (non-ghost) size instead of
+     being the smallest button text anywhere. Tighter gap/padding above
+     and here give the longer labels (Voting History/تاریخچه رأی‌گیری)
+     room to wrap to two lines cleanly rather than needing a tiny font to
+     stay on one — line-height keeps a wrapped label from feeling cramped. */
+  .player-footer-bar .btn{flex:1; padding:12px 6px; font-size:16px; line-height:1.25;}
   /* No God Mode's live countdown — floats above whatever screen is showing,
      same idea as .lang-switch/.debug-toggle-btn, since the deadline isn't
      tied to any one screen (see updateDeadlineBadge). Never shown in a
@@ -1538,7 +1545,7 @@
     'role-matador': "Each night you choose one civilian to block; they can't use their ability that night.",
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
     'role-detective': "Each night you investigate someone and get back a simple positive or negative — never a specific label like \"Mafia\" or anything else.",
-    'role-professional': "Each night you may target someone. Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead.",
+    'role-professional': "Each night you may target someone. Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead. زودیاک is just as safe a target as Mafia — neither they nor you are affected.",
     'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish. This is only possible once in the whole game.',
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
@@ -1585,7 +1592,7 @@
     { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند.', shield: false, independent: false, builtin: false },
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
     { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و فقط یک نتیجهٔ مثبت یا منفی می‌گیرید — نه چیزی مشخص مثل «مافیا» یا هر برچسب دیگر.', shield: false, independent: false, builtin: false },
-    { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید. اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید.', shield: true, independent: false, builtin: false },
+    { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید. اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید. زودیاک هم مثل مافیا برای شما هدف امن است — نه او آسیب می‌بیند و نه شما حذف می‌شوید.', shield: true, independent: false, builtin: false },
     { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید. این کار فقط یک‌بار در کل بازی ممکن است.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
@@ -5029,12 +5036,20 @@
     // حرفه‌ای's shot: kills a Mafia target (their shield can still absorb it) or backfires on
     // the shooter — the backfire is a truly unavoidable consequence, so neither the shooter's
     // own shield (even though they carry one by default) nor a Doctor's save can stop it.
+    // زودیاک is the one other "safe" target, same as Mafia — immune to this shot exactly like
+    // every other night-kill source (see the independent check in rawDeaths' own resolution
+    // just below), and must NOT trigger the backfire either: a target only counts as the
+    // "wrong" (civilian) target the backfire is meant to punish if they're neither Mafia NOR
+    // the immune زودیاک. زودیاک پسر (independent:false while the real زودیاک is still around)
+    // is deliberately NOT covered by this — its own role text says it "counts as a regular
+    // civilian" and is genuinely killable, so shooting it correctly still backfires, same as
+    // any other civilian.
     const professionalEntries = findAliveByRoleName(ROLE_NAME_PROFESSIONAL);
     const professional = professionalEntries.find(([id]) => id !== state.night.blockedId);
     if(state.night.professionalTargetId && professional){
       const target = state.players.get(state.night.professionalTargetId);
       if(target){
-        if(target.role === 'mafia') rawDeaths.add(state.night.professionalTargetId);
+        if(target.role === 'mafia' || target.independent) rawDeaths.add(state.night.professionalTargetId);
         else guaranteedDeaths.add(professional[0]);
       }
     }
