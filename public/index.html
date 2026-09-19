@@ -209,76 +209,56 @@
   .host-self-card-actions{display:flex; gap:8px; margin-top:12px;}
   .host-self-card-actions .btn{flex:1;}
 
-  /* Mafia-only chat — a fixed bottom drawer, present on every night and
-     daytime-conversation screen a living Mafia member sees, so they can
-     coordinate without leaving whatever they're doing. */
-  .mafia-chat-panel{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column; height:32vh; background:rgba(10,7,8,0.97); border-top:1px solid var(--red-dim); box-shadow:0 -6px 24px rgba(0,0,0,0.45); padding-bottom:env(safe-area-inset-bottom);}
-  .mafia-chat-panel.open{display:flex;}
-  .mafia-chat-header{padding:8px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--red-bright); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
-  .mafia-chat-messages{flex:1; overflow-y:auto; padding:8px 14px; display:flex; flex-direction:column; gap:6px;}
-  .mafia-chat-msg{font-size:13px; line-height:1.4; color:var(--text-muted); word-break:break-word;}
-  .mafia-chat-sender{color:var(--gold); font-weight:700;}
-  .mafia-chat-input-row{display:flex; gap:8px; padding:10px 14px; border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
-  .mafia-chat-input-row input{flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:8px; padding:9px 11px; color:var(--text); font-family:inherit; font-size:13px; outline:none;}
-  .mafia-chat-input-row input:focus{border-color:var(--red-bright);}
-  .mafia-chat-input-row button{flex-shrink:0; appearance:none; border:none; background:var(--red-dim); color:var(--red-bright); font-weight:700; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px;}
+  /* Group chats (Mafia / اوشن / زودیاک) — bottom drawers inside ONE shared
+     dock, collapsed by default. They used to sit permanently open at the
+     bottom of every screen a group member saw, which meant anyone glancing
+     at that player's phone could read the chat header and know which secret
+     group they were in. Now each drawer starts as just a neutral, unlabeled
+     grab handle (no group color, no title text — deliberately nothing that
+     names the group) and only opens when the player pulls it up (swipe up,
+     or tap); pulling it down (swipe down, or tap the title bar) hides it
+     again. See initChatDrawers/setChatCollapsed.
+     The dock is a normal-flow column-reverse flex container so however many
+     drawers are showing (Mafia lowest, then اوشن, then زودیاک — same priority
+     the old fixed-position stacking used) simply stack with no per-
+     combination CSS; --chat-dock-h (kept current by syncChatDockHeight,
+     including mid-animation via a ResizeObserver) tells #app how much
+     bottom padding it needs so nothing hides behind the dock. */
+  .chat-dock{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column-reverse; padding-bottom:env(safe-area-inset-bottom); background:rgba(10,10,12,0.97); box-shadow:0 -6px 24px rgba(0,0,0,0.45);}
+  body.mafia-chat-open .chat-dock, body.ocean-chat-open .chat-dock, body.zodiac-chat-open .chat-dock{display:flex;}
+  .chat-panel{--chat-handle-h:32px; --chat-header-h:36px; --chat-panel-h:clamp(260px, 42vh, 480px); display:none; flex:none; flex-direction:column; height:var(--chat-panel-h); overflow:hidden; background:var(--chat-bg); border-top:1px solid var(--chat-accent-dim); transition:height .26s ease, background-color .26s ease, border-color .26s ease;}
+  .chat-panel.open{display:flex;}
+  /* Collapsed = just the handle: neutral background/border, so a closed
+     drawer looks identical whichever group it belongs to. */
+  .chat-panel.collapsed{height:var(--chat-handle-h); background:rgba(10,10,12,0.97); border-top-color:var(--line-strong);}
+  .mafia-chat-panel{--chat-accent:var(--red-bright); --chat-accent-dim:var(--red-dim); --chat-bg:rgba(10,7,8,0.97); --chat-sender:var(--gold);}
+  .ocean-chat-panel{--chat-accent:var(--gold); --chat-accent-dim:var(--gold-dim); --chat-bg:rgba(9,8,4,0.97); --chat-sender:var(--gold);}
+  .zodiac-chat-panel{--chat-accent:var(--slate); --chat-accent-dim:var(--slate-dim); --chat-bg:rgba(7,9,10,0.97); --chat-sender:var(--slate);}
+  /* The draggable strip: handle + (visible only once open) title bar.
+     touch-action:none so a swipe on it is ours, not the page's scroll/
+     pull-to-refresh. */
+  .chat-grab{flex:none; touch-action:none; user-select:none; -webkit-user-select:none;}
+  .chat-handle{appearance:none; border:none; background:transparent; padding:0; margin:0; width:100%; height:var(--chat-handle-h); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .chat-handle:focus-visible{outline:2px solid var(--text-muted); outline-offset:-2px;}
+  .chat-handle-grip{display:block; width:48px; height:5px; border-radius:3px; background:rgba(237,239,244,0.3);}
+  .chat-header{height:var(--chat-header-h); display:flex; align-items:center; padding:0 14px; font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:0.14em; text-transform:uppercase; color:var(--chat-accent); border-bottom:1px solid rgba(255,255,255,0.08);}
+  /* The body keeps its full open-size layout even while the panel is
+     clipped down to the handle (so the messages list still has a real
+     height to scroll inside) — hidden from view AND from keyboard focus
+     once collapsed, after the collapse animation finishes. */
+  .chat-body{flex:none; display:flex; flex-direction:column; height:calc(var(--chat-panel-h) - var(--chat-handle-h) - var(--chat-header-h)); visibility:visible;}
+  .chat-panel.collapsed .chat-body{visibility:hidden; transition:visibility 0s linear .26s;}
+  .chat-messages{flex:1; min-height:0; overflow-y:auto; padding:8px 14px; display:flex; flex-direction:column; gap:8px;}
+  .chat-msg{font-size:16px; line-height:1.5; color:var(--text-muted); word-break:break-word;}
+  .chat-sender{color:var(--chat-sender); font-weight:700;}
+  .chat-input-row{display:flex; gap:8px; padding:10px 14px; border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
+  .chat-input-row input{flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:10px; padding:11px 12px; color:var(--text); font-family:inherit; font-size:16px; outline:none;}
+  .chat-input-row input:focus{border-color:var(--chat-accent);}
+  .chat-input-row button{flex-shrink:0; appearance:none; border:none; background:var(--chat-accent-dim); color:var(--chat-accent); font-weight:700; padding:11px 18px; border-radius:10px; cursor:pointer; font-size:16px;}
 
-  /* اوشن's group chat — same fixed-drawer pattern as Mafia's, but with no
-     phase restriction at all: visible any time a living group member (اوشن
-     itself, or anyone it's recruited) is on any screen, day or night, until
-     they're eliminated or the game ends. Gold-accented instead of red so the
-     two are visually distinct in the rare case a player is somehow in both
-     (اوشن mistakenly recruiting a Mafia member). */
-  .ocean-chat-panel{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column; height:32vh; background:rgba(9,8,4,0.97); border-top:1px solid var(--gold-dim); box-shadow:0 -6px 24px rgba(0,0,0,0.45); padding-bottom:env(safe-area-inset-bottom);}
-  .ocean-chat-panel.open{display:flex;}
-  .ocean-chat-header{padding:8px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
-  .ocean-chat-messages{flex:1; overflow-y:auto; padding:8px 14px; display:flex; flex-direction:column; gap:6px;}
-  .ocean-chat-msg{font-size:13px; line-height:1.4; color:var(--text-muted); word-break:break-word;}
-  .ocean-chat-sender{color:var(--gold); font-weight:700;}
-  .ocean-chat-input-row{display:flex; gap:8px; padding:10px 14px; border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
-  .ocean-chat-input-row input{flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:8px; padding:9px 11px; color:var(--text); font-family:inherit; font-size:13px; outline:none;}
-  .ocean-chat-input-row input:focus{border-color:var(--gold);}
-  .ocean-chat-input-row button{flex-shrink:0; appearance:none; border:none; background:var(--gold-dim); color:var(--gold); font-weight:700; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px;}
-
-  /* زودیاک + زودیاک پسر's private chat — same pattern again, no phase
-     restriction, slate-accented (villager-tag color) to stay distinct from
-     both Mafia (red) and اوشن (gold), since اوشن could in principle recruit
-     either of them into ITS group too, stacking all three at once. */
-  .zodiac-chat-panel{display:none; position:fixed; left:0; right:0; bottom:0; z-index:1500; flex-direction:column; height:32vh; background:rgba(7,9,10,0.97); border-top:1px solid var(--slate-dim); box-shadow:0 -6px 24px rgba(0,0,0,0.45); padding-bottom:env(safe-area-inset-bottom);}
-  .zodiac-chat-panel.open{display:flex;}
-  .zodiac-chat-header{padding:8px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--slate); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
-  .zodiac-chat-messages{flex:1; overflow-y:auto; padding:8px 14px; display:flex; flex-direction:column; gap:6px;}
-  .zodiac-chat-msg{font-size:13px; line-height:1.4; color:var(--text-muted); word-break:break-word;}
-  .zodiac-chat-sender{color:var(--slate); font-weight:700;}
-  .zodiac-chat-input-row{display:flex; gap:8px; padding:10px 14px; border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0;}
-  .zodiac-chat-input-row input{flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:8px; padding:9px 11px; color:var(--text); font-family:inherit; font-size:13px; outline:none;}
-  .zodiac-chat-input-row input:focus{border-color:var(--slate);}
-  .zodiac-chat-input-row button{flex-shrink:0; appearance:none; border:none; background:var(--slate-dim); color:var(--slate); font-weight:700; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px;}
-
-  /* Stacking for however many of the three drawers are open at once, in a
-     fixed priority order — Mafia lowest, then اوشن, then زودیاک — so any
-     combination lands cleanly with no overlap. Overlap between all three is
-     realistically only Mafia+اوشن or اوشن+زودیاک (a Mafia player can never
-     also be زودیاک/زودیاک پسر — they're mutually exclusive role slots — but
-     اوشن could recruit either into its own group), yet every combination is
-     covered here regardless. */
-  body.mafia-chat-open:not(.ocean-chat-open):not(.zodiac-chat-open) #app,
-  body.ocean-chat-open:not(.mafia-chat-open):not(.zodiac-chat-open) #app,
-  body.zodiac-chat-open:not(.mafia-chat-open):not(.ocean-chat-open) #app
-  { padding-bottom: calc(32vh + 12px + max(28px, env(safe-area-inset-bottom))); }
-
-  body.mafia-chat-open.ocean-chat-open:not(.zodiac-chat-open) #app,
-  body.mafia-chat-open.zodiac-chat-open:not(.ocean-chat-open) #app,
-  body.ocean-chat-open.zodiac-chat-open:not(.mafia-chat-open) #app
-  { padding-bottom: calc(64vh + 12px + max(28px, env(safe-area-inset-bottom))); }
-
-  body.mafia-chat-open.ocean-chat-open.zodiac-chat-open #app
-  { padding-bottom: calc(96vh + 12px + max(28px, env(safe-area-inset-bottom))); }
-
-  body.mafia-chat-open.ocean-chat-open .ocean-chat-panel{ bottom:32vh; box-shadow:none; }
-  body.mafia-chat-open:not(.ocean-chat-open) .zodiac-chat-panel{ bottom:32vh; box-shadow:none; }
-  body.ocean-chat-open:not(.mafia-chat-open) .zodiac-chat-panel{ bottom:32vh; box-shadow:none; }
-  body.mafia-chat-open.ocean-chat-open .zodiac-chat-panel{ bottom:64vh; box-shadow:none; }
+  /* Keep the page's own content clear of however tall the dock currently is. */
+  body.mafia-chat-open #app, body.ocean-chat-open #app, body.zodiac-chat-open #app
+  { padding-bottom: calc(var(--chat-dock-h, 0px) + 12px + max(28px, env(safe-area-inset-bottom))); }
 </style>
 </head>
 <body>
@@ -996,37 +976,59 @@
   <div class="host-self-card-body" id="gun-decision-section-body"></div>
 </div>
 
-<!-- Mafia-only chat: visible only to an alive Mafia-team player, during any
-     night phase or daytime conversation phase, regardless of which specific
-     screen is showing underneath. See updateMafiaChatVisibility(). -->
-<div id="mafia-chat-panel" class="mafia-chat-panel">
-  <div class="mafia-chat-header" data-i18n="mafiaChatTitle"></div>
-  <div id="mafia-chat-messages" class="mafia-chat-messages"></div>
-  <div class="mafia-chat-input-row">
-    <input type="text" id="mafia-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendMafiaChat();}">
-    <button onclick="App.sendMafiaChat()" data-i18n="btnSend"></button>
+<!-- Group chats (Mafia / اوشن / زودیاک) — one shared bottom dock of pull-up
+     drawers, each collapsed to a neutral, unlabeled handle until the player
+     opens it (swipe up / tap; swipe down / tap the title bar to hide again),
+     so nothing on screen gives away group membership to someone glancing at
+     the phone. Whether each drawer is present at all is still decided by
+     updateMafiaChatVisibility / updateOceanChatVisibility /
+     updateZodiacChatVisibility (the .open class); open/closed within that is
+     the player's own choice (.collapsed, see setChatCollapsed).
+     Mafia: an alive Mafia-team player, during any night phase or daytime
+     conversation phase, on whichever screen is showing underneath.
+     اوشن: any time — day or night — to a living اوشن or anyone it's recruited.
+     زودیاک: زودیاک + زودیاک پسر only, up to 2 participants, no phase restriction. -->
+<div id="chat-dock" class="chat-dock">
+  <div id="mafia-chat-panel" class="chat-panel mafia-chat-panel collapsed">
+    <div class="chat-grab">
+      <button type="button" class="chat-handle" aria-expanded="false" data-i18n-aria-label="chatToggleLabel"><span class="chat-handle-grip"></span></button>
+      <div class="chat-header" data-i18n="mafiaChatTitle"></div>
+    </div>
+    <div class="chat-body">
+      <div id="mafia-chat-messages" class="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="mafia-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendMafiaChat();}">
+        <button onclick="App.sendMafiaChat()" data-i18n="btnSend"></button>
+      </div>
+    </div>
   </div>
-</div>
 
-<!-- اوشن's group chat: visible any time — day or night — to a living اوشن or
-     anyone it's recruited. See updateOceanChatVisibility(). -->
-<div id="ocean-chat-panel" class="ocean-chat-panel">
-  <div class="ocean-chat-header" data-i18n="oceanChatTitle"></div>
-  <div id="ocean-chat-messages" class="ocean-chat-messages"></div>
-  <div class="ocean-chat-input-row">
-    <input type="text" id="ocean-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendOceanChat();}">
-    <button onclick="App.sendOceanChat()" data-i18n="btnSend"></button>
+  <div id="ocean-chat-panel" class="chat-panel ocean-chat-panel collapsed">
+    <div class="chat-grab">
+      <button type="button" class="chat-handle" aria-expanded="false" data-i18n-aria-label="chatToggleLabel"><span class="chat-handle-grip"></span></button>
+      <div class="chat-header" data-i18n="oceanChatTitle"></div>
+    </div>
+    <div class="chat-body">
+      <div id="ocean-chat-messages" class="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="ocean-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendOceanChat();}">
+        <button onclick="App.sendOceanChat()" data-i18n="btnSend"></button>
+      </div>
+    </div>
   </div>
-</div>
 
-<!-- زودیاک + زودیاک پسر's private chat: up to 2 participants, no phase
-     restriction. See updateZodiacChatVisibility(). -->
-<div id="zodiac-chat-panel" class="zodiac-chat-panel">
-  <div class="zodiac-chat-header" data-i18n="zodiacChatTitle"></div>
-  <div id="zodiac-chat-messages" class="zodiac-chat-messages"></div>
-  <div class="zodiac-chat-input-row">
-    <input type="text" id="zodiac-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendZodiacChat();}">
-    <button onclick="App.sendZodiacChat()" data-i18n="btnSend"></button>
+  <div id="zodiac-chat-panel" class="chat-panel zodiac-chat-panel collapsed">
+    <div class="chat-grab">
+      <button type="button" class="chat-handle" aria-expanded="false" data-i18n-aria-label="chatToggleLabel"><span class="chat-handle-grip"></span></button>
+      <div class="chat-header" data-i18n="zodiacChatTitle"></div>
+    </div>
+    <div class="chat-body">
+      <div id="zodiac-chat-messages" class="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="zodiac-chat-input" maxlength="300" data-i18n-placeholder="mafiaChatPlaceholder" onkeydown="if(event.key==='Enter'){App.sendZodiacChat();}">
+        <button onclick="App.sendZodiacChat()" data-i18n="btnSend"></button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1294,7 +1296,7 @@
       debugStillWaitingLabel: 'در انتظار تصمیم', debugDecidedLabel: 'تصمیم‌گیری‌شده',
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
       debugInquiriesLabel: 'استعلام‌های باقی‌مانده', debugNightStatusHeading: 'وضعیت امشب',
-      debugMafiaChatHeading: 'گفتگوی مافیا', mafiaChatTitle: 'گفتگوی مافیا', mafiaChatPlaceholder: 'پیام بنویسید…', btnSend: 'ارسال',
+      debugMafiaChatHeading: 'گفتگوی مافیا', mafiaChatTitle: 'گفتگوی مافیا', mafiaChatPlaceholder: 'پیام بنویسید…', btnSend: 'ارسال', chatToggleLabel: 'باز یا بسته کردن گفتگو',
       debugOceanChatHeading: 'گفتگوی اوشن', oceanChatTitle: 'گفتگوی اوشن',
       debugZodiacChatHeading: 'گفتگوی زودیاک', zodiacChatTitle: 'گفتگوی زودیاک',
       debugNoActivity: 'هنوز فعالیتی ثبت نشده.', debugAlive: 'زنده', debugDead: 'مرده',
@@ -1520,7 +1522,7 @@
       debugStillWaitingLabel: 'Still Deciding', debugDecidedLabel: 'Decided',
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
       debugInquiriesLabel: 'Inquiries remaining', debugNightStatusHeading: "Tonight's Status",
-      debugMafiaChatHeading: 'Mafia Chat', mafiaChatTitle: 'Mafia Chat', mafiaChatPlaceholder: 'Type a message…', btnSend: 'Send',
+      debugMafiaChatHeading: 'Mafia Chat', mafiaChatTitle: 'Mafia Chat', mafiaChatPlaceholder: 'Type a message…', btnSend: 'Send', chatToggleLabel: 'Show or hide chat',
       debugOceanChatHeading: 'اوشن Chat', oceanChatTitle: 'اوشن Chat',
       debugZodiacChatHeading: 'زودیاک Chat', zodiacChatTitle: 'زودیاک Chat',
       debugNoActivity: 'No activity logged yet.', debugAlive: 'Alive', debugDead: 'Dead',
@@ -2303,6 +2305,7 @@
     document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
     document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+    document.querySelectorAll('[data-i18n-aria-label]').forEach(el => { el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria-label'))); });
 
     refreshDynamicScreenText();
   }
@@ -5919,6 +5922,101 @@
     updateZodiacChatVisibility();
   }
 
+  // ---------------- Group chat drawers (Mafia / اوشن / زودیاک) ----------------
+  // Each drawer has two independent bits of state: whether it's PRESENT at
+  // all right now (.open — decided by the three update*ChatVisibility
+  // functions below, from role/phase/alive status) and whether the player
+  // has PULLED IT UP (.collapsed absent) or left it tucked down to just a
+  // neutral handle. Collapsed is the default, and a drawer that's just
+  // (re)appearing always starts collapsed — a chat that pops itself open on
+  // a phone anyone can glance at is exactly the leak this whole mechanism
+  // exists to prevent (see the .chat-dock CSS comment).
+  const CHAT_SWIPE_PX = 24; // how far a drag must travel to count as a pull up/down rather than a tap
+  const CHAT_DRAWER_KINDS = ['mafia', 'ocean', 'zodiac'];
+
+  // Bottom padding #app needs so its own content never hides behind the dock —
+  // measured rather than computed since the dock's height depends on how many
+  // drawers are showing and how many of those the player has pulled up.
+  function syncChatDockHeight(){
+    const dock = $('chat-dock');
+    if(!dock) return;
+    const anyOpen = CHAT_DRAWER_KINDS.some(k => document.body.classList.contains(k + '-chat-open'));
+    const h = anyOpen ? Math.ceil(dock.getBoundingClientRect().height) : 0;
+    document.body.style.setProperty('--chat-dock-h', h + 'px');
+  }
+
+  function setChatCollapsed(panel, collapsed){
+    panel.classList.toggle('collapsed', collapsed);
+    const handle = panel.querySelector('.chat-handle');
+    if(handle) handle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    if(collapsed){
+      // Don't leave a focused (now hidden) input holding the on-screen keyboard open.
+      const active = document.activeElement;
+      if(active && panel.contains(active) && typeof active.blur === 'function') active.blur();
+    } else {
+      const list = panel.querySelector('.chat-messages');
+      if(list) list.scrollTop = list.scrollHeight;
+    }
+    syncChatDockHeight();
+  }
+
+  function setChatPanelShown(panel, bodyClass, show){
+    const wasOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', show);
+    document.body.classList.toggle(bodyClass, show);
+    if(show && !wasOpen) setChatCollapsed(panel, true);
+    syncChatDockHeight();
+  }
+
+  // Swipe up on a collapsed drawer's handle to open it, swipe down on an open
+  // one's handle/title bar to hide it; a plain tap (or keyboard Enter/Space on
+  // the handle button, which arrives as a click too) toggles as well. The
+  // swipe fires the moment the drag crosses CHAT_SWIPE_PX instead of
+  // following the finger — the drawer's own height transition supplies the
+  // motion — and the click the browser may still send right after a mouse
+  // drag is swallowed so a swipe never double-toggles.
+  function initChatDrawers(){
+    CHAT_DRAWER_KINDS.forEach(kind => {
+      const panel = $(kind + '-chat-panel');
+      const grab = panel && panel.querySelector('.chat-grab');
+      if(!grab) return;
+      let startY = null, pointerId = null, swiped = false, suppressClick = false;
+      grab.addEventListener('pointerdown', (e) => {
+        if(e.pointerType === 'mouse' && e.button !== 0) return;
+        startY = e.clientY; pointerId = e.pointerId; swiped = false;
+        try{ grab.setPointerCapture(e.pointerId); }catch(err){}
+      });
+      grab.addEventListener('pointermove', (e) => {
+        if(startY === null || e.pointerId !== pointerId || swiped) return;
+        const dy = e.clientY - startY;
+        const collapsed = panel.classList.contains('collapsed');
+        if(!collapsed && dy > CHAT_SWIPE_PX){ swiped = true; setChatCollapsed(panel, true); }
+        else if(collapsed && dy < -CHAT_SWIPE_PX){ swiped = true; setChatCollapsed(panel, false); }
+      });
+      const endDrag = (e) => {
+        if(e.pointerId !== pointerId) return;
+        if(swiped){
+          suppressClick = true;
+          setTimeout(() => { suppressClick = false; }, 350);
+        }
+        startY = null; pointerId = null;
+        try{ grab.releasePointerCapture(e.pointerId); }catch(err){}
+      };
+      grab.addEventListener('pointerup', endDrag);
+      grab.addEventListener('pointercancel', endDrag);
+      grab.addEventListener('click', () => {
+        if(suppressClick) return;
+        setChatCollapsed(panel, !panel.classList.contains('collapsed'));
+      });
+    });
+    // Keeps --chat-dock-h current frame by frame while a drawer animates open/
+    // closed, so the page content above it slides with it instead of jumping
+    // at the end. Older browsers without ResizeObserver still get the calls
+    // made directly from setChatCollapsed/setChatPanelShown.
+    const dock = $('chat-dock');
+    if(dock && typeof ResizeObserver !== 'undefined') new ResizeObserver(syncChatDockHeight).observe(dock);
+  }
+
   // The Mafia chat drawer (see #mafia-chat-panel) is a single global element,
   // not tied to any one screen — this decides whether it should be showing
   // at all right now, independent of whichever screen is underneath. Covers
@@ -5949,8 +6047,7 @@
     if(!panel) return;
     const isMafia = state.myRole && state.myRole.role === 'mafia';
     const show = !!(isMafia && state.amAlive && !state.gameEnded && isChatVisiblePhase());
-    panel.classList.toggle('open', show);
-    document.body.classList.toggle('mafia-chat-open', show);
+    setChatPanelShown(panel, 'mafia-chat-open', show);
     if(show) renderMafiaChat();
   }
 
@@ -5960,8 +6057,8 @@
     list.innerHTML = '';
     (state.mafiaChatLog || []).forEach(m => {
       const row = document.createElement('div');
-      row.className = 'mafia-chat-msg';
-      row.innerHTML = '<span class="mafia-chat-sender">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
+      row.className = 'chat-msg';
+      row.innerHTML = '<span class="chat-sender">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
       list.appendChild(row);
     });
     list.scrollTop = list.scrollHeight;
@@ -5989,8 +6086,7 @@
     const panel = $('ocean-chat-panel');
     if(!panel) return;
     const show = !!(state.inOceanGroup && state.amAlive && !state.gameEnded);
-    panel.classList.toggle('open', show);
-    document.body.classList.toggle('ocean-chat-open', show);
+    setChatPanelShown(panel, 'ocean-chat-open', show);
     if(show) renderOceanChat();
   }
 
@@ -6000,8 +6096,8 @@
     list.innerHTML = '';
     (state.oceanChatLog || []).forEach(m => {
       const row = document.createElement('div');
-      row.className = 'ocean-chat-msg';
-      row.innerHTML = '<span class="ocean-chat-sender">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
+      row.className = 'chat-msg';
+      row.innerHTML = '<span class="chat-sender">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
       list.appendChild(row);
     });
     list.scrollTop = list.scrollHeight;
@@ -6034,8 +6130,7 @@
     const msg = state.lastPhaseMsg;
     const stillDayOne = msg && DAY_CHAT_PHASES.indexOf(msg.phase) !== -1 && msg.day === 1;
     const show = !!(state.inZodiacGroup && state.amAlive && !state.gameEnded && msg && !stillDayOne);
-    panel.classList.toggle('open', show);
-    document.body.classList.toggle('zodiac-chat-open', show);
+    setChatPanelShown(panel, 'zodiac-chat-open', show);
     if(show) renderZodiacChat();
   }
 
@@ -6045,8 +6140,8 @@
     list.innerHTML = '';
     (state.zodiacChatLog || []).forEach(m => {
       const row = document.createElement('div');
-      row.className = 'zodiac-chat-msg';
-      row.innerHTML = '<span class="zodiac-chat-sender">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
+      row.className = 'chat-msg';
+      row.innerHTML = '<span class="chat-sender">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text);
       list.appendChild(row);
     });
     list.scrollTop = list.scrollHeight;
@@ -6969,6 +7064,7 @@
   /* ---------------- Init ---------------- */
   window.App = App;
   applyTranslations();
+  initChatDrawers();
   renderSetupValues();
   renderRoleChecklist();
 
