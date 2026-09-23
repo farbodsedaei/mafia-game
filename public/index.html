@@ -790,7 +790,16 @@
     <div class="eyebrow" id="night-action-day"></div>
     <h2 style="font-size:24px; margin:10px 0 18px;" id="night-action-title"></h2>
     <label class="shield-toggle" id="night-action-recruit-toggle" style="display:none; margin-bottom:14px;"><input type="checkbox" id="night-action-recruit-checkbox"> <span data-i18n="recruitInsteadOfShoot"></span></label>
+    <label class="shield-toggle" id="night-action-slaughter-toggle" style="display:none; margin-bottom:14px;"><input type="checkbox" id="night-action-slaughter-checkbox"> <span data-i18n="slaughterInsteadOfShoot"></span></label>
     <div id="night-action-candidate-list" class="stack"></div>
+    <!-- Only shown once the سلاخی checkbox above is actually checked — see
+         renderNightActionScreen/setSlaughterExpanded. Guessing the target's
+         exact role is a SECOND, separate choice from picking who to target
+         (the list above), not a replacement for it. -->
+    <div id="night-action-slaughter-section" style="display:none; margin-top:14px;">
+      <p class="hint" data-i18n="chooseSlaughterRoleHint" style="margin-bottom:10px;"></p>
+      <div id="night-action-slaughter-role-list" class="stack"></div>
+    </div>
     <div class="grow"></div>
     <div class="stack">
       <button class="btn btn-primary" onclick="App.submitNightAction()" data-i18n="btnConfirm"></button>
@@ -1219,6 +1228,11 @@
       everyoneMadeIt: 'همه از شب جان سالم به در بردند.',
       chooseSomeone: 'کسی را انتخاب کنید',
       recruitInsteadOfShoot: 'به‌جای شلیک، آن‌ها را به مافیا اضافه کن',
+      slaughterInsteadOfShoot: 'به‌جای شلیک معمولی، سلاخی کنید (باید نقش دقیق فرد را حدس بزنید)',
+      chooseSlaughterRoleHint: 'نقش دقیق فردی که هدف گرفته‌اید را حدس بزنید. اگر درست حدس بزنید، حتی شیلد یا نجات دکتر هم نمی‌تواند جلوی مرگش را بگیرد و صبح خبر مرگش اعلام می‌شود. اگر اشتباه حدس بزنید، امشب هیچ اتفاقی برای او نمی‌افتد — درست مثل اینکه مافیا اصلاً شلیک نکرده باشد.',
+      pickRoleFirst: 'ابتدا یک نقش انتخاب کنید',
+      actYouAttemptedSlaughter: 'شما تلاش کردید {name} را سلاخی کنید و حدس زدید نقش او {role} است.',
+      actMafiaSlaughterAttempt: 'پدر خوانده تلاش کرد {name} را سلاخی کند.',
       btnConfirm: 'تأیید', btnDoNothingTonight: 'امشب کاری نکن',
       chooseToBlock: 'کسی را برای مسدودکردن انتخاب کنید', chooseToSave: 'کسی را برای نجات انتخاب کنید',
       chooseToRevive: 'کسی را برای زنده‌کردن انتخاب کنید', chooseToInvestigate: 'کسی را برای تحقیق انتخاب کنید',
@@ -1445,6 +1459,11 @@
       everyoneMadeIt: 'Everyone made it through the night.',
       chooseSomeone: 'Choose someone',
       recruitInsteadOfShoot: 'Recruit them into Mafia instead of shooting',
+      slaughterInsteadOfShoot: 'Slaughter instead of a normal shot (you must guess their exact role)',
+      chooseSlaughterRoleHint: "Guess the exact role of the person you've targeted. Guess correctly and neither a shield nor the Doctor's save can stop it — they'll be announced dead by morning. Guess wrong and nothing happens to them tonight, exactly as if Mafia hadn't shot at all.",
+      pickRoleFirst: 'Pick a role first',
+      actYouAttemptedSlaughter: 'You attempted to slaughter {name}, guessing their role as {role}.',
+      actMafiaSlaughterAttempt: 'پدر خوانده attempted to slaughter {name}.',
       btnConfirm: 'Confirm', btnDoNothingTonight: 'Do Nothing Tonight',
       chooseToBlock: 'Choose someone to block', chooseToSave: 'Choose someone to save',
       chooseToRevive: 'Choose someone to bring back to life', chooseToInvestigate: 'Choose someone to investigate',
@@ -1543,7 +1562,7 @@
   const ROLE_DESC_EN = {
     'builtin-mafia': 'You know the other Mafia. Work in the dark, blend in by day.',
     'builtin-villager': 'You have no special knowledge. Watch closely, and vote wisely.',
-    'role-godfather': "Each night you decide who Mafia will target. If کاراگاه investigates you, you always read as an innocent civilian.",
+    'role-godfather': "Each night you decide who Mafia will target. If کاراگاه investigates you, you always read as an innocent civilian. Instead of a normal shot, you alone may choose to Slaughter (سلاخی) your target — you must also guess their exact role. Guess right and they die no matter what, even a shield or the Doctor's save; guess wrong and nothing happens, same as no shot at all. Once you're out, no other Mafia member can use this.",
     'role-matador': "Each night you choose one civilian to block; they can't use their ability that night.",
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
     'role-detective': "Each night you investigate someone and get back a simple positive or negative — never a specific label like \"Mafia\" or anything else.",
@@ -1552,7 +1571,7 @@
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
     'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If a civilian is fired at by mistake AND actually dies from it, any remaining guns are cancelled and won't be handed over again — a shielded or otherwise-surviving civilian, or a shot at زودیاک (who's immune either way), costs nothing and leaves your remaining guns intact.",
-    'role-zodiac': "You're an independent role. Your goal is to get every Mafia member out of the game before Mafia eliminates all the civilians. Mafia, حرفه‌ای, and تفنگدار can all target you, but none of them can ever actually kill you — the only way you can be removed is a day vote. As long as you're alive, Mafia can never win, even if civilians drop below Mafia's own count. Each night (every night or every other night, depending on the game's settings), after Mafia's turn and before the civilian roles act, you may target one person and shoot them.",
+    'role-zodiac': "You're an independent role. Your goal is to get every Mafia member out of the game before Mafia eliminates all the civilians. Mafia, حرفه‌ای, and تفنگدار can all target you, but none of them can ever actually kill you this way — a day vote is normally the only way you can be removed. The one exception: پدر خوانده's سلاخی — if they correctly guess your exact role, you die despite your immunity to every other night attack. As long as you're alive, Mafia can never win, even if civilians drop below Mafia's own count. Each night (every night or every other night, depending on the game's settings), after Mafia's turn and before the civilian roles act, you may target one person and shoot them.",
     'role-zodiac-son': "You're زودیاک's companion. While زودیاک is still in the game, you count as a regular civilian — you can be targeted and killed at night, and if کاراگاه investigates you, the result reads positive, indistinguishable from a real Mafia hit. If زودیاک leaves the game (only possible by a day vote), all of its abilities — including immunity to night kills and its own nightly shot — transfer to you, and you become the new زودیاک."
   };
 
@@ -1590,7 +1609,7 @@
   const HARDCODED_ROLES = [
     { id: 'builtin-mafia', team: 'mafia', name: 'مافیا ساده', description: 'شما سایر اعضای مافیا را می‌شناسید. در تاریکی کار کنید، در روز خودتان را پنهان کنید.', shield: false, independent: false, builtin: true },
     { id: 'builtin-villager', team: 'villager', name: ROLE_NAME_PLAIN_VILLAGER, description: 'شما اطلاعات خاصی ندارید. با دقت تماشا کنید و هوشمندانه رأی دهید.', shield: false, independent: false, builtin: true },
-    { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد. اگر کاراگاه شما را بررسی کند، همیشه به‌عنوان یک شهروند بی‌گناه دیده می‌شوید.', shield: true, independent: false, builtin: false },
+    { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد. اگر کاراگاه شما را بررسی کند، همیشه به‌عنوان یک شهروند بی‌گناه دیده می‌شوید. به‌جای شلیک معمولی، فقط شما می‌توانید «سلاخی» را انتخاب کنید — باید نقش دقیق هدفتان را هم حدس بزنید. اگر درست حدس بزنید، او به هر حال می‌میرد، حتی با شیلد یا نجات دکتر؛ اگر اشتباه حدس بزنید، هیچ اتفاقی نمی‌افتد، درست مثل عدم شلیک. وقتی شما از بازی خارج شوید، هیچ عضو دیگر مافیا نمی‌تواند از این توانایی استفاده کند.', shield: true, independent: false, builtin: false },
     { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند.', shield: false, independent: false, builtin: false },
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
     { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و فقط یک نتیجهٔ مثبت یا منفی می‌گیرید — نه چیزی مشخص مثل «مافیا» یا هر برچسب دیگر.', shield: false, independent: false, builtin: false },
@@ -1599,7 +1618,7 @@
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
     { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود و او واقعاً کشته شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد — اما اگر همان شهروند زنده بماند (مثلاً به‌خاطر شیلد) یا هدف زودیاک باشد (که در هر صورت کشته نمی‌شود)، اسلحه‌های باقی‌مانده دست‌نخورده باقی می‌مانند.', shield: false, independent: false, builtin: false },
-    { id: 'role-zodiac', team: 'villager', name: 'زودیاک', description: 'شما یک نقش مستقل هستید. هدف شما این است که همه اعضای مافیا از بازی خارج شوند، پیش از آنکه مافیا همه شهروندان را از بین ببرد. مافیا، حرفه‌ای و تفنگدار می‌توانند شما را هدف بگیرند، اما هیچ‌کدام هرگز نمی‌توانند واقعاً شما را بکشند — تنها راه حذف شما رأی‌گیری روز است. تا وقتی شما زنده‌اید، حتی اگر تعداد شهروندان از مافیا کمتر شود، مافیا برنده بازی نمی‌شود. هر شب (بسته به تنظیمات بازی، هر شب یا یک شب در میان)، بعد از نوبت مافیا و پیش از نوبت نقش‌های شهروندی، می‌توانید یک نفر را هدف بگیرید و به او شلیک کنید.', shield: false, independent: true, builtin: false },
+    { id: 'role-zodiac', team: 'villager', name: 'زودیاک', description: 'شما یک نقش مستقل هستید. هدف شما این است که همه اعضای مافیا از بازی خارج شوند، پیش از آنکه مافیا همه شهروندان را از بین ببرد. مافیا، حرفه‌ای و تفنگدار می‌توانند شما را هدف بگیرند، اما هیچ‌کدام هرگز نمی‌توانند این‌گونه واقعاً شما را بکشند — معمولاً تنها راه حذف شما رأی‌گیری روز است. یک استثنا وجود دارد: «سلاخی»ی پدر خوانده — اگر او نقش دقیق شما را درست حدس بزند، با وجود مصونیت‌تان در برابر هر حملهٔ شبانهٔ دیگر، می‌میرید. تا وقتی شما زنده‌اید، حتی اگر تعداد شهروندان از مافیا کمتر شود، مافیا برنده بازی نمی‌شود. هر شب (بسته به تنظیمات بازی، هر شب یا یک شب در میان)، بعد از نوبت مافیا و پیش از نوبت نقش‌های شهروندی، می‌توانید یک نفر را هدف بگیرید و به او شلیک کنید.', shield: false, independent: true, builtin: false },
     { id: 'role-zodiac-son', team: 'villager', name: 'زودیاک پسر', description: 'شما همراه زودیاک هستید. تا وقتی زودیاک در بازی است، شما یک شهروند عادی محسوب می‌شوید — می‌توان شما را شب‌ها هدف قرار داد و کشت، و اگر کاراگاه شما را بررسی کند، نتیجه مثبت می‌شود، درست مثل یک اصابت واقعی به مافیا. اگر زودیاک از بازی خارج شود (که فقط با رأی‌گیری روز ممکن است)، تمام توانایی‌های او — از جمله مصونیت در برابر شلیک شبانه و شلیک شبانهٔ خودش — به شما منتقل می‌شود و شما زودیاک جدید می‌شوید.', shield: false, independent: false, builtin: false }
   ];
 
@@ -1678,7 +1697,7 @@
     voteHistory: [],        // (host: authoritative; player: local copy) every completed round ever — [{day, round, rows:[{voter, targets}]}], see recordVoteHistory
     gameLog: [],             // (host: authoritative; player: local copy, only ever received once the game ends) full chronological narrative — [{day, phase:'day'|'night'|'final', text}], see logGameEvent. Night entries include normally-PRIVATE per-role decisions (who blocked/saved/investigated/shot whom) — safe to compile since this is never sent to anyone before App.showGameOver. Built specifically for a game nobody was actively narrating (No God Mode above all, but sent in every mode) — see App.viewGameLog/renderGameLogInto.
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
-    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] }, // (host) this night's decisions
+    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] }, // (host) this night's decisions
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
     constantineReviveUsed: false, // (host) whole-game limit — کنستانتین may only revive one person, ever
@@ -1700,6 +1719,7 @@
     previousVoteNames: [], // (player) names this player already voted for this round, when voteAlreadySubmitted is true (empty = they abstained, not "never voted" — see the same follow-up)
     nightActionRole: null,       // (player) which role this night-action prompt is for
     selectedNightTargetId: null, // (player) chosen target before submit
+    selectedSlaughterRoleKey: null, // (player, پدر خوانده only) chosen role guess for سلاخی before submit — see renderNightActionScreen/renderHostSelfNightActionBody
     selectedDayGunTargetId: null, // (player) chosen target for the day-gun decision before submit
     pendingDayGunMsg: null, // (player, incl. God-Mode host-self) the gun holder's own pending decision, if it's them — see attachGunDecisionSection / updateHostSelfActionCard
     hostSelfActionClosed: false, // (God Mode host-self) true once the CURRENT state.lastPhaseMsg-driven action has been answered — see closeHostSelfCard/updateHostSelfActionCard for why this exists at all
@@ -2877,7 +2897,7 @@
         } else if(msg.type === 'inquiry-vote'){
           handlePlayerInquiryVote(playerId, msg.choice);
         } else if(msg.type === 'night-action'){
-          handleNightAction(playerId, msg.role, msg.targetId, msg.recruit);
+          handleNightAction(playerId, msg.role, msg.targetId, msg.recruit, msg.slaughterRoleKey);
         } else if(msg.type === 'day-gun-action'){
           handleDayGunAction(playerId, msg.targetId);
         } else if(msg.type === 'mafia-chat'){
@@ -3312,6 +3332,7 @@
       } else if(obj.phase === 'night-action'){
         state.nightActionRole = obj.role;
         state.selectedNightTargetId = null;
+        state.selectedSlaughterRoleKey = null;
       } else if(obj.phase === 'night' && obj.note){
         // The ONLY 'night'-phase message that ever carries a note is
         // ماتادور's "you were blocked tonight" notice (see the 'matador'
@@ -3549,12 +3570,49 @@
   };
 
   function renderHostSelfNightActionBody(body, msg){
+    state.selectedSlaughterRoleKey = null;
+    const recruitCheckbox = { el: null }; // filled in below once (if) it actually exists — closed over by the سلاخی toggle's mutual-exclusion handler
     if(msg.canRecruit){
       const label = document.createElement('label');
       label.className = 'shield-toggle';
       label.style.marginBottom = '10px';
       label.innerHTML = '<input type="checkbox" id="host-self-recruit-checkbox"> <span>' + escapeHtml(t('recruitInsteadOfShoot')) + '</span>';
       body.appendChild(label);
+      recruitCheckbox.el = label.querySelector('input');
+    }
+    // سلاخی — پدر خوانده only (see startMafiaPhaseStep's own canSlaughter
+    // gate); mutually exclusive with recruiting instead, same reasoning as
+    // the real-player screen's own version (renderNightActionScreen).
+    let slaughterSection = null, slaughterCheckboxEl = null;
+    if(msg.canSlaughter){
+      const label = document.createElement('label');
+      label.className = 'shield-toggle';
+      label.style.marginBottom = '10px';
+      label.innerHTML = '<input type="checkbox" id="host-self-slaughter-checkbox"> <span>' + escapeHtml(t('slaughterInsteadOfShoot')) + '</span>';
+      body.appendChild(label);
+      slaughterCheckboxEl = label.querySelector('input');
+
+      slaughterSection = document.createElement('div');
+      slaughterSection.style.cssText = 'display:none; margin-bottom:10px;';
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.style.marginBottom = '10px';
+      hint.textContent = t('chooseSlaughterRoleHint');
+      slaughterSection.appendChild(hint);
+      const roleList = document.createElement('div');
+      renderSlaughterRoleChoices(roleList, msg.roleChoices, 'host-self-slaughter-role', (key) => { state.selectedSlaughterRoleKey = key; });
+      slaughterSection.appendChild(roleList);
+      body.appendChild(slaughterSection);
+
+      slaughterCheckboxEl.onchange = () => {
+        slaughterSection.style.display = slaughterCheckboxEl.checked ? 'block' : 'none';
+        if(slaughterCheckboxEl.checked && recruitCheckbox.el) recruitCheckbox.el.checked = false;
+      };
+      if(recruitCheckbox.el){
+        recruitCheckbox.el.onchange = () => {
+          if(recruitCheckbox.el.checked){ slaughterCheckboxEl.checked = false; slaughterSection.style.display = 'none'; }
+        };
+      }
     }
     const list = document.createElement('div');
     list.className = 'stack';
@@ -3587,11 +3645,15 @@
   function hostSelfSendNightAction(targetId){
     const recruitEl = $('host-self-recruit-checkbox');
     const recruit = !!(recruitEl && recruitEl.checked);
-    handleNightAction(HOST_SELF_ID, state.nightActionRole, targetId, recruit);
+    const slaughterEl = $('host-self-slaughter-checkbox');
+    const slaughterRoleKey = (slaughterEl && slaughterEl.checked) ? state.selectedSlaughterRoleKey : null;
+    handleNightAction(HOST_SELF_ID, state.nightActionRole, targetId, recruit, slaughterRoleKey);
     closeHostSelfCard();
   }
   App.hostSelfSubmitNightAction = function(){
     if(!state.selectedNightTargetId){ toast(t('pickSomeoneFirst')); return; }
+    const slaughterEl = $('host-self-slaughter-checkbox');
+    if(slaughterEl && slaughterEl.checked && !state.selectedSlaughterRoleKey){ toast(t('pickRoleFirst')); return; }
     hostSelfSendNightAction(state.selectedNightTargetId);
   };
   App.hostSelfSkipNightAction = function(){
@@ -4307,10 +4369,14 @@
   // very identity — passes to زودیاک پسر, if one is alive. Renaming پسر's
   // roleName to ROLE_NAME_ZODIAC means every existing زودیاک-keyed mechanic
   // (night step, win condition, detective's decoy check) picks them up
-  // automatically, with no further special-casing needed anywhere else. Day
-  // votes are the only way the main زودیاک can ever die (see the immunity in
-  // resolveNight/resolveDayGunAction), so eliminatePlayer is the only call
-  // site that needs this check.
+  // automatically, with no further special-casing needed anywhere else. Two
+  // call sites: eliminatePlayer (the day-vote path — still the only way
+  // every OTHER role's death ever reaches this) and resolveNight's own
+  // death-application loop, needed once پدر خوانده's سلاخی became the one
+  // night-kill source that can genuinely end زودیاک's life on a correct
+  // guess (see resolveNight's own comment on that). Every other night-kill
+  // source (شلیک/تفنگدار/حرفه‌ای) still can't touch زودیاک at all, so this
+  // never fires for those.
   function transferZodiacLegacy(diedEntry){
     if(diedEntry.roleName !== ROLE_NAME_ZODIAC) return;
     const heirs = findAliveByRoleName(ROLE_NAME_ZODIAC_SON);
@@ -4453,8 +4519,43 @@
     return id === state.night.blockedId;
   }
 
+  // ---------------- پدر خوانده's سلاخی (Slaughter) ----------------
+  // Instead of a normal shot, پدر خوانده alone may target someone AND guess
+  // their exact role. A correct guess is unavoidable (see resolveNight's
+  // guaranteedDeaths — bypasses both a shield and the Doctor's save, same
+  // unblockable treatment حرفه‌ای's backfire already gets); a wrong guess is a
+  // complete no-op, indistinguishable from Mafia not shooting at all.
+  //
+  // The picker offers every DISTINCT role actually held by someone in THIS
+  // game — dead or alive, so an already-eliminated role stays a valid guess
+  // — never the full catalog of buildable roles, most of which were never
+  // dealt to anyone at all. "Role identity" is keyed the same way a target's
+  // real identity gets checked against a guess: roleId when there is one,
+  // falling back to roleName for the one case that has neither (ساول گودمن's
+  // ad-hoc recruited plain villager — see resolveNight's own recruit
+  // branch, which nulls roleId out specifically because no fixed role def
+  // exists for it).
+  function slaughterRoleKeyFor(entry){
+    return entry.roleId || entry.roleName || entry.role;
+  }
+  function buildSlaughterRoleChoices(){
+    const seen = new Map();
+    state.players.forEach(entry => {
+      if(!entry.role) return; // not actually dealt a role (shouldn't happen once rolesAssigned, but defensive)
+      const key = slaughterRoleKeyFor(entry);
+      if(!key || seen.has(key)) return;
+      seen.set(key, { key, name: entry.roleName || entry.role, team: entry.role, independent: !!entry.independent });
+    });
+    const rank = c => c.team === 'mafia' ? 0 : c.independent ? 1 : 2;
+    return Array.from(seen.values()).sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  }
+  function slaughterRoleLabel(key){
+    const found = buildSlaughterRoleChoices().find(c => c.key === key);
+    return found ? found.name : key;
+  }
+
   function startNight(){
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night');
@@ -4677,14 +4778,26 @@
       killDeciders.forEach(([id, entry]) => {
         // Mafia can target their own teammates too — only the decider
         // themselves is excluded. زودیاک stays a selectable target here even
-        // though it can never actually die to this shot (see resolveNight) —
+        // though a PLAIN shot can never actually kill it (see resolveNight) —
         // Mafia can still choose to "shoot" it, they just won't get a kill,
         // and won't be told why (shield / Doctor's save / زودیاک are all
-        // indistinguishable from the group's perspective).
+        // indistinguishable from the group's perspective). پدر خوانده's own
+        // سلاخی is the one exception — a correct role guess kills زودیاک too,
+        // same resolveNight branch, see its own comment there.
         const candidates = Array.from(state.players.entries())
           .filter(([cid, e]) => e.alive && cid !== id)
           .map(([cid, e]) => ({ id: cid, name: e.name }));
-        sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: t('chooseToShoot'), candidates, allowSkip: false, canRecruit });
+        // سلاخی is پدر خوانده's own option, never a fallback decider's (see
+        // this function's own header comment — that random pick only ever
+        // happens once پدر خوانده is already out, so entry.roleName here can
+        // never legitimately be ROLE_NAME_GODFATHER in that branch anyway;
+        // checked explicitly regardless, rather than relying on that being
+        // the only path here). roleChoices is only computed/sent at all when
+        // it'll actually be used — everyone else's prompt stays exactly the
+        // size it always was.
+        const canSlaughter = entry.roleName === ROLE_NAME_GODFATHER;
+        const roleChoices = canSlaughter ? buildSlaughterRoleChoices() : undefined;
+        sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: t('chooseToShoot'), candidates, allowSkip: false, canRecruit, canSlaughter, roleChoices });
       });
     }
 
@@ -4833,7 +4946,7 @@
     state.gameLog.push({ day: state.day, phase, text });
   }
 
-  function handleNightAction(voterId, role, targetId, recruit){
+  function handleNightAction(voterId, role, targetId, recruit, slaughterRoleKey){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
     const isMafiaPhaseRole = (role === 'mafia' || role === 'matador');
@@ -4988,15 +5101,29 @@
       // decision was a skip" case this used to miss — both mafiaTargetId
       // and mafiaRecruitId stay falsy after a skip, so the old check here
       // couldn't tell a skip apart from "not decided yet".)
+      // سلاخی only ever means anything for a real shot (not a recruit, and
+      // not a skip) from the actual پدر خوانده — re-checked here rather than
+      // just trusted from the client, same as every other decision here
+      // trusts its own sender's eligibility for that role in the first
+      // place (this app's whole trust model — see the file-level notes).
+      const isSlaughter = !!(targetId && !recruit && slaughterRoleKey && voter.roleName === ROLE_NAME_GODFATHER);
       if(recruit) state.night.mafiaRecruitId = targetId;
-      else state.night.mafiaTargetId = targetId;
+      else{
+        state.night.mafiaTargetId = targetId;
+        if(isSlaughter) state.night.slaughterGuessKey = slaughterRoleKey;
+      }
       // Unlike every other role, the actual outcome (shot / recruited /
-      // backfired) isn't known yet — that's only decided once resolveNight()
-      // runs — so this just records the raw DECISION for the God's live
-      // view, not a result.
+      // backfired / slaughtered) isn't known yet — that's only decided once
+      // resolveNight() runs — so this just records the raw DECISION for the
+      // God's live view, not a result. The guessed role IS shown here
+      // though (private to پدر خوانده's own decisions log/activity — nobody
+      // else ever sees it) purely so they have their own record of what
+      // they guessed, same spirit as every other role's own private log.
       recordNightDecision(voter, recruit
         ? t('actYouAddedToGroup', { name: targetName })
-        : (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
+        : isSlaughter
+          ? t('actYouAttemptedSlaughter', { name: targetName, role: slaughterRoleLabel(slaughterRoleKey) })
+          : (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
       state.night.mafiaPending.delete('kill');
       // If this same player is also tonight's ماتادور, their block prompt was
       // held back (see startMafiaPhaseStep) so it wouldn't collide with the
@@ -5075,8 +5202,27 @@
       }
     } else if(state.night.mafiaTargetId){
       const target = state.players.get(state.night.mafiaTargetId);
-      rawDeaths.add(state.night.mafiaTargetId);
-      logMafiaActivity(t('nightLogPrefix', { day: state.day }) + (target ? t('actMafiaShot', { name: target.name }) : t('actMafiaShotNoOne')));
+      if(state.night.slaughterGuessKey && target){
+        // سلاخی: a correct guess is unavoidable — same guaranteedDeaths
+        // treatment as حرفه‌ای's own backfire above, bypassing both the
+        // shield check and a Doctor's save entirely. Deliberately NOT
+        // exempting زودیاک here, unlike every other night-kill source
+        // (شلیک/تفنگدار/حرفه‌ای) — a correct سلاخی guess is the one way
+        // پدر خوانده can kill زودیاک without a day vote (see the
+        // transferZodiacLegacy call in the death-application loop below,
+        // needed now that a night kill can genuinely end زودیاک's life —
+        // previously only eliminatePlayer, the day-vote path, ever had to
+        // worry about that). A wrong guess adds the target to NEITHER
+        // death set at all — a complete no-op, indistinguishable from
+        // Mafia not shooting anyone.
+        if(slaughterRoleKeyFor(target) === state.night.slaughterGuessKey){
+          guaranteedDeaths.add(state.night.mafiaTargetId);
+        }
+        logMafiaActivity(t('nightLogPrefix', { day: state.day }) + t('actMafiaSlaughterAttempt', { name: target.name }));
+      } else {
+        rawDeaths.add(state.night.mafiaTargetId);
+        logMafiaActivity(t('nightLogPrefix', { day: state.day }) + (target ? t('actMafiaShot', { name: target.name }) : t('actMafiaShotNoOne')));
+      }
     }
 
     // زودیاک's shot — a plain kill attempt like Mafia's, no backfire mechanic.
@@ -5114,6 +5260,11 @@
       if(entry && entry.alive){
         entry.alive = false;
         deadNames.push(entry.name);
+        // A no-op for anyone who isn't the main زودیاک (transferZodiacLegacy
+        // checks that itself) — only ever meaningful here since پدر خوانده's
+        // سلاخی started a correct guess. Mirrors what eliminatePlayer (the
+        // day-vote path) has always done right after marking someone dead.
+        transferZodiacLegacy(entry);
       }
     });
 
@@ -5188,7 +5339,7 @@
     state.gameLog = [];
     state.inquiriesRemaining = 0;
     state.winner = null;
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
+    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
     state.doctorSelfSaveUsed = false;
     state.constantineReviveUsed = false;
     state.mafiaActivityLog = [];
@@ -6271,15 +6422,67 @@
     showScreen('screen-player-game-over');
   }
 
+  // Shared by the real player's night-action screen and (in God Mode) the
+  // host-self's own night-action card — the guessed-role list for پدر
+  // خوانده's سلاخی is the same radio-list-of-roles pattern the candidate
+  // list right above it already uses, just over msg.roleChoices instead of
+  // msg.candidates and keyed by role identity (c.key) instead of a player
+  // id. radioName keeps the two consumers' native radio groups from ever
+  // being confused for one another if both happened to exist in the same
+  // document at once (they never do in practice, but see night-target vs
+  // host-self-night-target for the same existing precaution).
+  function renderSlaughterRoleChoices(container, choices, radioName, onSelect){
+    container.innerHTML = '';
+    (choices || []).forEach(c => {
+      const row = document.createElement('label');
+      row.className = 'role-row role-check-row';
+      row.innerHTML =
+        '<input type="radio" name="' + radioName + '">' +
+        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
+      row.querySelector('input').onchange = () => onSelect(c.key);
+      container.appendChild(row);
+    });
+  }
+
   function renderNightActionScreen(msg){
     state.nightActionRole = msg.role;
     state.selectedNightTargetId = null;
+    state.selectedSlaughterRoleKey = null;
     $('night-action-day').textContent = t('nightLabel', { n: msg.day });
     $('night-action-title').textContent = msg.title || t('chooseSomeone');
     const recruitToggle = $('night-action-recruit-toggle');
+    const recruitCheckbox = $('night-action-recruit-checkbox');
     if(recruitToggle){
       recruitToggle.style.display = msg.canRecruit ? 'flex' : 'none';
-      $('night-action-recruit-checkbox').checked = false;
+      recruitCheckbox.checked = false;
+    }
+    // سلاخی and recruiting are two different alternatives to a plain shot —
+    // mutually exclusive, enforced here (checking one unchecks the other)
+    // rather than restructuring either into a radio group, since canRecruit
+    // and canSlaughter really can both be true at once (Saul alive + Mafia
+    // already lost someone + پدر خوانده still alive). Handlers are reset on
+    // every render regardless of msg.canSlaughter so a stale closure from an
+    // earlier night-action prompt (these are persistent DOM elements, reused
+    // across nights) never lingers.
+    const slaughterToggle = $('night-action-slaughter-toggle');
+    const slaughterCheckbox = $('night-action-slaughter-checkbox');
+    const slaughterSection = $('night-action-slaughter-section');
+    if(slaughterToggle){
+      slaughterToggle.style.display = msg.canSlaughter ? 'flex' : 'none';
+      slaughterCheckbox.checked = false;
+      slaughterSection.style.display = 'none';
+      slaughterCheckbox.onchange = msg.canSlaughter ? () => {
+        slaughterSection.style.display = slaughterCheckbox.checked ? 'block' : 'none';
+        if(slaughterCheckbox.checked && recruitCheckbox) recruitCheckbox.checked = false;
+      } : null;
+      if(msg.canSlaughter){
+        renderSlaughterRoleChoices($('night-action-slaughter-role-list'), msg.roleChoices, 'night-slaughter-role', (key) => { state.selectedSlaughterRoleKey = key; });
+      }
+    }
+    if(recruitCheckbox){
+      recruitCheckbox.onchange = msg.canSlaughter ? () => {
+        if(recruitCheckbox.checked && slaughterCheckbox){ slaughterCheckbox.checked = false; slaughterSection.style.display = 'none'; }
+      } : null;
     }
     const list = $('night-action-candidate-list');
     list.innerHTML = '';
@@ -6299,7 +6502,9 @@
   function sendNightAction(targetId){
     const recruitEl = $('night-action-recruit-checkbox');
     const recruit = !!(recruitEl && recruitEl.checked);
-    try{ state.playerDC.send(JSON.stringify({ type: 'night-action', role: state.nightActionRole, targetId, recruit })); }
+    const slaughterEl = $('night-action-slaughter-checkbox');
+    const slaughterRoleKey = (slaughterEl && slaughterEl.checked) ? state.selectedSlaughterRoleKey : null;
+    try{ state.playerDC.send(JSON.stringify({ type: 'night-action', role: state.nightActionRole, targetId, recruit, slaughterRoleKey })); }
     catch(e){ toast(t('lostHostConnection')); return; }
     $('night-waiting-note').style.display = 'none';
     showScreen('screen-player-night-waiting');
@@ -6307,6 +6512,8 @@
 
   App.submitNightAction = function(){
     if(!state.selectedNightTargetId){ toast(t('pickSomeoneFirst')); return; }
+    const slaughterEl = $('night-action-slaughter-checkbox');
+    if(slaughterEl && slaughterEl.checked && !state.selectedSlaughterRoleKey){ toast(t('pickRoleFirst')); return; }
     sendNightAction(state.selectedNightTargetId);
   };
   App.skipNightAction = function(){
