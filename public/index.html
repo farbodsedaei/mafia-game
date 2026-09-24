@@ -1224,7 +1224,7 @@
       defenseOthersHint: 'به دفاع آن‌ها گوش دهید. گاد به‌زودی رأی‌گیری نهایی را شروع می‌کند.',
       votedOutPlayer: '{name} با رأی حذف شد.', noOneEliminatedPlayer: 'هیچ‌کس حذف نشد.',
       theTownSleeps: 'شهر خواب است', morningHasCome: 'صبح شد',
-      foundDead: '{names} دیشب کشته شد.', backAmongLiving: '{name} دوباره زنده شد.',
+      foundDead: '{names} دیشب کشته شد.', foundSlaughtered: '{names} دیشب سلاخی شد.', backAmongLiving: '{name} دوباره زنده شد.',
       everyoneMadeIt: 'همه از شب جان سالم به در بردند.',
       chooseSomeone: 'کسی را انتخاب کنید',
       recruitInsteadOfShoot: 'به‌جای شلیک، آن‌ها را به مافیا اضافه کن',
@@ -1455,7 +1455,7 @@
       defenseOthersHint: 'Listen to their defense. The God will start the final vote soon.',
       votedOutPlayer: '{name} was voted out.', noOneEliminatedPlayer: 'No one was eliminated.',
       theTownSleeps: 'The town sleeps', morningHasCome: 'Morning has come',
-      foundDead: '{names} found dead this morning.', backAmongLiving: '{name} is back among the living.',
+      foundDead: '{names} found dead this morning.', foundSlaughtered: '{names} found slaughtered this morning.', backAmongLiving: '{name} is back among the living.',
       everyoneMadeIt: 'Everyone made it through the night.',
       chooseSomeone: 'Choose someone',
       recruitInsteadOfShoot: 'Recruit them into Mafia instead of shooting',
@@ -5162,6 +5162,12 @@
   function resolveNight(){
     const rawDeaths = new Set();       // may be blocked by the target's own shield, then by a Doctor's save
     const guaranteedDeaths = new Set(); // bypasses both the shield check and a Doctor's save entirely
+    // Subset of guaranteedDeaths that's specifically a successful سلاخی —
+    // NOT the same set as guaranteedDeaths itself, which also covers
+    // حرفه‌ای's own unrelated backfire death. Only ids in here get the
+    // distinct "slaughtered" public wording below (see foundSlaughtered);
+    // a backfired حرفه‌ای still reads as a plain death, same as always.
+    const slaughteredIds = new Set();
 
     // حرفه‌ای's shot: kills a Mafia target (their shield can still absorb it) or backfires on
     // the shooter — the backfire is a truly unavoidable consequence, so neither the shooter's
@@ -5217,6 +5223,7 @@
         // Mafia not shooting anyone.
         if(slaughterRoleKeyFor(target) === state.night.slaughterGuessKey){
           guaranteedDeaths.add(state.night.mafiaTargetId);
+          slaughteredIds.add(state.night.mafiaTargetId);
         }
         logMafiaActivity(t('nightLogPrefix', { day: state.day }) + t('actMafiaSlaughterAttempt', { name: target.name }));
       } else {
@@ -5254,12 +5261,19 @@
       finalDeaths.add(id);
     });
 
+    // Split by cause for the public reveal below: a successful سلاخی gets
+    // its own distinct "slaughtered" wording instead of blending into the
+    // usual cause-agnostic "found dead" — every other night-kill source
+    // (شلیک/زودیاک/تفنگدار/اوشن's mistake/حرفه‌ای's backfire) still stays
+    // deliberately unattributed, same as always.
     const deadNames = [];
+    const slaughteredNames = [];
     finalDeaths.forEach(id => {
       const entry = state.players.get(id);
       if(entry && entry.alive){
         entry.alive = false;
-        deadNames.push(entry.name);
+        if(slaughteredIds.has(id)) slaughteredNames.push(entry.name);
+        else deadNames.push(entry.name);
         // A no-op for anyone who isn't the main زودیاک (transferZodiacLegacy
         // checks that itself) — only ever meaningful here since پدر خوانده's
         // سلاخی started a correct guess. Mirrors what eliminatePlayer (the
@@ -5288,15 +5302,16 @@
       const entry = state.players.get(id);
       if(entry) sendToPlayer(entry, { type: 'eliminated' });
     });
-    if(revivedEntry) sendToPlayer(revivedEntry, { type: 'revived', deadNames });
+    if(revivedEntry) sendToPlayer(revivedEntry, { type: 'revived', deadNames, slaughteredNames });
     aliveEntries().forEach(([id, entry]) => {
       if(id === state.night.revivedId) return; // already got their own 'revived' message
-      sendToPlayer(entry, { type: 'night-result', deadNames, revivedName, day: state.day });
+      sendToPlayer(entry, { type: 'night-result', deadNames, slaughteredNames, revivedName, day: state.day });
     });
 
     $('night-result-day').textContent = t('nightResultLabel', { n: state.day });
     const parts = [];
     if(deadNames.length) parts.push(t('foundDead', { names: deadNames.join(', ') }));
+    if(slaughteredNames.length) parts.push(t('foundSlaughtered', { names: slaughteredNames.join(', ') }));
     if(revivedName) parts.push(t('backAmongLiving', { name: revivedName }));
     const nightResultText = parts.length ? parts.join(' ') : (state.day === 1 ? t('mafiaOnlyNightResult') : t('everyoneMadeIt'));
     $('night-result-title').textContent = nightResultText;
@@ -6606,9 +6621,10 @@
     attachGunDecisionSection(activeScreenId());
   }
 
-  function nightResultText(deadNames, revivedName, day){
+  function nightResultText(deadNames, slaughteredNames, revivedName, day){
     const parts = [];
     if(deadNames && deadNames.length) parts.push(t('foundDead', { names: deadNames.join(', ') }));
+    if(slaughteredNames && slaughteredNames.length) parts.push(t('foundSlaughtered', { names: slaughteredNames.join(', ') }));
     if(revivedName) parts.push(t('backAmongLiving', { name: revivedName }));
     if(parts.length) return parts.join(' ');
     return day === 1 ? t('mafiaOnlyNightResult') : t('everyoneMadeIt');
@@ -6616,7 +6632,7 @@
 
   function handleNightResult(msg){
     $('night-waiting-title').textContent = t('morningHasCome');
-    $('night-waiting-note').textContent = nightResultText(msg.deadNames, msg.revivedName, msg.day);
+    $('night-waiting-note').textContent = nightResultText(msg.deadNames, msg.slaughteredNames, msg.revivedName, msg.day);
     $('night-waiting-note').style.display = 'block';
     showScreen('screen-player-night-waiting');
   }
@@ -6628,7 +6644,7 @@
     updateOceanChatVisibility();
     updateZodiacChatVisibility();
     $('night-waiting-title').textContent = t('morningHasCome');
-    $('night-waiting-note').textContent = nightResultText(msg.deadNames, null);
+    $('night-waiting-note').textContent = nightResultText(msg.deadNames, msg.slaughteredNames, null);
     $('night-waiting-note').style.display = 'block';
     showScreen('screen-player-night-waiting');
   }
