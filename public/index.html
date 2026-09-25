@@ -69,6 +69,12 @@
   .role-row .role-desc-small{font-size:12px; color:var(--text-faint); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .role-check-row{cursor:pointer;}
   .role-check-row input[type="checkbox"], .role-check-row input[type="radio"]{width:20px; height:20px; flex-shrink:0; accent-color:var(--gold);}
+  /* A candidate that's shown but not currently pickable, with a note
+     explaining why (e.g. ماتادور's own target from last night) — dimmed and
+     inert rather than removed, so it's clear WHO is off-limits and not just
+     silently missing. */
+  .role-row-disabled{cursor:default; opacity:.55;}
+  .role-row-disabled input{cursor:default;}
   label.shield-toggle{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-muted); font-weight:600; cursor:pointer;}
   label.shield-toggle input{width:18px; height:18px; accent-color:var(--gold);}
   .stepper{display:flex; align-items:center; gap:14px;}
@@ -1233,6 +1239,7 @@
       pickRoleFirst: 'ابتدا یک نقش انتخاب کنید',
       actYouAttemptedSlaughter: 'شما تلاش کردید {name} را سلاخی کنید و حدس زدید نقش او {role} است.',
       actMafiaSlaughterAttempt: 'پدر خوانده تلاش کرد {name} را سلاخی کند.',
+      matadorRepeatBlockNote: '(دیشب همین فرد را مسدود کردید — نمی‌توانید دوباره او را انتخاب کنید)',
       btnConfirm: 'تأیید', btnDoNothingTonight: 'امشب کاری نکن',
       chooseToBlock: 'کسی را برای مسدودکردن انتخاب کنید', chooseToSave: 'کسی را برای نجات انتخاب کنید',
       chooseToRevive: 'کسی را برای زنده‌کردن انتخاب کنید', chooseToInvestigate: 'کسی را برای تحقیق انتخاب کنید',
@@ -1464,6 +1471,7 @@
       pickRoleFirst: 'Pick a role first',
       actYouAttemptedSlaughter: 'You attempted to slaughter {name}, guessing their role as {role}.',
       actMafiaSlaughterAttempt: 'پدر خوانده attempted to slaughter {name}.',
+      matadorRepeatBlockNote: "(You blocked them last night — you can't choose the same person again)",
       btnConfirm: 'Confirm', btnDoNothingTonight: 'Do Nothing Tonight',
       chooseToBlock: 'Choose someone to block', chooseToSave: 'Choose someone to save',
       chooseToRevive: 'Choose someone to bring back to life', chooseToInvestigate: 'Choose someone to investigate',
@@ -1563,7 +1571,7 @@
     'builtin-mafia': 'You know the other Mafia. Work in the dark, blend in by day.',
     'builtin-villager': 'You have no special knowledge. Watch closely, and vote wisely.',
     'role-godfather': "Each night you decide who Mafia will target. If کاراگاه investigates you, you always read as an innocent civilian. Instead of a normal shot, you alone may choose to Slaughter (سلاخی) your target — you must also guess their exact role. Guess right and they die no matter what, even a shield or the Doctor's save; guess wrong and nothing happens, same as no shot at all. Once you're out, no other Mafia member can use this.",
-    'role-matador': "Each night you choose one civilian to block; they can't use their ability that night.",
+    'role-matador': "Each night you choose one civilian to block; they can't use their ability that night. You can't block the exact same person on two nights in a row — whoever you blocked last night is shown but can't be selected again.",
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
     'role-detective': "Each night you investigate someone and get back a simple positive or negative — never a specific label like \"Mafia\" or anything else.",
     'role-professional': "Each night you may target someone. Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead. زودیاک is just as safe a target as Mafia — neither they nor you are affected.",
@@ -1610,7 +1618,7 @@
     { id: 'builtin-mafia', team: 'mafia', name: 'مافیا ساده', description: 'شما سایر اعضای مافیا را می‌شناسید. در تاریکی کار کنید، در روز خودتان را پنهان کنید.', shield: false, independent: false, builtin: true },
     { id: 'builtin-villager', team: 'villager', name: ROLE_NAME_PLAIN_VILLAGER, description: 'شما اطلاعات خاصی ندارید. با دقت تماشا کنید و هوشمندانه رأی دهید.', shield: false, independent: false, builtin: true },
     { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد. اگر کاراگاه شما را بررسی کند، همیشه به‌عنوان یک شهروند بی‌گناه دیده می‌شوید. به‌جای شلیک معمولی، فقط شما می‌توانید «سلاخی» را انتخاب کنید — باید نقش دقیق هدفتان را هم حدس بزنید. اگر درست حدس بزنید، او به هر حال می‌میرد، حتی با شیلد یا نجات دکتر؛ اگر اشتباه حدس بزنید، هیچ اتفاقی نمی‌افتد، درست مثل عدم شلیک. وقتی شما از بازی خارج شوید، هیچ عضو دیگر مافیا نمی‌تواند از این توانایی استفاده کند.', shield: true, independent: false, builtin: false },
-    { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند.', shield: false, independent: false, builtin: false },
+    { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند. نمی‌توانید دو شب پشت هم یک نفر را مسدود کنید — کسی که دیشب مسدود کردید در فهرست نشان داده می‌شود اما قابل انتخاب دوباره نیست.', shield: false, independent: false, builtin: false },
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
     { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و فقط یک نتیجهٔ مثبت یا منفی می‌گیرید — نه چیزی مشخص مثل «مافیا» یا هر برچسب دیگر.', shield: false, independent: false, builtin: false },
     { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید. اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید. زودیاک هم مثل مافیا برای شما هدف امن است — نه او آسیب می‌بیند و نه شما حذف می‌شوید.', shield: true, independent: false, builtin: false },
@@ -1698,6 +1706,7 @@
     gameLog: [],             // (host: authoritative; player: local copy, only ever received once the game ends) full chronological narrative — [{day, phase:'day'|'night'|'final', text}], see logGameEvent. Night entries include normally-PRIVATE per-role decisions (who blocked/saved/investigated/shot whom) — safe to compile since this is never sent to anyone before App.showGameOver. Built specifically for a game nobody was actively narrating (No God Mode above all, but sent in every mode) — see App.viewGameLog/renderGameLogInto.
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
     night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] }, // (host) this night's decisions
+    lastMatadorBlockedId: null, // (host) whoever ماتادور blocked LAST night (survives state.night's own per-night reset — see startNight) — ماتادور may not block the exact same person two nights running, see startMafiaPhaseStep
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
     constantineReviveUsed: false, // (host) whole-game limit — کنستانتین may only revive one person, ever
@@ -3618,11 +3627,14 @@
     list.className = 'stack';
     (msg.candidates || []).forEach(c => {
       const row = document.createElement('label');
-      row.className = 'role-row role-check-row';
+      // See renderNightActionScreen's identical treatment for c.disabledNote.
+      row.className = 'role-row role-check-row' + (c.disabledNote ? ' role-row-disabled' : '');
       row.innerHTML =
-        '<input type="radio" name="host-self-night-target">' +
-        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
-      row.querySelector('input').onchange = () => { state.selectedNightTargetId = c.id; };
+        '<input type="radio" name="host-self-night-target"' + (c.disabledNote ? ' disabled' : '') + '>' +
+        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span>' +
+        (c.disabledNote ? '<span class="hint" style="display:block; margin-top:2px;">' + escapeHtml(c.disabledNote) + '</span>' : '') +
+        '</div>';
+      if(!c.disabledNote) row.querySelector('input').onchange = () => { state.selectedNightTargetId = c.id; };
       list.appendChild(row);
     });
     body.appendChild(list);
@@ -4555,6 +4567,11 @@
   }
 
   function startNight(){
+    // Captured BEFORE the reset below wipes it — whatever ماتادور blocked
+    // (or null, on a skip / no ماتادور in play / Night 1's own introduction-
+    // only night) on the night that's ending becomes the one exclusion for
+    // the night that's about to start (see startMafiaPhaseStep).
+    state.lastMatadorBlockedId = state.night.blockedId;
     state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = t('nightLabel', { n: state.day });
@@ -4804,9 +4821,16 @@
     const matadors = findAliveByRoleName(ROLE_NAME_MATADOR);
     if(matadors.length){
       const [matadorId, matadorEntry] = matadors[0];
+      // ماتادور may not block the exact same person two nights running (see
+      // state.lastMatadorBlockedId's own comment in startNight) — that
+      // candidate stays IN the list rather than being silently removed, so
+      // ماتادور can see who's off-limits and why instead of wondering where
+      // a name went; disabledNote is what tells renderNightActionScreen/
+      // renderHostSelfNightActionBody to render this one row disabled with
+      // an explanatory note instead of a normal selectable one.
       const candidates = Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && e.role === 'villager' && id !== matadorId)
-        .map(([id, e]) => ({ id, name: e.name }));
+        .map(([id, e]) => ({ id, name: e.name, disabledNote: id === state.lastMatadorBlockedId ? t('matadorRepeatBlockNote') : undefined }));
       if(candidates.length){
         state.night.mafiaPending.add('matador');
         // If this same person is also tonight's kill-decider (only possible
@@ -4976,9 +5000,20 @@
     const prefix = t('nightLogPrefix', { day: state.day });
 
     if(role === 'matador'){
-      state.night.blockedId = targetId || null;
-      const text = prefix + (targetName ? t('actMatadorBlocked', { name: targetName }) : t('actMatadorNoBlock'));
-      logActivity(voter, prefix + (targetName ? t('actYouBlocked', { name: targetName }) : t('actYouNoBlock')));
+      // Can't repeat the exact same target as last night — primarily
+      // enforced client-side (that candidate is sent disabled, with a note
+      // — see startMafiaPhaseStep's own comment), this is just the
+      // defensive host-side backstop for a stale client bypassing that.
+      // Silently treated as "chose not to block" rather than rejecting the
+      // whole submission — the least surprising fallback, and it keeps the
+      // night moving instead of leaving ماتادور stuck with no valid answer
+      // recorded at all.
+      const repeatRejected = !!(targetId && targetId === state.lastMatadorBlockedId);
+      const effectiveTargetId = repeatRejected ? null : (targetId || null);
+      const effectiveTargetName = repeatRejected ? null : targetName;
+      state.night.blockedId = effectiveTargetId;
+      const text = prefix + (effectiveTargetName ? t('actMatadorBlocked', { name: effectiveTargetName }) : t('actMatadorNoBlock'));
+      logActivity(voter, prefix + (effectiveTargetName ? t('actYouBlocked', { name: effectiveTargetName }) : t('actYouNoBlock')));
       logMafiaActivity(text);
       // Tell the blocked player right away, regardless of whether they hold a
       // role with an active ability tonight (or are even eligible to use it) —
@@ -4992,14 +5027,14 @@
       // AND their own permanent activity-log entry, so it's still there to
       // find later even for anyone who genuinely wasn't looking at that
       // exact moment.
-      if(targetId){
-        const blockedEntry = state.players.get(targetId);
+      if(effectiveTargetId){
+        const blockedEntry = state.players.get(effectiveTargetId);
         if(blockedEntry){
           logActivity(blockedEntry, prefix + t('actYouWereBlocked'));
           sendToPlayer(blockedEntry, { type: 'phase', phase: 'night', day: state.day, note: t('youWereBlocked') });
         }
       }
-      recordNightDecision(voter, targetName ? t('actYouBlocked', { name: targetName }) : t('actYouNoBlock'));
+      recordNightDecision(voter, effectiveTargetName ? t('actYouBlocked', { name: effectiveTargetName }) : t('actYouNoBlock'));
       state.night.mafiaPending.delete('matador');
       checkMafiaPhaseComplete();
     } else if(role === 'doctor'){
@@ -5355,6 +5390,7 @@
     state.inquiriesRemaining = 0;
     state.winner = null;
     state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
+    state.lastMatadorBlockedId = null;
     state.doctorSelfSaveUsed = false;
     state.constantineReviveUsed = false;
     state.mafiaActivityLog = [];
@@ -6503,11 +6539,19 @@
     list.innerHTML = '';
     (msg.candidates || []).forEach(c => {
       const row = document.createElement('label');
-      row.className = 'role-row role-check-row';
+      // c.disabledNote (currently only ماتادور's own list, for whoever they
+      // blocked last night — see startMafiaPhaseStep) keeps the candidate
+      // VISIBLE but unselectable, with a note explaining why, instead of
+      // silently removing them — no different a shape than a normal row
+      // otherwise, so any future disabled-with-a-reason candidate reuses
+      // this exact same rendering for free.
+      row.className = 'role-row role-check-row' + (c.disabledNote ? ' role-row-disabled' : '');
       row.innerHTML =
-        '<input type="radio" name="night-target">' +
-        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span></div>';
-      row.querySelector('input').onchange = () => { state.selectedNightTargetId = c.id; };
+        '<input type="radio" name="night-target"' + (c.disabledNote ? ' disabled' : '') + '>' +
+        '<div class="role-info"><span class="role-name">' + escapeHtml(c.name) + '</span>' +
+        (c.disabledNote ? '<span class="hint" style="display:block; margin-top:2px;">' + escapeHtml(c.disabledNote) + '</span>' : '') +
+        '</div>';
+      if(!c.disabledNote) row.querySelector('input').onchange = () => { state.selectedNightTargetId = c.id; };
       list.appendChild(row);
     });
     $('night-action-skip-btn').style.display = msg.allowSkip ? 'flex' : 'none';
