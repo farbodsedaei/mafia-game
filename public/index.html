@@ -141,6 +141,15 @@
   #ack-banner{display:none; position:fixed; inset:0; z-index:1950; background:rgba(6,7,10,0.82); align-items:center; justify-content:center; padding:24px;}
   #ack-banner .card{background:var(--surface-2); border:1px solid var(--line-strong); border-radius:16px; padding:22px 20px; max-width:420px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);}
   #ack-banner .card p{font-size:15px; line-height:1.6; margin:0 0 16px;}
+  /* Host-only (see updateReassignModal) — a new, unrecognized connection
+     mid-game, while a real player is sitting disconnected, needs the
+     host's own explicit call before it's treated either way. Same overlay
+     treatment as #ack-banner, one tier above it (a waiting human on the
+     other end is more time-sensitive than an already-read announcement),
+     still below the debug panel (2000) when the host happens to have that
+     open too. */
+  #reassign-player-modal{display:none; position:fixed; inset:0; z-index:1955; background:rgba(6,7,10,0.82); align-items:center; justify-content:center; padding:24px;}
+  #reassign-player-modal .card{background:var(--surface-2); border:1px solid var(--line-strong); border-radius:16px; padding:22px 20px; max-width:420px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.5); max-height:80vh; overflow-y:auto;}
   .banner.warning{background:var(--red-dim); border-color:rgba(196,54,75,0.35); color:var(--red-bright); margin-bottom:0;}
   .link-btn{appearance:none; background:none; border:none; color:var(--gold); font-family:'Inter', sans-serif; font-weight:700; font-size:13px; cursor:pointer; padding:8px 0;}
   /* Persistent My Role / My Activity / Vote History access (see
@@ -869,6 +878,21 @@
     <button class="btn btn-primary" onclick="App.dismissAckBanner()" data-i18n="btnGotIt"></button>
   </div>
 </div>
+<!-- Host-only: a genuinely new connection mid-game, while a real player is
+     disconnected, needs an explicit host decision before either being
+     dealt a brand-new role or turned away as "room full" — see
+     updateReassignModal/App.reassignIncomingToPlayer/
+     App.declineReassignIncoming in the script. -->
+<div id="reassign-player-modal">
+  <div class="card">
+    <div class="eyebrow" data-i18n="reassignModalEyebrow"></div>
+    <h3 style="margin:8px 0 6px; font-size:19px;" data-i18n="reassignModalTitle"></h3>
+    <p class="hint" style="margin-bottom:16px;" data-i18n="reassignModalHint"></p>
+    <div id="reassign-player-list"></div>
+    <p id="reassign-player-queue-count" class="hint" style="margin:4px 0 14px;"></p>
+    <button class="btn btn-ghost" onclick="App.declineReassignIncoming()" data-i18n="btnReassignDecline"></button>
+  </div>
+</div>
 <div id="debug-badge" style="display:none; position:fixed; top:6px; left:8px; z-index:1000; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.05em; color:#EDEFF4; background:rgba(0,0,0,0.55); padding:3px 9px; border-radius:6px; pointer-events:none;"></div>
 <!-- Player-only: shown while the host's own socket is down but the room
      is still alive (see server.js's 'host-disconnected'/'host-reconnected'
@@ -894,17 +918,25 @@
   <div class="eyebrow" data-i18n="managePlayersTitle"></div>
   <button class="btn btn-ghost" style="margin-top:14px;" onclick="App.toggleManagePlayersPanel()" data-i18n="btnCloseManagePlayers"></button>
   <div id="manage-players-list" style="margin-top:16px;"></div>
-  <!-- Ends an in-progress game right now, whatever phase it's in — a
-       real-world dispute, someone has to leave, or the table just wants
-       to stop, without waiting for checkWinner() to ever return non-null
-       on its own (see App.endGameEarly). Lives here rather than its own
-       floating button since this panel is already the one always-
-       reachable, God-Mode-safe place for serious mid-game host actions
-       (kick/revive above) — see this panel's own top comment. Hidden
-       entirely once there's no game in progress to end (see
-       renderManagePlayersPanel). -->
+  <!-- Ends whatever's going on right now and lets the host start fresh —
+       a real-world dispute, someone has to leave, or the table just wants
+       to stop — without waiting for checkWinner() to ever return non-null
+       on its own (see App.endGameEarly). Works from the lobby too, before
+       roles are even dealt (there's no roster to reveal yet, so this just
+       abandons the lobby outright — same as "Start a New Game" from the
+       real game-over screen). Lives here rather than its own floating
+       button since this panel is already the one always-reachable, God-
+       Mode-safe place for serious host actions (kick/revive above) — see
+       this panel's own top comment. Hidden entirely once there's no room
+       at all yet, or the game has already ended on its own (see
+       renderManagePlayersPanel). The label itself is set dynamically
+       there too (End Game Now / Cancel Lobby, depending on
+       state.rolesAssigned) — deliberately no data-i18n here, so a
+       language switch while this panel happens to be open can't stomp it
+       back to one fixed wording (see applyTranslations' own
+       refreshDebugPanelIfOpen call). -->
   <div id="end-game-section" style="margin-top:22px; padding-top:16px; border-top:1px solid var(--line-strong);">
-    <button id="end-game-btn" class="btn btn-ghost" style="width:100%; color:var(--red-bright); border-color:var(--red-dim);" onclick="App.endGameEarly()" data-i18n="btnEndGame"></button>
+    <button id="end-game-btn" class="btn btn-ghost" style="width:100%; color:var(--red-bright); border-color:var(--red-dim);" onclick="App.endGameEarly()"></button>
   </div>
 </div>
 
@@ -1139,6 +1171,10 @@
       btnRemoveSeat: 'حذف این جایگاه', toastSeatRemoved: 'جایگاه آزاد شد — حالا یک نفر دیگر می‌تواند بپیوندد.',
       toastStalledJoinReleased: 'یک تلاش برای پیوستن که رهاشده بود آزاد شد — یک جایگاه باز شد.',
       toastJoinerTurnedAwayFull: 'شخصی تلاش کرد بپیوندد، اما همهٔ {n} جایگاه پر است. اگر جایگاهی که واقعاً کسی پشتش نیست می‌بینید، آن را حذف کنید تا او بتواند دوباره تلاش کند.',
+      reassignModalEyebrow: 'بازیکن جدید', reassignModalTitle: 'یک دستگاه جدید می‌خواهد وارد شود',
+      reassignModalHint: 'اگر این یکی از بازیکنانی است که قطع شده (مثلاً کوکی‌هایش پاک شده و نمی‌تواند خودش دوباره وصل شود)، نام او را از لیست زیر انتخاب کنید تا با همان نام و نقش قبلی برگردد. در غیر این صورت، گزینهٔ پایین را بزنید تا به‌عنوان یک بازیکن کاملاً جدید وارد شود.',
+      btnReassignDecline: 'نه، این یک بازیکن جدید است', reassignMoreWaiting: '{n} درخواست دیگر هم در صف است.',
+      reassignedToastHost: '{name} دوباره به بازی وصل شد.', youWereReassigned: 'شما به‌عنوان {name} دوباره به بازی وصل شدید.',
       seatRemovedByHost: 'میزبان این جایگاه را (به این دلیل که مدتی بدون نام باقی مانده بود) آزاد کرد. اگر هنوز اینجایید، دوباره روی لینک بزنید تا بپیوندید.',
       toastPlayerJoined: '{name} به بازی پیوست.', toastPlayerReconnected: '{name} دوباره وصل شد.',
       rolesAssignedEyebrow: 'نقش‌ها تخصیص یافت', rolesDealtTitle: 'نقش‌ها پخش شدند',
@@ -1314,6 +1350,7 @@
       btnRevivePlayer: 'بازگرداندن به بازی', confirmRevivePlayer: 'آیا می‌خواهید {name} را دوباره به بازی بازگردانید؟',
       actRevivedByGod: 'گاد شما را دوباره به بازی بازگرداند.', playerRevived: '{name} دوباره به بازی بازگشت.',
       btnEndGame: 'پایان دادن به بازی', confirmEndGame: 'آیا مطمئن هستید که می‌خواهید بازی را همین الان، بدون برنده مشخص، پایان دهید؟ این کار قابل بازگشت نیست.',
+      btnCancelLobby: 'لغو این لابی و شروع دوباره', confirmCancelLobby: 'آیا مطمئن هستید که می‌خواهید این لابی را لغو کنید و بازی جدیدی شروع کنید؟ هر کسی که وارد شده مجبور خواهد بود دوباره بپیوندد. این کار قابل بازگشت نیست.',
       debugStillWaitingLabel: 'در انتظار تصمیم', debugDecidedLabel: 'تصمیم‌گیری‌شده',
       debugStateHeading: 'وضعیت بازی', debugRolesHeading: 'نقش‌ها و وضعیت بازیکنان', debugActivityHeading: 'فعالیت کامل',
       debugInquiriesLabel: 'استعلام‌های باقی‌مانده', debugNightStatusHeading: 'وضعیت امشب',
@@ -1371,6 +1408,10 @@
       btnRemoveSeat: 'Remove this seat', toastSeatRemoved: 'Seat freed up — someone else can join now.',
       toastStalledJoinReleased: 'An abandoned join attempt was released — a seat opened up.',
       toastJoinerTurnedAwayFull: 'Someone tried to join, but all {n} seats are full. If you see a seat with nobody really behind it, remove it so they can try again.',
+      reassignModalEyebrow: 'New Player', reassignModalTitle: 'A new device wants to join',
+      reassignModalHint: "If this is one of your disconnected players (e.g. their cookies got cleared and they can't reconnect on their own), pick their name below so they come back with their same name and role. Otherwise, tap the option below to let them join as a genuinely new player.",
+      btnReassignDecline: "No, this is a new player", reassignMoreWaiting: '{n} more request(s) waiting.',
+      reassignedToastHost: '{name} reconnected.', youWereReassigned: "You've been reconnected to the game as {name}.",
       seatRemovedByHost: "The host freed up this seat (it had sat with no name for a while). If you're still here, tap the link again to rejoin.",
       toastPlayerJoined: '{name} joined the game.', toastPlayerReconnected: '{name} reconnected.',
       rolesAssignedEyebrow: 'Roles Assigned', rolesDealtTitle: 'Roles have been dealt',
@@ -1546,6 +1587,7 @@
       btnRevivePlayer: 'Bring Back Into Game', confirmRevivePlayer: 'Bring {name} back into the game?',
       actRevivedByGod: 'The God brought you back into the game.', playerRevived: '{name} is back in the game.',
       btnEndGame: 'End Game Now', confirmEndGame: 'Are you sure you want to end the game right now, with no winner declared? This cannot be undone.',
+      btnCancelLobby: 'Cancel This Lobby & Start Over', confirmCancelLobby: "Are you sure you want to cancel this lobby and start a new game? Anyone who's already joined will need to rejoin. This cannot be undone.",
       debugStillWaitingLabel: 'Still Deciding', debugDecidedLabel: 'Decided',
       debugStateHeading: 'Game State', debugRolesHeading: 'Roles & Player Status', debugActivityHeading: 'Full Activity Log',
       debugInquiriesLabel: 'Inquiries remaining', debugNightStatusHeading: "Tonight's Status",
@@ -1677,6 +1719,8 @@
     hostReconnectInProgress: false, // (host) guards against overlapping reclaim attempts
     rolesAssigned: false,  // (host) true from App.assignRoles() onward — once true, a brand-new joiner draws from state.pendingRoleSlots instead of just sitting in the lobby (see the 'name' handler)
     pendingRoleSlots: [],  // (host) role defs reserved for seats not yet filled at assignRoles() time, drawn from as latecomers join
+    reassignQueue: [],        // (host) playerIds of genuinely-new mid-game connections waiting on a host decision — see the 'player-hello' handler / App.reassignIncomingToPlayer / updateReassignModal
+    pendingReassignIds: new Set(), // (host) same ids as reassignQueue, just as a Set for an O(1) "already queued, don't ask twice" check (a retry resending the same 'join-room' while still pending shouldn't duplicate the question)
     currentPhaseSnapshot: null, // (host) most recent broadcast-style 'phase' message sent to anyone — lets a brand-new latecomer resync to what's currently happening
     players: new Map(),   // playerId -> {name, connected, pc, dc, role}
     ws: null,
@@ -2092,7 +2136,55 @@
       return;
     }
     if(msg.type === 'player-hello'){
+      // Already queued, awaiting the host's own decision (see below) — a
+      // retry resending the same 'join-room' (e.g. the player's own
+      // 18s-stuck self-serve hint) must not ask the question twice, nor
+      // fall through to being dealt a role before that decision lands.
+      if(state.pendingReassignIds.has(msg.playerId)) return;
+      // A genuinely new connection (no persisted-token match at all) mid-
+      // game, while at least one real, already-dealt-a-role player is
+      // currently disconnected, is very often that EXACT same player's own
+      // session — a wiped localStorage, a private-browsing tab, a new
+      // phone — not an actual stranger. Ask the host first instead of
+      // either silently rejecting them once the room's "full" (their old
+      // seat still counts toward capacity) or dealing them a brand-new
+      // role outright — see App.reassignIncomingToPlayer/
+      // App.declineReassignIncoming/updateReassignModal. Pre-game (lobby,
+      // before roles are dealt) skips this entirely and keeps today's
+      // plain "just join" behavior — nothing worth reassigning onto yet.
+      if(!state.players.has(msg.playerId) && state.rolesAssigned){
+        const hasDisconnectedRealPlayer = Array.from(state.players.values())
+          .some(e => !e.isHostSelf && e.name && !e.connected);
+        if(hasDisconnectedRealPlayer){
+          state.pendingReassignIds.add(msg.playerId);
+          state.reassignQueue.push(msg.playerId);
+          updateReassignModal();
+          return;
+        }
+      }
       hostBeginConnectionTo(msg.playerId);
+      return;
+    }
+    if(msg.type === 'player-reassigned'){
+      // The host just moved THIS device's own signaling identity onto an
+      // existing (disconnected) player's seat — see App.reassignIncomingToPlayer/
+      // server.js's 'reassign-player' handler. Must land BEFORE the
+      // WebRTC offer that's about to follow, and in particular before this
+      // device's own data channel ever opens (see setupPlayerDataChannel's
+      // dc.onopen, which decides name-entry-screen-vs-resync purely off
+      // state.myPlayerName) — the whole point is this device picks up the
+      // EXISTING name/role/history without ever seeing (or being able to
+      // overwrite) the name-entry screen at all. The name itself is
+      // otherwise NEVER relayed through this server (see server.js's own
+      // header note) — this one message is the deliberate, narrow
+      // exception, needed purely for this ordering requirement, and
+      // nothing here is ever persisted beyond this one relay.
+      state.playerId = msg.playerId;
+      state.myPlayerToken = msg.playerId; // token === playerId by this app's own convention (see server.js's join-room)
+      state.myPlayerName = msg.name;
+      state.isReconnecting = true;
+      savePlayerSession({ room: state.room, token: state.myPlayerToken, name: state.myPlayerName });
+      toast(t('youWereReassigned', { name: msg.name }));
       return;
     }
     if(msg.type === 'player-left'){
@@ -2337,6 +2429,12 @@
     document.querySelectorAll('[data-i18n-aria-label]').forEach(el => { el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria-label'))); });
 
     refreshDynamicScreenText();
+    // Catches anything an ALREADY-OPEN debug/manage-players panel rendered
+    // dynamically (not via data-i18n) in the old language — the end-game
+    // button's own label (see renderManagePlayersPanel) being the one that
+    // actually needed this; a safe no-op whenever neither panel is open,
+    // including at this very first startup call.
+    refreshDebugPanelIfOpen();
   }
 
   // Re-render whatever dynamic content the currently visible screen holds, so
@@ -2831,6 +2929,82 @@
     });
   }
 
+  // ---------------- Reassigning a lost-session player onto a new device ----------------
+  // See the 'player-hello' handler's own comment for why this exists at
+  // all: a genuinely new connection mid-game is very often someone whose
+  // persisted session was lost, not an actual stranger, and the room being
+  // "full" (their old seat still counts) would otherwise lock them out for
+  // good with no self-serve way back in — see the removed handleClaimSeat
+  // mechanism's own history (hostBeginConnectionTo's "no self-serve
+  // reclaim" comment) for why that was deliberately NOT reinstated as a
+  // self-serve flow: this is the same capability, but host-approved every
+  // time instead, so the trust problem that mechanism had never comes back.
+  function updateReassignModal(){
+    const modal = $('reassign-player-modal');
+    if(!modal) return;
+    if(!state.reassignQueue.length){ modal.style.display = 'none'; return; }
+    // Recomputed fresh every time this renders (not cached from when the
+    // request was first queued) — someone on the list may well have
+    // reconnected on their own in the meantime, and showing a stale "still
+    // disconnected" option the host could pick would just immediately
+    // kick that person's own genuine, already-reconnected session back out.
+    const disconnected = Array.from(state.players.entries())
+      .filter(([id, e]) => !e.isHostSelf && e.name && !e.connected);
+    if(!disconnected.length){
+      // Nobody left to reassign onto (everyone reconnected on their own
+      // while this sat in the queue) — the question is moot, fall straight
+      // through to the normal new-player path instead of showing an empty,
+      // pointless popup.
+      App.declineReassignIncoming();
+      return;
+    }
+    modal.style.display = 'flex';
+    const list = $('reassign-player-list');
+    list.innerHTML = '';
+    disconnected.forEach(([id, e]) => {
+      const row = document.createElement('button');
+      row.className = 'btn btn-ghost';
+      row.style.cssText = 'margin-bottom:8px; justify-content:flex-start;';
+      row.textContent = e.name;
+      row.onclick = () => App.reassignIncomingToPlayer(id);
+      list.appendChild(row);
+    });
+    const countEl = $('reassign-player-queue-count');
+    countEl.textContent = state.reassignQueue.length > 1 ? t('reassignMoreWaiting', { n: state.reassignQueue.length - 1 }) : '';
+  }
+  // Host picked an existing disconnected player for the waiting connection
+  // to take over as. Tells the SERVER to re-point that connection's own
+  // signaling address onto the chosen player's persisted token (see
+  // server.js's 'reassign-player' handler) — the server is what actually
+  // relays offer/answer/candidate by id, so it has to know too, not just
+  // this device — then reconnects exactly like any other matching-token
+  // reconnect (hostBeginConnectionTo already treats targetOldId as
+  // "existing" from here on, same as a real same-token reconnect).
+  App.reassignIncomingToPlayer = function(targetOldId){
+    const incomingId = state.reassignQueue.shift();
+    if(!incomingId) return;
+    state.pendingReassignIds.delete(incomingId);
+    const entry = state.players.get(targetOldId);
+    // Re-checked here too (not just in updateReassignModal's own render) —
+    // a tap can still land a moment after the target reconnected on its
+    // own; skip rather than kicking a genuine, already-live session out.
+    if(entry && !entry.connected){
+      wsSend({ type: 'reassign-player', room: state.room, hostToken: state.hostToken, fromPlayerId: incomingId, toPlayerId: targetOldId, name: entry.name });
+      hostBeginConnectionTo(targetOldId);
+      toast(t('reassignedToastHost', { name: entry.name }));
+    }
+    updateReassignModal();
+  };
+  // "No, this is really a new player" — falls through to the exact same
+  // path a 'player-hello' always used to take, room-full check included.
+  App.declineReassignIncoming = function(){
+    const incomingId = state.reassignQueue.shift();
+    if(!incomingId) return;
+    state.pendingReassignIds.delete(incomingId);
+    hostBeginConnectionTo(incomingId);
+    updateReassignModal();
+  };
+
   function hostHandleSignal(playerId, payload){
     const entry = state.players.get(playerId);
     if(!entry) return;
@@ -2860,19 +3034,28 @@
         // finished naming themselves (most likely an abandoned tab).
         entry.connectedSince = Date.now();
         renderLobby();
+        // If the reassign-incoming popup is currently showing and THIS
+        // player — one of the names it's offering — just reconnected on
+        // their own, drop them from the list before the host can tap a
+        // now-stale option and kick their genuine session back out.
+        if(state.reassignQueue.length) updateReassignModal();
         if(isReconnect){
           resyncPlayer(entry, playerId);
         }
         // A genuinely fresh connection (no persisted-token match) just
         // falls through to the normal player-side "pick a name" screen on
         // its own (see setupPlayerDataChannel's dc.onopen) — nothing to do
-        // here. There used to be a "claim a disconnected seat by name"
-        // offer at this point (a whole handleClaimSeat mechanism, since
-        // removed) — deliberately dropped: it let ANY new connection claim
-        // ANY disconnected player's seat, role included, with zero
-        // verification. A device can only ever rejoin as whichever
-        // identity its OWN persisted session (see savePlayerSession)
-        // proves it is now.
+        // here. There used to be a self-serve "claim a disconnected seat by
+        // name" offer at this point (a whole handleClaimSeat mechanism,
+        // since removed) — deliberately dropped: it let ANY new connection
+        // claim ANY disconnected player's seat, role included, with zero
+        // verification. A device can only ever rejoin UNPROMPTED as
+        // whichever identity its OWN persisted session (see
+        // savePlayerSession) proves it is now — the 'player-hello' handler
+        // is where a genuinely lost session gets back in instead, by
+        // explicit HOST approval rather than self-serve (see
+        // App.reassignIncomingToPlayer/updateReassignModal), which is what
+        // actually solves the trust problem the old mechanism had.
       }
     };
     dc.onmessage = (e) => {
@@ -5378,6 +5561,10 @@
     state.room = null;
     state.rolesAssigned = false;
     state.pendingRoleSlots = [];
+    state.reassignQueue = [];
+    state.pendingReassignIds = new Set();
+    const reassignModal = $('reassign-player-modal');
+    if(reassignModal) reassignModal.style.display = 'none';
     state.currentPhaseSnapshot = null;
     state.day = 1;
     state.gamePhase = null;
@@ -6957,13 +7144,19 @@
   function renderManagePlayersPanel(){
     const box = $('manage-players-list');
     if(!box) return;
-    // Ending the game only makes sense once there IS one in progress —
-    // hidden in the lobby (nothing dealt out yet) and once the game has
-    // already ended on its own (App.showGameOver already ran; the "Start
-    // New Game" button on that screen is the equivalent action there).
+    // Available any time there's an actual room to abandon — including the
+    // lobby, before roles are even dealt (App.endGameEarly itself branches
+    // on state.rolesAssigned to decide what "ending" means at that point —
+    // see its own comment) — and hidden again once the game has already
+    // ended on its own (App.showGameOver already ran; the "Start New Game"
+    // button on that screen is the equivalent action there) or before a
+    // room exists at all yet (state.role flips to 'host' right from the
+    // landing screen, well before App.createLobby() — nothing to end yet).
     const endGameSection = $('end-game-section');
     if(endGameSection){
-      endGameSection.style.display = (state.rolesAssigned && state.gamePhase !== 'game-over') ? 'block' : 'none';
+      endGameSection.style.display = (state.room && state.gamePhase !== 'game-over') ? 'block' : 'none';
+      const endGameBtn = $('end-game-btn');
+      if(endGameBtn) endGameBtn.textContent = t(state.rolesAssigned ? 'btnEndGame' : 'btnCancelLobby');
     }
     box.innerHTML = '';
     const entries = Array.from(state.players.entries()).filter(([id, e]) => !e.isHostSelf && e.name);
@@ -7063,21 +7256,35 @@
   };
 
   // Lets the host (or, in God Mode, the host's own host-self seat) abandon
-  // an in-progress game at any point — a real-world dispute at the table,
+  // whatever's going on at any point — a real-world dispute at the table,
   // someone has to leave, or the group just wants to stop — instead of
   // being stuck waiting for checkWinner() to eventually return non-null on
-  // its own. Deliberately reuses the EXACT SAME game-over machinery every
-  // real win already goes through (App.showGameOver: broadcasts to every
-  // player, reveals the full roster/roles, appends the final log line)
-  // rather than inventing a separate "aborted game" path — the only
-  // difference is state.winner is left null instead of whatever
-  // checkWinner() would have said. winnerLabel/renderGameOverHostScreen/
-  // the player-side 'game-over' handler all already need to render a null
-  // winner sensibly now (see winnerLabel's own comment) since this makes
-  // that a real, reachable outcome rather than a value that could never
-  // actually occur.
+  // its own. Two genuinely different cases, branched on state.rolesAssigned:
+  //   - Mid-game (roles already dealt): reuses the EXACT SAME game-over
+  //     machinery every real win already goes through (App.showGameOver:
+  //     broadcasts to every player, reveals the full roster/roles, appends
+  //     the final log line) rather than inventing a separate "aborted
+  //     game" path — the only difference is state.winner is left null
+  //     instead of whatever checkWinner() would have said. winnerLabel/
+  //     renderGameOverHostScreen/the player-side 'game-over' handler all
+  //     already need to render a null winner sensibly (see winnerLabel's
+  //     own comment) since this makes that a real, reachable outcome
+  //     rather than a value that could never actually occur.
+  //   - Still in the lobby (nobody's been dealt a role yet): there's no
+  //     roster/roles to reveal at all, so App.showGameOver()'s own
+  //     machinery doesn't apply — "ending" here just means abandoning this
+  //     lobby outright and starting completely fresh, exactly what
+  //     App.newGame() (the real game-over screen's own "Start a New Game"
+  //     button) already does.
   App.endGameEarly = function(){
-    if(state.role !== 'host' || !state.rolesAssigned || state.gamePhase === 'game-over') return;
+    if(state.role !== 'host' || !state.room || state.gamePhase === 'game-over') return;
+    if(!state.rolesAssigned){
+      if(!confirm(t('confirmCancelLobby'))) return;
+      const panel = $('manage-players-panel');
+      if(panel) panel.classList.remove('open');
+      App.newGame();
+      return;
+    }
     if(!confirm(t('confirmEndGame'))) return;
     // Whatever auto-pacing timer (a vote/act/defense deadline, or the
     // day-gun decision's own separate one — see armGunDeadline) happens to

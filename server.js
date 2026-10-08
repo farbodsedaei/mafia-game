@@ -336,6 +336,49 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    if (msg.type === 'reassign-player') {
+      // Lets the host move an ALREADY-CONNECTED device — one that just
+      // joined under its own fresh token because its real persisted
+      // session (cookies/localStorage) is gone — onto an EXISTING player's
+      // seat instead, so it picks up that player's own name/role/history
+      // exactly as if it had reconnected normally with the matching token.
+      // index.html's App.reassignIncomingToPlayer is the only caller;
+      // hostToken proves this really is the room's own live host (same
+      // proof every other host-authenticated action here already uses),
+      // and only the LIVE host socket may do it — a host whose own
+      // connection has since gone stale (but whose browser tab is still
+      // technically open) can't use this to hijack a room it no longer
+      // actually controls.
+      const room = rooms.get(msg.room);
+      if (!room || !room.hostToken || room.hostToken !== msg.hostToken || room.host !== ws) return;
+      const fromId = typeof msg.fromPlayerId === 'string' && msg.fromPlayerId.length > 0 && msg.fromPlayerId.length <= 64 ? msg.fromPlayerId : null;
+      const toId = typeof msg.toPlayerId === 'string' && msg.toPlayerId.length > 0 && msg.toPlayerId.length <= 64 ? msg.toPlayerId : null;
+      if (!fromId || !toId) return;
+      const incomingSocket = room.players.get(fromId);
+      if (!incomingSocket) return; // the incoming device isn't actually connected under that id anymore (gave up / closed the tab)
+      // Whatever (almost certainly already-dead) socket the target seat's
+      // OLD token still maps to gets dropped outright — the incoming
+      // device is taking its place, not sharing it.
+      const staleSocket = room.players.get(toId);
+      if (staleSocket && staleSocket !== incomingSocket) { try { staleSocket.close(); } catch (e) {} }
+      room.players.delete(fromId);
+      room.players.set(toId, incomingSocket);
+      incomingSocket._playerId = toId;
+      // The player's own NAME is otherwise never relayed through this
+      // server at all (see this file's own header note — game data, names,
+      // and roles only ever flow peer-to-peer over the WebRTC data
+      // channel). This one message is the deliberate, narrow exception:
+      // the incoming device needs its real name BEFORE its own WebRTC data
+      // channel even opens (see index.html's setupPlayerDataChannel), or
+      // it'll briefly land on the plain name-entry screen and risk
+      // overwriting the real name if it types a different one — exactly
+      // what this whole feature exists to prevent. Nothing here is ever
+      // written to disk or kept beyond this one relay.
+      const name = typeof msg.name === 'string' ? msg.name.slice(0, 64) : null;
+      send(incomingSocket, { type: 'player-reassigned', playerId: toId, name });
+      return;
+    }
+
     if (msg.type === 'signal') {
       const room = rooms.get(ws._room);
       if (!room) return;
