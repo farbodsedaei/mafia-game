@@ -1126,6 +1126,7 @@
   const ROLE_NAME_ZODIAC_SON = 'زودیاک پسر';
   const ROLE_NAME_PLAIN_VILLAGER = 'شهروند ساده';
   const GUNNER_MAX_GUNS = 2; // whole-game limit on how many times تفنگدار may hand over the gun
+  const PROFESSIONAL_MAX_SHOTS = 2; // whole-game limit on how many times حرفه‌ای may actually fire — same "decided not to act doesn't count against it" treatment as تفنگدار's own cap (see handleNightAction's own 'professional' branch)
 
   /* ---------------- Language / i18n ---------------- */
   // Role names themselves (پدر خوانده, اوشن, etc.) are proper nouns chosen by
@@ -1361,6 +1362,7 @@
       debugShieldOn: 'دارای شیلد', debugShieldOff: 'بدون شیلد', debugMafiaSharedLog: 'گزارش مشترک مافیا', debugOther: 'سایر',
       debugConnected: 'متصل', debugDisconnected: 'قطع شده',
       debugPhaseLabel: 'فاز', debugWinnerLabel: 'برنده', debugGunsRemainingLabel: 'اسلحه‌های باقی‌مانده',
+      debugProfessionalShotsLabel: 'شلیک‌های باقی‌ماندهٔ حرفه‌ای',
       debugGunsCancelledLabel: 'اسلحه‌ها لغو شده', debugPendingGunLabel: 'اسلحه در دست', debugNone: 'هیچ‌کدام',
       debugPendingRolesLabel: 'نقش‌های توزیع‌نشده',
       debugNoGodModeLabel: 'حالت بدون گاد', debugDeadlineLabel: 'مهلت فعلی', debugGodModeLabel: 'حالت گاد-بازیکن',
@@ -1598,6 +1600,7 @@
       debugShieldOn: 'Shielded', debugShieldOff: 'No shield', debugMafiaSharedLog: "Mafia's Shared Log", debugOther: 'Other',
       debugConnected: 'Connected', debugDisconnected: 'Disconnected',
       debugPhaseLabel: 'Phase', debugWinnerLabel: 'Winner', debugGunsRemainingLabel: 'Guns remaining',
+      debugProfessionalShotsLabel: "حرفه‌ای's shots remaining",
       debugGunsCancelledLabel: 'Guns cancelled', debugPendingGunLabel: 'Gun currently held by', debugNone: 'None',
       debugPendingRolesLabel: 'Undistributed roles',
       debugNoGodModeLabel: 'No God Mode', debugDeadlineLabel: 'Current deadline', debugGodModeLabel: 'God Mode',
@@ -1616,7 +1619,7 @@
     'role-matador': "Each night you choose one civilian to block; they can't use their ability that night. You can't block the exact same person on two nights in a row — whoever you blocked last night is shown but can't be selected again.",
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
     'role-detective': "Each night you investigate someone and get back a simple positive or negative — never a specific label like \"Mafia\" or anything else.",
-    'role-professional': "Each night you may target someone. Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead. زودیاک is just as safe a target as Mafia — neither they nor you are affected.",
+    'role-professional': "Each night you may target someone — at most twice in the whole game (declining to act tonight doesn't cost you one). Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead. زودیاک is just as safe a target as Mafia — neither they nor you are affected.",
     'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish. This is only possible once in the whole game.',
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
@@ -1663,7 +1666,7 @@
     { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند. نمی‌توانید دو شب پشت هم یک نفر را مسدود کنید — کسی که دیشب مسدود کردید در فهرست نشان داده می‌شود اما قابل انتخاب دوباره نیست.', shield: false, independent: false, builtin: false },
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
     { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و فقط یک نتیجهٔ مثبت یا منفی می‌گیرید — نه چیزی مشخص مثل «مافیا» یا هر برچسب دیگر.', shield: false, independent: false, builtin: false },
-    { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید. اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید. زودیاک هم مثل مافیا برای شما هدف امن است — نه او آسیب می‌بیند و نه شما حذف می‌شوید.', shield: true, independent: false, builtin: false },
+    { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید — در کل بازی حداکثر دو بار (اگر یک شب تصمیم بگیرید کسی را هدف نگیرید، از این دو بار کم نمی‌شود). اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید. زودیاک هم مثل مافیا برای شما هدف امن است — نه او آسیب می‌بیند و نه شما حذف می‌شوید.', shield: true, independent: false, builtin: false },
     { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید. این کار فقط یک‌بار در کل بازی ممکن است.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
@@ -1760,6 +1763,7 @@
     zodiacChatLog: [],      // (host: authoritative log; player: local copy) {name, text}[] — زودیاک + زودیاک پسر chat
     oceanTeam: new Set(),   // (host) player ids اوشن has recruited so far (not including اوشن themselves)
     gunsRemaining: GUNNER_MAX_GUNS, // (host) how many more times تفنگدار may hand over the gun this game
+    professionalShotsRemaining: PROFESSIONAL_MAX_SHOTS, // (host) how many more times حرفه‌ای may actually fire this game
     gunsCancelled: false,   // (host) true once the gun has been fired at a civilian — no more handovers
     pendingGun: null,       // (host) { holderId } once تفنگدار hands the gun over, until it's fired/declined the next day
     gunDeadlineTimer: null, // (host) the day-gun decision's OWN pending setTimeout handle — separate from state.deadlineTimer since this now runs concurrently with voting (see armGunDeadline)
@@ -4871,12 +4875,16 @@
     }, t('chooseToInvestigate'), null, pending);
 
     // زودیاک stays targetable/selectable by حرفه‌ای and تفنگدار too — it just never
-    // actually dies (see resolveNight / resolveDayGunAction).
+    // actually dies (see resolveNight / resolveDayGunAction). Whole-game cap
+    // (PROFESSIONAL_MAX_SHOTS) same pattern as تفنگدار's own gunsRemaining —
+    // only an ACTUAL shot counts against it (see handleNightAction's own
+    // 'professional' branch), so declining to act tonight never costs them
+    // one of their two.
     promptCivilianRole('professional', ROLE_NAME_PROFESSIONAL, (proId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== proId)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, t('chooseToShoot'), null, pending);
+    }, t('chooseToShoot'), () => state.professionalShotsRemaining > 0, pending);
 
     // تفنگدار may also hand the gun to زودیاک itself — nothing stops that handover.
     promptCivilianRole('gunner', ROLE_NAME_GUNNER, (gunnerId) => {
@@ -5269,6 +5277,9 @@
       checkCivilianPhaseComplete();
     } else if(role === 'professional'){
       state.night.professionalTargetId = targetId || null;
+      // Only an ACTUAL shot spends one of the whole-game two — same
+      // "a skip costs nothing" treatment as تفنگدار's own gunsRemaining.
+      if(targetId) state.professionalShotsRemaining -= 1;
       logActivity(voter, prefix + (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
       recordNightDecision(voter, targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot'));
       state.night.civilianPending.delete('professional');
@@ -5588,6 +5599,7 @@
     state.gunsRemaining = GUNNER_MAX_GUNS;
     state.gunsCancelled = false;
     state.pendingGun = null;
+    state.professionalShotsRemaining = PROFESSIONAL_MAX_SHOTS;
     clearGunDeadline();
     clearCriticalReplyTimeout();
     // God Mode: the host's browser plays through the SAME page across
@@ -7387,6 +7399,7 @@
         escapeHtml(t('debugWinnerLabel')) + ': ' + escapeHtml(winnerText) + '<br>' +
         escapeHtml(t('debugGunsRemainingLabel')) + ': ' + state.gunsRemaining + ' · ' +
         escapeHtml(t('debugGunsCancelledLabel')) + ': ' + escapeHtml(state.gunsCancelled ? t('yes') : t('no')) + '<br>' +
+        escapeHtml(t('debugProfessionalShotsLabel')) + ': ' + state.professionalShotsRemaining + '<br>' +
         escapeHtml(t('debugPendingGunLabel')) + ': ' + (pendingHolder ? escapeHtml(pendingHolder.name) : escapeHtml(t('debugNone'))) + '<br>' +
         escapeHtml(t('debugPendingRolesLabel')) + ': ' + (pendingRoles.length ? (pendingRoles.length + ' — ' + escapeHtml(pendingRolesSummaryText())) : escapeHtml(t('debugNone'))) + '<br>' +
         escapeHtml(t('debugNoGodModeLabel')) + ': ' + escapeHtml(state.noGodMode ? t('yes') : t('no')) + ' · ' +
