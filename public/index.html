@@ -459,6 +459,16 @@
       <div class="eyebrow" style="margin-bottom:12px;" data-i18n="eliminatedLabel"></div>
       <div id="eliminated-list" class="stack"></div>
     </div>
+    <!-- The day-gun decision (if تفنگدار handed one off last night) is
+         already running by the time this screen shows at all — see
+         startDayOrInquiry/promptGunHolder/updateGunPendingNote — this is
+         just the same heads-up/force-skip row the voting screen also
+         carries, so the host isn't left blind to it while still on this
+         screen, before ever tapping "Start Voting". -->
+    <div id="day-gun-pending-row" style="display:none; margin-bottom:12px; align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap;">
+      <p class="hint" id="day-gun-pending-note" style="margin:0;"></p>
+      <button class="btn btn-ghost" style="padding:6px 12px; flex-shrink:0;" onclick="App.forceSkipGunDecision()" data-i18n="btnForceSkipGun"></button>
+    </div>
     <div class="grow"></div>
     <!-- Day 1 comes BEFORE Night 1 has even introduced Mafia to each other
          (see mafiaTalkNowNight1) — nobody has anything to accuse anyone of
@@ -497,10 +507,12 @@
     <div class="eyebrow" id="voting-eyebrow"></div>
     <h2 style="font-size:26px; margin:10px 0 16px;" data-i18n="votingInProgress"></h2>
     <!-- The day-gun decision (if there's a gun pending) runs alongside
-         voting now instead of blocking it — see App.startVoting/
+         voting now instead of blocking it — see startDayOrInquiry/
          promptGunHolder/updateGunPendingNote — the holder's own screen
          gets the actual decision UI as a subsection; this is just a
-         heads-up that it's still open, not a wait gate. -->
+         heads-up that it's still open, not a wait gate. (It may well have
+         already started back on the day/inquiry screen, before voting
+         even opened — see the matching row there.) -->
     <div id="voting-gun-pending-row" style="display:none; margin-bottom:12px; align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap;">
       <p class="hint" id="voting-gun-pending-note" style="margin:0;"></p>
       <button class="btn btn-ghost" style="padding:6px 12px; flex-shrink:0;" onclick="App.forceSkipGunDecision()" data-i18n="btnForceSkipGun"></button>
@@ -3888,17 +3900,26 @@
   };
 
   function startDayOrInquiry(){
+    // The gun handoff (if تفنگدار passed it last night) is now started
+    // right here, at the very start of the morning — not gated behind the
+    // host tapping "Start Voting" (see App.startVoting's own comment,
+    // which used to trigger this) — so the holder can fire any time during
+    // the day's discussion/inquiry-vote, not only once voting has already
+    // opened. Never true on Day 1 (nothing's been handed off yet).
+    if(state.pendingGun) startDayGunStep();
     const anyoneEliminatedYet = Array.from(state.players.values()).some(e => !e.alive);
     if(state.inquiriesRemaining > 0 && anyoneEliminatedYet) startInquiryVote();
     else goToDayScreen();
   }
 
-  // تفنگدار handed the gun over last night — the recipient must decide whether
-  // to fire it after the day's conversation, once the host taps "Start Voting"
-  // (see App.startVoting), and before voting actually opens. Resolved via
-  // App.forceSkipGunDecision (host) or a 'day-gun-action' message (player),
-  // both of which call resolveDayGunAction. If the recipient didn't survive
-  // the night, the gun returns to تفنگدار instead — see startGunReturnedStep.
+  // تفنگدار handed the gun over last night — the recipient can decide any
+  // time this morning, starting right away (see startDayOrInquiry) and
+  // staying open through the inquiry vote, the day's conversation, and
+  // voting itself, whichever happens to still be going when they answer.
+  // Resolved via App.forceSkipGunDecision (host) or a 'day-gun-action'
+  // message (player), both of which call resolveDayGunAction. If the
+  // recipient didn't survive the night, the gun returns to تفنگدار instead
+  // — see startGunReturnedStep.
   function startDayGunStep(){
     const holder = state.players.get(state.pendingGun.holderId);
     if(!holder || !holder.alive){
@@ -3929,15 +3950,17 @@
       resolveDayGunAction(holderId, null);
       return;
     }
-    // Deliberately does NOT touch state.gamePhase — that's voting's own
-    // phase now (this runs concurrently with it, see App.startVoting), and
-    // handleDayGunAction/App.forceSkipGunDecision below check
-    // state.pendingGun directly instead, which is the only thing that
-    // actually needs to be true for a gun submission to be valid right now.
-    // Same reasoning for the deadline: armGunDeadline is a SEPARATE timer
-    // from voting's own armVoteDeadline (armed moments later, in the same
-    // App.startVoting() call) — sharing one slot would silently cancel
-    // whichever got armed first.
+    // Deliberately does NOT touch state.gamePhase — that stays whatever the
+    // morning's own flow (inquiry vote, day, or voting — see
+    // startDayOrInquiry/App.startVoting) is currently in, since this now
+    // starts independently at the top of the morning and may still be
+    // pending through all three. handleDayGunAction/App.forceSkipGunDecision
+    // below check state.pendingGun directly instead, which is the only
+    // thing that actually needs to be true for a gun submission to be
+    // valid right now. Same reasoning for the deadline: armGunDeadline is a
+    // SEPARATE timer from voting's own armVoteDeadline (armed much later,
+    // only once voting itself actually opens) — sharing one slot would
+    // silently cancel whichever got armed first.
     armGunDeadline(App.forceSkipGunDecision);
     const msg = { type: 'day-gun-pending', day: state.day, candidates, returned, diedName };
     // Cached on the entry (like entry.lastPhase, but tracked separately —
@@ -4133,20 +4156,26 @@
   }
   // Small persistent note (+ manual force-skip fallback, for a normally-
   // hosted game where nothing auto-expires this — see armGunDeadline) on
-  // the host's own voting screen — the only host-admin acknowledgement
-  // that a gun decision is still pending alongside the vote; everything
-  // else about it lives entirely on the holder's own device/subsection now.
+  // BOTH the host's day screen and voting screen — since the decision now
+  // starts at the top of the morning (see startDayOrInquiry) and may still
+  // be pending by the time voting opens, the host needs this heads-up
+  // wherever they happen to be sitting, not just on the voting screen.
+  // Everything else about it lives entirely on the holder's own
+  // device/subsection.
+  const GUN_PENDING_ROW_IDS = [['day-gun-pending-row', 'day-gun-pending-note'], ['voting-gun-pending-row', 'voting-gun-pending-note']];
   function updateGunPendingNote(){
-    const row = $('voting-gun-pending-row');
-    const note = $('voting-gun-pending-note');
-    if(!row || !note) return;
-    if(state.pendingGun){
-      const holder = state.players.get(state.pendingGun.holderId);
-      note.textContent = t('gunStillPendingNote', { name: holder ? holder.name : '' });
-      row.style.display = 'flex';
-    } else {
-      row.style.display = 'none';
-    }
+    const holder = state.pendingGun ? state.players.get(state.pendingGun.holderId) : null;
+    GUN_PENDING_ROW_IDS.forEach(([rowId, noteId]) => {
+      const row = $(rowId);
+      const note = $(noteId);
+      if(!row || !note) return;
+      if(state.pendingGun){
+        note.textContent = t('gunStillPendingNote', { name: holder ? holder.name : '' });
+        row.style.display = 'flex';
+      } else {
+        row.style.display = 'none';
+      }
+    });
   }
 
   function goToDayScreen(){
@@ -4247,6 +4276,7 @@
     $('day-hint-text').textContent = isDay1 ? t('day1Hint') : t('dayHint');
     $('btn-start-voting').style.display = isDay1 ? 'none' : 'flex';
     $('btn-day1-continue').style.display = isDay1 ? 'flex' : 'none';
+    updateGunPendingNote();
 
     const aliveBox = $('alive-list');
     aliveBox.innerHTML = '';
@@ -4283,14 +4313,15 @@
   App.startVoting = function(){
     if(state.day === 1) return;
     // The day-gun decision (if there's a gun pending) now runs ALONGSIDE
-    // voting instead of blocking it — starts here, at the same moment
-    // voting opens, and resolves independently on its own timeline; the
-    // holder can fire, skip, or vote in whatever order they like, and
-    // everyone else's voting is never held up waiting for them. See
-    // promptGunHolder/resolveDayGunAction for the rest of that flow, and
-    // armGunDeadline for why this needs its own separate deadline timer
-    // instead of sharing armVoteDeadline's single slot with voting itself.
-    if(state.pendingGun) startDayGunStep();
+    // voting instead of blocking it — it's already been started earlier,
+    // at the very top of the morning (see startDayOrInquiry), and keeps
+    // resolving independently on its own timeline regardless of when (or
+    // whether) voting itself opens; the holder can fire, skip, or vote in
+    // whatever order they like, and everyone else's voting is never held
+    // up waiting for them. See promptGunHolder/resolveDayGunAction for the
+    // rest of that flow, and armGunDeadline for why this needs its own
+    // separate deadline timer instead of sharing armVoteDeadline's single
+    // slot with voting itself.
     beginVotingRound1();
   };
 
@@ -5931,6 +5962,13 @@
   // resumeHostScreenForPhase's own phase list.
   function rearmDeadlineForResumedPhase(){
     if(!autoPacingOn()) return;
+    // The gun decision's own deadline (armGunDeadline) is a separate timer
+    // track from whatever the main phase below rearms — see promptGunHolder
+    // — and, now that it can start as early as the top of the morning (see
+    // startDayOrInquiry), a resume can land on 'day'/'inquiry-vote' with it
+    // already mid-flight, not just mid-voting. Re-check regardless of
+    // which phase branch fires below.
+    if(state.pendingGun) armGunDeadline(App.forceSkipGunDecision);
     const phase = state.gamePhase;
     if(phase === 'voting1' || phase === 'voting2') armVoteDeadline(App.closeVoting);
     else if(phase === 'defense') armDefenseDeadline(App.startFinalVote);
