@@ -1422,6 +1422,7 @@
       bombDefuseHint: 'بمب‌گذار بمبی کار گذاشته است. می‌توانید کد یک‌رقمی آن را حدس بزنید، یا بگذارید منفجر شود.',
       btnGuessBombCode: 'حدس زدن کد', btnLetBombExplode: 'بگذار منفجر شود',
       pickBombCodeFirst: 'ابتدا یک کد انتخاب کنید.',
+      bombCodeDropdownPlaceholder: 'کد را انتخاب کنید', bombGuessDropdownPlaceholder: 'یک رقم را حدس بزنید',
       actYouGuessedBombCode: 'شما کد {digit} را حدس زدید.', actYouLetBombExplode: 'شما گذاشتید بمب منفجر شود.',
       bombDecisionEyebrow: 'یک بمب در انتظار است',
       btnGotIt: 'متوجه شدم',
@@ -1682,6 +1683,7 @@
       bombDefuseHint: 'بمب‌گذار has planted a bomb. You may guess its single-digit code, or let it explode.',
       btnGuessBombCode: 'Guess the Code', btnLetBombExplode: 'Let It Explode',
       pickBombCodeFirst: 'Pick a code first.',
+      bombCodeDropdownPlaceholder: 'Choose the code', bombGuessDropdownPlaceholder: 'Guess a digit',
       actYouGuessedBombCode: 'You guessed code {digit}.', actYouLetBombExplode: 'You let the bomb explode.',
       bombDecisionEyebrow: 'A bomb is pending',
       btnGotIt: 'Got it',
@@ -4010,7 +4012,7 @@
       hint.textContent = t('chooseBombCodeHint');
       body.appendChild(hint);
       const codeList = document.createElement('div');
-      renderSlaughterRoleChoices(codeList, msg.bombCodeChoices.map(d => ({ key: d, name: d })), 'host-self-bomb-code', (key) => { state.selectedBombDigit = key; });
+      renderDigitDropdown(codeList, msg.bombCodeChoices.map(d => ({ key: d, name: d })), t('bombCodeDropdownPlaceholder'), (key) => { state.selectedBombDigit = key; });
       body.appendChild(codeList);
     }
     const list = document.createElement('div');
@@ -6821,6 +6823,7 @@
           // محافظ's own decision — same independent-of-whatever-else-is-
           // showing treatment as the gun above, see startBombDefuseStep.
           state.pendingBombMsg = msg;
+          state.selectedBombGuessDigit = null;
           attachBombDecisionSection(activeScreenId());
         }
         else if(msg.type === 'bomb-result'){
@@ -7321,14 +7324,12 @@
   // Shared by the real player's night-action screen and (in God Mode) the
   // host-self's own night-action card — the guessed-role list for سلاخی
   // (پدر خوانده's or حرفه‌ای's — see startMafiaPhaseStep/
-  // startCivilianPhaseStep), and (despite the name) also بمب‌گذار's own
-  // code-digit picker, are the same radio-list pattern the candidate list
-  // right above it already uses, just over msg.roleChoices/bombCodeChoices
-  // instead of msg.candidates and keyed by an arbitrary string (c.key —
-  // a role id, or a literal digit) instead of a player id. radioName keeps
-  // each consumer's native radio group from ever being confused with
-  // another if more than one happened to exist in the same document at
-  // once (they never do in practice, but see night-target vs
+  // startCivilianPhaseStep) is the same radio-list pattern the candidate
+  // list right above it already uses, just over msg.roleChoices instead of
+  // msg.candidates and keyed by role identity (c.key) instead of a player
+  // id. radioName keeps each consumer's native radio group from ever being
+  // confused with another if more than one happened to exist in the same
+  // document at once (they never do in practice, but see night-target vs
   // host-self-night-target for the same existing precaution).
   function renderSlaughterRoleChoices(container, choices, radioName, onSelect){
     container.innerHTML = '';
@@ -7341,6 +7342,35 @@
       row.querySelector('input').onchange = () => onSelect(c.key);
       container.appendChild(row);
     });
+  }
+
+  // بمب‌گذار's own code picker and محافظ's matching guess — both a single
+  // dropdown (reusing the already-styled-but-previously-unused
+  // select.role-select CSS) instead of a long row of ten radio buttons.
+  // Shared between بمب‌گذار's night prompt and محافظ's day-time defuse
+  // decision, real player and God-Mode host-self alike — same {key,name}
+  // shape renderSlaughterRoleChoices's own callers use, just rendered
+  // differently. The placeholder option is disabled + initially selected
+  // so nothing is picked by default; onSelect only ever fires for a real
+  // digit, never the placeholder itself.
+  function renderDigitDropdown(container, choices, placeholder, onSelect){
+    container.innerHTML = '';
+    const select = document.createElement('select');
+    select.className = 'role-select';
+    const placeholderOpt = document.createElement('option');
+    placeholderOpt.value = '';
+    placeholderOpt.textContent = placeholder;
+    placeholderOpt.disabled = true;
+    placeholderOpt.selected = true;
+    select.appendChild(placeholderOpt);
+    (choices || []).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.key;
+      opt.textContent = c.name;
+      select.appendChild(opt);
+    });
+    select.onchange = () => { if(select.value) onSelect(select.value); };
+    container.appendChild(select);
   }
 
   function renderNightActionScreen(msg){
@@ -7391,7 +7421,7 @@
       state.selectedBombDigit = null;
       bombCodeSection.style.display = msg.bombCodeChoices ? 'block' : 'none';
       if(msg.bombCodeChoices){
-        renderSlaughterRoleChoices($('night-action-bomb-code-list'), msg.bombCodeChoices.map(d => ({ key: d, name: d })), 'night-bomb-code', (key) => { state.selectedBombDigit = key; });
+        renderDigitDropdown($('night-action-bomb-code-list'), msg.bombCodeChoices.map(d => ({ key: d, name: d })), t('bombCodeDropdownPlaceholder'), (key) => { state.selectedBombDigit = key; });
       }
     }
     const list = $('night-action-candidate-list');
@@ -7530,9 +7560,9 @@
   }
 
   // محافظ's own defuse decision — same shape as renderDayGunCandidates
-  // (hint + options + two action buttons), just a digit radio list
-  // (reusing renderSlaughterRoleChoices, same as بمب‌گذار's own night
-  // picker) instead of a player-candidate list.
+  // (hint + options + two action buttons), just a digit dropdown (reusing
+  // renderDigitDropdown, same as بمب‌گذار's own night picker) instead of a
+  // player-candidate list.
   function renderBombDefuseUI(container, msg, onGuess, onSkip){
     container.innerHTML = '';
     const hint = document.createElement('p');
@@ -7541,7 +7571,7 @@
     hint.textContent = t('bombDefuseHint');
     container.appendChild(hint);
     const list = document.createElement('div');
-    renderSlaughterRoleChoices(list, (msg.codeChoices || []).map(d => ({ key: d, name: d })), 'bomb-defuse-digit', (key) => { state.selectedBombGuessDigit = key; });
+    renderDigitDropdown(list, (msg.codeChoices || []).map(d => ({ key: d, name: d })), t('bombGuessDropdownPlaceholder'), (key) => { state.selectedBombGuessDigit = key; });
     container.appendChild(list);
     const actions = document.createElement('div');
     actions.className = 'host-self-card-actions';
