@@ -708,6 +708,45 @@ classes), not on anything internal to `index.html`.
     `gunsCancelled === true` assertion there too, so both halves of the
     rule are pinned down by a real, dedicated check rather than only one.
 
+16. `16-slaughter-and-lecter` — covers three related night-phase features
+    added in the same pass: پدر خوانده's سلاخی (Slaughter) option, حرفه‌ای
+    getting that same option, and the new Mafia-team role دکتر لکتر (a
+    Doctor's save restricted to Mafia-team targets only). One 10-player game
+    drives every combination rather than three smaller ones: حرفه‌ای's
+    Slaughter SUCCEEDS on زودیاک (a correct guess is the one way to kill the
+    otherwise shot-immune زودیاک without a day vote) in the same night
+    دکتر لکتر's save genuinely protects a Mafia-aligned target from a real,
+    non-guaranteed death (زودیاک's own shot elsewhere that night); حرفه‌ای's
+    Slaughter then FAILS on a plain villager (complete non-event) and is
+    permanently disabled afterward — one mistake, ever; پدر خوانده's own
+    Slaughter then SUCCEEDS on the same Mafia-aligned target دکتر لکتر just
+    saved, this time proving the save does NOT help against a correct guess
+    (`guaranteedDeaths` bypasses it exactly like a shield or the regular
+    دکتر's own save); پدر خوانده's Slaughter then FAILS too, permanently
+    disabled, and a completely ordinary kill right afterward confirms the
+    base ability still works once Slaughter itself is gone. Also confirms
+    دکتر لکتر's own candidate list is restricted to ALIVE MAFIA-TEAM members
+    only, never a civilian, حرفه‌ای, or زودیاک. `device.js` gained
+    `setSlaughterCheckbox`/`pickSlaughterRole`/`isSlaughterToggleVisible`;
+    `game-flow.js`'s shared `nightAction` gained an `opts.slaughterGuessRole`
+    param (mirrors `opts.recruit`) so any scenario can drive either role's
+    Slaughter option through the same generic helper.
+
+    Running the full suite after adding this one surfaced two genuinely
+    PRE-EXISTING scenario bugs, unrelated to this new one, both from an
+    earlier session's `PROFESSIONAL_MAX_SHOTS` (2) whole-game cap on
+    حرفه‌ای's own shot never having been checked against the full suite
+    before now: scenario 02's narrative had حرفه‌ای take a flawless THIRD
+    shot (two needed to kill a shielded پدر خوانده, a third meant for
+    ماتادور) that the cap now makes impossible — fixed by having that final
+    kill come from a Day 5 vote instead, once حرفه‌ای's own two shots are
+    already spent. Scenario 03 had حرفه‌ای take two further "belt and
+    suspenders" shots (Nights 4-5) that were always redundant confirmations
+    of a kill زودیاک's own shot already delivered — simply removed, with no
+    other outcome change needed. Both fixes are a good illustration of why
+    this project's own standing habit is to run the full suite (not just a
+    targeted scenario) after any change to a shared cap/limit mechanic.
+
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this
 harness also had.

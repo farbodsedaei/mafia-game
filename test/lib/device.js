@@ -122,6 +122,32 @@ function setRecruitCheckbox(device, checked) {
   el.checked = !!checked;
 }
 
+// سلاخی (Slaughter) — the alternate-to-a-normal-shot option پدر خوانده and
+// حرفه‌ای both have: check the box (revealing the role-guess list), then
+// pick the guessed role by name. Mirrors setRecruitCheckbox/pickNightTarget
+// exactly; the actual TARGET is still chosen the normal way via
+// pickNightTarget — this only picks WHICH role to guess.
+function setSlaughterCheckbox(device, checked) {
+  const el = $(device, 'night-action-slaughter-checkbox');
+  if (!el) throw new Error('setSlaughterCheckbox: #night-action-slaughter-checkbox not present');
+  el.checked = !!checked;
+  if (typeof el.onchange === 'function') el.onchange();
+}
+function pickSlaughterRole(device, roleName) {
+  const input = pickCandidateRow(device, 'night-action-slaughter-role-list', roleName);
+  input.checked = true;
+  if (typeof input.onchange === 'function') input.onchange();
+}
+// True once the Slaughter checkbox is actually offered on this device's
+// CURRENT night-action prompt — see startMafiaPhaseStep/startCivilianPhaseStep's
+// own canSlaughter gates (both پدر خوانده's and حرفه‌ای's disappear for good
+// after one wrong guess — see godfatherSlaughterDisabled/
+// professionalSlaughterDisabled in index.html).
+function isSlaughterToggleVisible(device) {
+  const el = $(device, 'night-action-slaughter-toggle');
+  return !!(el && el.style.display !== 'none');
+}
+
 // The day-gun decision (تفنگدار's handoff recipient deciding whether to
 // fire) renders its candidates into #gun-decision-section-body — nested
 // under a wrapper div, but querySelectorAll in pickCandidateRow searches the
@@ -365,6 +391,7 @@ module.exports = {
   $, text, setValue, activeScreenId, readDebugStateText,
   checkVoteCandidate, pickNightTarget, selectRoleInPlay, deselectRoleInPlay, isRoleInPlay,
   pickDayGunTarget, isGunDecisionVisible, setRecruitCheckbox,
+  setSlaughterCheckbox, pickSlaughterRole, isSlaughterToggleVisible,
   roleInfo, roomCode, connectedNamedCount,
   readVoteTally, readGameOverRoster,
   isHostSelfActionVisible, isHostSelfGunActionVisible, pickHostSelfCandidate,

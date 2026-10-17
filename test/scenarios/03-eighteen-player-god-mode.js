@@ -54,7 +54,11 @@
 //          night ability of their own, so it's a genuine no-op, not a
 //          suppressed real action.
 //        - حرفه‌ای backfires (kills the shooter) on any non-Mafia target —
-//          every حرفه‌ای shot below targets a confirmed Mafia name.
+//          every حرفه‌ای shot below targets a confirmed Mafia name. Also
+//          capped at PROFESSIONAL_MAX_SHOTS (2) for the whole game — both
+//          go into stripping/finishing پدر خوانده's shield on Nights 2-3;
+//          Nights 4-5 both correctly get NO حرفه‌ای prompt at all (زودیاک's
+//          own shot is what actually finishes those two targets off).
 //        - تفنگدار's gun-holder identity (who currently possesses the
 //          physical gun, decided via a day-time fire/skip prompt) is
 //          entirely separate from تفنگدار the ROLE (gunnerName below always
@@ -447,8 +451,12 @@ runScenario('03-eighteen-player-god-mode', async (log) => {
     log.step(doctorName + ' (دکتر) saves ' + detectiveName + ' tonight — no one\'s actually threatened, but دکتر still acts...');
     await actNight(doctorName, detectiveName);
 
-    log.step(professionalName + ' (حرفه‌ای) shoots ' + saulName + ' too — belt and suspenders, still a genuine Mafia target...');
-    await actNight(professionalName, saulName);
+    // حرفه‌ای's whole-game PROFESSIONAL_MAX_SHOTS (2) is already fully spent
+    // (both shots went into پدر خوانده, Nights 2-3) — no further prompt
+    // arrives for them ever again this game (see startCivilianPhaseStep's
+    // own eligible check), so there's nothing left to drive here; زودیاک's
+    // own shot above is what actually finishes ساول گودمن off.
+    log.info(professionalName + ' (حرفه‌ای) is not prompted tonight or ever again — both whole-game shots are already spent.');
 
     log.step(detectiveName + ' (کاراگاه) investigates ' + saulName + ' one more time...');
     await actNight(detectiveName, saulName);
@@ -479,7 +487,7 @@ runScenario('03-eighteen-player-god-mode', async (log) => {
     await waitFor(() => activeScreenId(host) === 'screen-host-night-result',
       { message: 'host never reached the Night 4 result screen' });
     log.info('Night 4 result: "' + (text(host, 'night-result-title') || '') + '"');
-    log.death(saulName, 'Mafia', 'shot by both زودیاک and حرفه‌ای — the last of Mafia\'s original three');
+    log.death(saulName, 'Mafia', 'shot by زودیاک — the last of Mafia\'s original three');
     log.info(pv[0] + ' was recruited into Mafia by ساول گودمن — Mafia\'s numbers replenished from within the village.');
     dead.push(saulName);
     host.App.proceedAfterNight();
@@ -532,8 +540,9 @@ runScenario('03-eighteen-player-god-mode', async (log) => {
     log.step(doctorName + ' (دکتر) saves ' + pv[2] + ' — Mafia\'s own target tonight...');
     await actNight(doctorName, pv[2]);
 
-    log.step(professionalName + ' (حرفه‌ای) shoots ' + pv[0] + ' too — still a genuine Mafia target, no backfire...');
-    await actNight(professionalName, pv[0]);
+    // Still fully out of shots (see Night 4's own note above) — زودیاک's
+    // own deciding shot above is what actually finishes pv[0] off.
+    log.info(professionalName + ' (حرفه‌ای) remains unprompted — no shots left.');
 
     log.step(detectiveName + ' (کاراگاه) investigates ' + pv[0] + ', the new Mafia recruit...');
     await actNight(detectiveName, pv[0]);

@@ -7,7 +7,7 @@
 const {
   createDevice, activeScreenId, setValue, roomCode, connectedNamedCount, waitFor, roleInfo,
   checkVoteCandidate, readVoteTally, pickNightTarget, pickDayGunTarget, isGunDecisionVisible,
-  setRecruitCheckbox, isHostSelfActionVisible, isHostSelfGunActionVisible, pickHostSelfCandidate,
+  setRecruitCheckbox, setSlaughterCheckbox, pickSlaughterRole, isHostSelfActionVisible, isHostSelfGunActionVisible, pickHostSelfCandidate,
   setHostSelfRecruitCheckbox, hostSelfRoleInfo
 } = require('./device');
 
@@ -153,10 +153,18 @@ function logTally(host, log, roundLabel) {
 // these roles). opts.recruit checks the "recruit instead of shoot" box that
 // only appears on the Mafia kill-decider's own prompt once ساول گودمن is
 // alive and Mafia has already lost someone (see setRecruitCheckbox).
+// opts.slaughterGuessRole checks the سلاخی box instead (پدر خوانده's or
+// حرفه‌ای's own alternate-to-a-normal-shot option — see setSlaughterCheckbox)
+// and guesses the given role name; target is still required in this case —
+// it's WHO to target, slaughterGuessRole is WHICH role to guess they are.
 async function nightAction(device, log, target, opts) {
   await waitFor(() => activeScreenId(device) === 'screen-player-night-action',
     { message: device.label + ' never got their night-action prompt' });
   if (opts && opts.recruit) setRecruitCheckbox(device, true);
+  if (opts && opts.slaughterGuessRole) {
+    setSlaughterCheckbox(device, true);
+    pickSlaughterRole(device, opts.slaughterGuessRole);
+  }
   if (target) {
     pickNightTarget(device, target);
     device.App.submitNightAction();

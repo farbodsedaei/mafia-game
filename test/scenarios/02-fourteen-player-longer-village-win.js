@@ -3,21 +3,21 @@
 // پدر خوانده + ماتادور Mafia, زودیاک, دکتر, حرفه‌ای, تفنگدار, کاراگاه,
 // کنستانتین, اوشن, 5 villagers; every day vote a strict majority; every
 // no-limit role acts every night it's prompted; every limited role driven
-// to its actual cap) — but three things are deliberately different this
-// time:
+// to its actual cap) — but things are deliberately different this time:
 //
-//   1. The game runs LONGER: 4 full nights (Night 1-4) across 4 days,
+//   1. The game runs LONGER: 4 full nights (Night 1-4) across 5 days,
 //      instead of scenario 01's 3.
-//   2. حرفه‌ای never makes a mistake shot — every one of their three shots
-//      this game lands on a genuine Mafia member (پدر خوانده twice — the
-//      first strips their shield, the second finishes them; ماتادور once,
-//      a clean kill). Zero backfires.
+//   2. حرفه‌ای never makes a mistake shot — both of their whole-game TWO
+//      shots (PROFESSIONAL_MAX_SHOTS) land on پدر خوانده (the first strips
+//      their shield, the second finishes them). Zero backfires. With both
+//      shots already spent, ماتادور — the last Mafia member — falls to a
+//      Day 5 vote instead of a third shot that no longer exists.
 //   3. زودیاک dies BEFORE either Mafia member does — voted out on Day 3
 //      while both پدر خوانده and ماتادور are still alive — so the ending
 //      this time is a plain **village win**, not a زودیاک win: by the time
 //      the last Mafia member falls, independentAlive is already false.
 //
-// Two mechanics get exercised here that 01 never touched:
+// Mechanics exercised here that 01 never touched:
 //   - The DEFERRED ماتادور prompt (Night 4): once پدر خوانده is dead,
 //     ماتادور becomes Mafia's only kill-decider AND still has their own
 //     block ability — startMafiaPhaseStep holds their block prompt back
@@ -32,6 +32,10 @@
 //     Day-3 recipient deliberately SKIPS first (a clean, no-cost choice),
 //     then a later recipient deliberately fires wrong on Day 4 — a genuine
 //     mistake, in contrast to حرفه‌ای's flawless record this game.
+//   - حرفه‌ای correctly receiving NO night-action prompt at all on Night 4,
+//     once PROFESSIONAL_MAX_SHOTS is already spent — same precedent as
+//     15-gunner-cancellation-rules.js/16-slaughter-and-lecter.js for تفنگدار/
+//     حرفه‌ای's own whole-game caps.
 const { runScenario } = require('../lib/scenario');
 const { startServer } = require('../lib/server-runner');
 const {
@@ -361,8 +365,14 @@ runScenario('02-fourteen-player-longer-village-win', async (log) => {
     log.step(doctorName + ' (دکتر) saves ' + detectiveName + ' tonight — their self-save is already spent...');
     await nightAction(doctor, log, detectiveName);
 
-    log.step(professionalName + ' (حرفه‌ای) shoots ' + matadorName + ' — the last Mafia member, no shield, a real clean kill...');
-    await nightAction(professional, log, matadorName);
+    // حرفه‌ای's whole-game PROFESSIONAL_MAX_SHOTS (2) is already fully spent
+    // (both shots went into پدر خوانده, Nights 2-3) — no nightAction() call
+    // here at all, since the app correctly never sends them a prompt once
+    // professionalShotsRemaining hits 0 (see startCivilianPhaseStep's own
+    // eligible check) — calling nightAction and waiting for a prompt that
+    // will never arrive would just hang. ماتادور survives this night as a
+    // result; see the Day 5 vote below for how they actually fall.
+    log.step(professionalName + ' (حرفه‌ای) is fully out of shots tonight — correctly gets no prompt at all...');
 
     log.step(detectiveName + ' (کاراگاه) investigates ' + matadorName + ' one last time...');
     await nightAction(detective, log, matadorName);
@@ -381,22 +391,54 @@ runScenario('02-fourteen-player-longer-village-win', async (log) => {
 
     await waitFor(() => activeScreenId(host) === 'screen-host-night-morning',
       { message: 'Night 4 never reached the morning-ready screen' });
-    log.step('Announcing morning — this should wipe out the last of Mafia, with زودیاک already long gone...');
+    log.step('Announcing morning — پv5 falls, but ماتادور has nobody left to shoot them tonight...');
     host.App.announceMorning();
 
     await waitFor(() => activeScreenId(byLabel(players, pv5)) === 'screen-player-eliminated',
       { message: pv5 + ' never saw their own elimination screen' });
     log.death(pv5, 'villager', 'shot by the Mafia during the night — no save this time');
-    await waitFor(() => activeScreenId(matador) === 'screen-player-eliminated',
-      { message: matadorName + ' never saw their own elimination screen — حرفه‌ای\'s shot should have finished them' });
-    log.death(matadorName, 'Mafia', 'shot by حرفه‌ای — the last Mafia member, and حرفه‌ای\'s third flawless shot this game');
+    await sleep(150);
+    log.assert(activeScreenId(matador) !== 'screen-player-eliminated',
+      matadorName + ' correctly survived the night — حرفه‌ای had nothing left to shoot them with');
 
     host.App.proceedAfterNight();
+    await waitFor(() => activeScreenId(host) === 'screen-host-day',
+      { message: 'host never reached Day 5 after Night 4' });
+    log.assert(activeScreenId(host) !== 'screen-host-game-over',
+      'the game correctly continues into Day 5 — ماتادور is still alive, the last Mafia member standing');
+
+    // ==================== DAY 5 — ماتادور falls to a vote instead ====================
+    log.banner('DAY 5');
+    const deadSoFarDay5 = [pv1, pv2, pv3, pv4, pv5, zodiacName, godfatherName];
+    const aliveDay5 = players.filter((p) => !deadSoFarDay5.includes(p.label));
+    const day5Voters = aliveDay5.map((p) => p.label).filter((n) => n !== matadorName); // everyone but ماتادور themselves
+    log.info(day5Voters.length + ' of ' + aliveDay5.length + ' alive players vote this round (> half): ' + day5Voters.join(', '));
+    log.step('With both Mafia-killing شلیک‌ها already spent, the village finishes ماتادور off by vote instead...');
+    host.App.startVoting();
+    const day5Round1 = {};
+    day5Voters.forEach((n) => { day5Round1[n] = [matadorName]; });
+    await castVotes(aliveDay5, day5Round1, log, 'round 1');
+
+    await waitFor(() => activeScreenId(host) === 'screen-host-defense',
+      { message: 'host never reached the defense screen after Day 5 round 1' });
+    logTally(host, log, 'round 1');
+
+    host.App.startFinalVote();
+    const day5Final = {};
+    day5Voters.forEach((n) => { day5Final[n] = [matadorName]; });
+    await castVotes(aliveDay5.filter((p) => p.label !== matadorName), day5Final, log, 'final');
+
+    await waitFor(() => activeScreenId(host) === 'screen-host-result',
+      { message: 'host never reached the Day 5 result screen' });
+    logTally(host, log, 'final vote');
+    log.assert((text(host, 'result-title') || '').indexOf(matadorName) !== -1, 'result screen names ' + matadorName + ' as voted out');
+    host.App.proceedAfterResult();
 
     await waitFor(() => activeScreenId(host) === 'screen-host-game-over',
-      { message: 'host never reached the game-over screen' });
+      { message: 'host never reached the game-over screen after the Day 5 vote' });
     const finalTitle = text(host, 'game-over-title') || '';
     log.banner('GAME OVER — ' + finalTitle);
+    log.death(matadorName, 'Mafia', 'voted out by the village — the last Mafia member, once حرفه‌ای had no shots left to finish them');
     log.roster(readGameOverRoster(host));
     // زودیاک died back on Day 3, well before either Mafia member — so this
     // must be a plain village win, NOT a زودیاک win (contrast with scenario 01).

@@ -2359,10 +2359,16 @@
     return '<span class="tag ' + (r.team === 'mafia' ? 'mafia' : 'villager') + ' role-team-tag">' + escapeHtml(r.team === 'mafia' ? t('tagMafia') : t('tagVillage')) + '</span>';
   }
 
-  // Mafia first, then Independent, then regular civilians — for the God's role checklist.
+  // Mafia first, then Independent, then regular civilians — for the God's
+  // role checklist (and the player-facing Role Guide, which sorts the same
+  // way). زودیاک پسر is grouped WITH زودیاک here even though it isn't
+  // independent itself (independent:false — it's a regular villager until
+  // succession) specifically so it sorts immediately after زودیاک in the
+  // list, right where its own role-checklist dependency (see
+  // enforceZodiacSonDependency) already keeps the two logically paired.
   function roleGroupRank(r){
     if(r.team === 'mafia') return 0;
-    if(r.independent) return 1;
+    if(r.independent || r.id === 'role-zodiac-son') return 1;
     return 2;
   }
 
