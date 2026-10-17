@@ -188,10 +188,20 @@
      hidden (see updateAdminPanelButtonsVisibility), since it must remain
      reachable exactly when the full debug panel is deliberately hidden. */
   .manage-players-btn{left:auto; right:8px; top:34px;}
+  /* Role Guide — stacked below the debug-toggle-btn row so it never
+     overlaps it on a plain host's own screens, where both can be visible
+     at once (unlike manage-players-btn, this one is never mutually
+     exclusive with debug-toggle-btn — see updateRoleGuideButtonVisibility). */
+  .role-guide-btn{top:62px;}
   .debug-panel{display:none; position:fixed; inset:0; z-index:2000; background:rgba(6,7,10,0.97); overflow-y:auto; padding:18px 18px 40px;}
   .debug-panel.open{display:block;}
   .debug-panel h3{font-size:15px; margin:18px 0 8px; color:var(--gold);}
   .debug-panel .debug-row{padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.04); margin-bottom:6px; font-size:13px; line-height:1.5;}
+  .role-guide-row{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:8px;}
+  .role-guide-row-header{display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer;}
+  .role-guide-chevron{color:var(--text-muted); font-size:18px; line-height:1; transition:transform .15s; flex-shrink:0;}
+  .role-guide-row.open .role-guide-chevron{transform:rotate(90deg);}
+  .role-guide-desc{margin:10px 0 0; line-height:1.5;}
   .debug-panel .debug-log-entry{padding:4px 0 4px 10px; border-left:2px solid rgba(255,255,255,0.12); font-size:12px; color:var(--text-faint);}
 
   /* God Mode: the host's own "you're playing too" subsection — role/
@@ -917,6 +927,26 @@
   <button id="lang-btn-en" onclick="App.setLanguage('en')">EN</button>
 </div>
 
+<!-- Role Guide — every player's (and the host's own) quick reference for
+     "what does each role in THIS game actually do," mainly for newer
+     players who don't have every ability memorized. Always visible (host,
+     real player, and God Mode's host-self alike) the instant roles are
+     dealt — see state.roleGuideIds/updateRoleGuideButtonVisibility — and
+     hidden again once a new game starts. Never shows WHO holds which role,
+     only which roles exist in the pool and what each one does — no spoiler
+     risk, unlike the debug panel, so it needs none of that panel's
+     God-Mode-self-alive gating (see hostSelfBlocksDebug). Positioned below
+     the debug/manage-players row specifically so it never collides with
+     either on a plain host's own screens, where both can be visible at
+     once. -->
+<button id="role-guide-btn" class="debug-toggle-btn role-guide-btn" style="display:none;" onclick="App.toggleRoleGuide()">&#128214;</button>
+<div id="role-guide-panel" class="debug-panel">
+  <div class="eyebrow" data-i18n="roleGuideTitle"></div>
+  <p class="hint" style="margin-top:10px;" data-i18n="roleGuideHint"></p>
+  <button class="btn btn-ghost" style="margin-top:14px;" onclick="App.toggleRoleGuide()" data-i18n="btnCloseRoleGuide"></button>
+  <div id="role-guide-list" style="margin-top:16px;"></div>
+</div>
+
 <!-- Kicking a disruptive player must stay available to the host even in
      God Mode while their own host-self seat is alive — exactly when the
      full debug panel (roles, night status, everyone's activity log) is
@@ -1127,6 +1157,7 @@
   // of sync with the night engine the way a renamable role could.
   const ROLE_NAME_GODFATHER = 'پدر خوانده';
   const ROLE_NAME_MATADOR = 'ماتادور';
+  const ROLE_NAME_LECTER = 'دکتر لکتر';
   const ROLE_NAME_PROFESSIONAL = 'حرفه‌ای';
   const ROLE_NAME_DOCTOR = 'دکتر';
   const ROLE_NAME_DETECTIVE = 'کاراگاه';
@@ -1289,8 +1320,11 @@
       actYouAttemptedSlaughter: 'شما تلاش کردید {name} را سلاخی کنید و حدس زدید نقش او {role} است.',
       actMafiaSlaughterAttempt: 'پدر خوانده تلاش کرد {name} را سلاخی کند.',
       matadorRepeatBlockNote: '(دیشب همین فرد را مسدود کردید — نمی‌توانید دوباره او را انتخاب کنید)',
+      lecterRepeatSaveNote: '(دیشب همین فرد را نجات دادید — نمی‌توانید دوباره او را انتخاب کنید)',
+      actLecterSaved: 'دکتر لکتر {name} را نجات داد.', actLecterNoSave: 'دکتر لکتر کسی را نجات نداد.',
       btnConfirm: 'تأیید', btnDoNothingTonight: 'امشب کاری نکن',
       chooseToBlock: 'کسی را برای مسدودکردن انتخاب کنید', chooseToSave: 'کسی را برای نجات انتخاب کنید',
+      chooseToSaveMafia: 'یکی از اعضای مافیا را برای نجات انتخاب کنید',
       chooseToRevive: 'کسی را برای زنده‌کردن انتخاب کنید', chooseToInvestigate: 'کسی را برای تحقیق انتخاب کنید',
       chooseToShoot: 'کسی را برای شلیک انتخاب کنید', chooseToAddGroup: 'کسی را برای اضافه‌کردن به گروه انتخاب کنید',
       closeYourEyes: 'چشمانتان را ببندید.',
@@ -1358,6 +1392,9 @@
       debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
       managePlayersTitle: 'مدیریت بازیکنان', btnCloseManagePlayers: 'بستن',
       managePlayersEmpty: 'هنوز هیچ بازیکنی نام خود را وارد نکرده است.',
+      roleGuideTitle: 'راهنمای نقش‌ها', btnCloseRoleGuide: 'بستن',
+      roleGuideHint: 'فقط نقش‌هایی که در این بازی حضور دارند. برای دیدن توضیحات هر نقش روی آن ضربه بزنید.',
+      roleGuideEmpty: 'نقش‌ها هنوز مشخص نشده‌اند.',
       btnKickPlayer: 'اخراج از بازی', confirmKickPlayer: 'آیا مطمئن هستید که می‌خواهید {name} را از بازی اخراج کنید؟',
       actKickedByGod: 'شما توسط گاد از بازی اخراج شدید.', playerKicked: '{name} از بازی اخراج شد.',
       btnRevivePlayer: 'بازگرداندن به بازی', confirmRevivePlayer: 'آیا می‌خواهید {name} را دوباره به بازی بازگردانید؟',
@@ -1375,6 +1412,8 @@
       debugConnected: 'متصل', debugDisconnected: 'قطع شده',
       debugPhaseLabel: 'فاز', debugWinnerLabel: 'برنده', debugGunsRemainingLabel: 'اسلحه‌های باقی‌مانده',
       debugProfessionalShotsLabel: 'شلیک‌های باقی‌ماندهٔ حرفه‌ای',
+      debugGodfatherSlaughterLabel: 'سلاخی پدر خوانده', debugProfessionalSlaughterLabel: 'سلاخی حرفه‌ای',
+      debugSlaughterAvailable: 'در دسترس', debugSlaughterDisabled: 'برای همیشه غیرفعال',
       debugGunsCancelledLabel: 'اسلحه‌ها لغو شده', debugPendingGunLabel: 'اسلحه در دست', debugNone: 'هیچ‌کدام',
       debugPendingRolesLabel: 'نقش‌های توزیع‌نشده',
       debugNoGodModeLabel: 'حالت بدون گاد', debugDeadlineLabel: 'مهلت فعلی', debugGodModeLabel: 'حالت گاد-بازیکن',
@@ -1527,8 +1566,11 @@
       actYouAttemptedSlaughter: 'You attempted to slaughter {name}, guessing their role as {role}.',
       actMafiaSlaughterAttempt: 'پدر خوانده attempted to slaughter {name}.',
       matadorRepeatBlockNote: "(You blocked them last night — you can't choose the same person again)",
+      lecterRepeatSaveNote: "(You saved them last night — you can't choose the same person again)",
+      actLecterSaved: 'دکتر لکتر saved {name}.', actLecterNoSave: 'دکتر لکتر did not save anyone.',
       btnConfirm: 'Confirm', btnDoNothingTonight: 'Do Nothing Tonight',
       chooseToBlock: 'Choose someone to block', chooseToSave: 'Choose someone to save',
+      chooseToSaveMafia: 'Choose a Mafia member to save',
       chooseToRevive: 'Choose someone to bring back to life', chooseToInvestigate: 'Choose someone to investigate',
       chooseToShoot: 'Choose someone to shoot', chooseToAddGroup: 'Choose someone to add to your group',
       closeYourEyes: 'Close your eyes.',
@@ -1596,6 +1638,9 @@
       debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
       managePlayersTitle: 'Manage Players', btnCloseManagePlayers: 'Close',
       managePlayersEmpty: "No player has named themselves yet.",
+      roleGuideTitle: 'Role Guide', btnCloseRoleGuide: 'Close',
+      roleGuideHint: "Only the roles actually in this game. Tap any role to see what it does.",
+      roleGuideEmpty: 'Roles have not been decided yet.',
       btnKickPlayer: 'Kick from Game', confirmKickPlayer: "Are you sure you want to kick {name} from the game?",
       actKickedByGod: 'You were kicked from the game by the God.', playerKicked: '{name} was kicked from the game.',
       btnRevivePlayer: 'Bring Back Into Game', confirmRevivePlayer: 'Bring {name} back into the game?',
@@ -1613,6 +1658,8 @@
       debugConnected: 'Connected', debugDisconnected: 'Disconnected',
       debugPhaseLabel: 'Phase', debugWinnerLabel: 'Winner', debugGunsRemainingLabel: 'Guns remaining',
       debugProfessionalShotsLabel: "حرفه‌ای's shots remaining",
+      debugGodfatherSlaughterLabel: "پدر خوانده's Slaughter", debugProfessionalSlaughterLabel: "حرفه‌ای's Slaughter",
+      debugSlaughterAvailable: 'Available', debugSlaughterDisabled: 'Permanently disabled',
       debugGunsCancelledLabel: 'Guns cancelled', debugPendingGunLabel: 'Gun currently held by', debugNone: 'None',
       debugPendingRolesLabel: 'Undistributed roles',
       debugNoGodModeLabel: 'No God Mode', debugDeadlineLabel: 'Current deadline', debugGodModeLabel: 'God Mode',
@@ -1627,11 +1674,12 @@
   const ROLE_DESC_EN = {
     'builtin-mafia': 'You know the other Mafia. Work in the dark, blend in by day.',
     'builtin-villager': 'You have no special knowledge. Watch closely, and vote wisely.',
-    'role-godfather': "Each night you decide who Mafia will target. If کاراگاه investigates you, you always read as an innocent civilian. Instead of a normal shot, you alone may choose to Slaughter (سلاخی) your target — you must also guess their exact role. Guess right and they die no matter what, even a shield or the Doctor's save; guess wrong and nothing happens, same as no shot at all. Once you're out, no other Mafia member can use this.",
+    'role-godfather': "Each night you decide who Mafia will target. If کاراگاه investigates you, you always read as an innocent civilian. Instead of a normal shot, you alone may choose to Slaughter (سلاخی) your target — you must also guess their exact role. Guess right and they die no matter what, even a shield, the Doctor's save, or even زودیاک; guess wrong and nothing happens, same as no shot at all. Whoever you target with Slaughter can't use their own night action that night either way, right guess or wrong. But you only get one wrong guess in the whole game — the first time you guess wrong, Slaughter is permanently taken away from you and you're left with a normal shot only from then on. Once you're out, no other Mafia member can use this.",
     'role-matador': "Each night you choose one civilian to block; they can't use their ability that night. You can't block the exact same person on two nights in a row — whoever you blocked last night is shown but can't be selected again.",
+    'role-lecter': "Each night you may save one Mafia member (even yourself) from dying — unlike the regular Doctor, you may only save Mafia members, never civilians. If a Mafia member is targeted by حرفه‌ای, زودیاک, or any other source and you save them, they stay in the game. Saving yourself is only possible once in the whole game. You can't save the exact same person on two nights in a row — whoever you saved last night is shown but can't be selected again.",
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
     'role-detective': "Each night you investigate someone and get back a simple positive or negative — never a specific label like \"Mafia\" or anything else.",
-    'role-professional': "Each night you may target someone — at most twice in the whole game (declining to act tonight doesn't cost you one). Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead. زودیاک is just as safe a target as Mafia — neither they nor you are affected.",
+    'role-professional': "Each night you may target someone — at most twice in the whole game (declining to act tonight doesn't cost you one). Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead. زودیاک is just as safe a target as Mafia — neither they nor you are affected. Instead of a normal shot, you may also choose to Slaughter (سلاخی) your target — you must also guess their exact role. Guess right and they die no matter what, even a shield, the Doctor's save, or even زودیاک; guess wrong and nothing happens at all (to either of you), but the option is permanently taken away from you — you only get one wrong guess in the whole game. Slaughter still spends one of your two whole-game shots, same as a normal one.",
     'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish. This is only possible once in the whole game.',
     'role-saul': 'If a Mafia member has already died, Mafia can recruit a plain Villager into Mafia instead of shooting.',
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member gets you announced dead by morning.",
@@ -1674,11 +1722,12 @@
   const HARDCODED_ROLES = [
     { id: 'builtin-mafia', team: 'mafia', name: 'مافیا ساده', description: 'شما سایر اعضای مافیا را می‌شناسید. در تاریکی کار کنید، در روز خودتان را پنهان کنید.', shield: false, independent: false, builtin: true },
     { id: 'builtin-villager', team: 'villager', name: ROLE_NAME_PLAIN_VILLAGER, description: 'شما اطلاعات خاصی ندارید. با دقت تماشا کنید و هوشمندانه رأی دهید.', shield: false, independent: false, builtin: true },
-    { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد. اگر کاراگاه شما را بررسی کند، همیشه به‌عنوان یک شهروند بی‌گناه دیده می‌شوید. به‌جای شلیک معمولی، فقط شما می‌توانید «سلاخی» را انتخاب کنید — باید نقش دقیق هدفتان را هم حدس بزنید. اگر درست حدس بزنید، او به هر حال می‌میرد، حتی با شیلد یا نجات دکتر؛ اگر اشتباه حدس بزنید، هیچ اتفاقی نمی‌افتد، درست مثل عدم شلیک. وقتی شما از بازی خارج شوید، هیچ عضو دیگر مافیا نمی‌تواند از این توانایی استفاده کند.', shield: true, independent: false, builtin: false },
+    { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد. اگر کاراگاه شما را بررسی کند، همیشه به‌عنوان یک شهروند بی‌گناه دیده می‌شوید. به‌جای شلیک معمولی، فقط شما می‌توانید «سلاخی» را انتخاب کنید — باید نقش دقیق هدفتان را هم حدس بزنید. اگر درست حدس بزنید، او به هر حال می‌میرد، حتی با شیلد، نجات دکتر یا حتی اگر زودیاک باشد؛ اگر اشتباه حدس بزنید، هیچ اتفاقی نمی‌افتد، درست مثل عدم شلیک. کسی را که برای سلاخی هدف می‌گیرید، همان شب نمی‌تواند از توانایی خودش استفاده کند — چه حدستان درست باشد چه غلط. اما این توانایی را فقط یک‌بار می‌توانید در کل بازی اشتباه حدس بزنید؛ با اولین حدس اشتباه، سلاخی برای همیشه از شما گرفته می‌شود و از آن پس فقط شلیک معمولی برایتان باقی می‌ماند. وقتی شما از بازی خارج شوید، هیچ عضو دیگر مافیا نمی‌تواند از این توانایی استفاده کند.', shield: true, independent: false, builtin: false },
     { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند. نمی‌توانید دو شب پشت هم یک نفر را مسدود کنید — کسی که دیشب مسدود کردید در فهرست نشان داده می‌شود اما قابل انتخاب دوباره نیست.', shield: false, independent: false, builtin: false },
+    { id: 'role-lecter', team: 'mafia', name: 'دکتر لکتر', description: 'هر شب می‌توانید یک عضو مافیا (حتی خودتان) را از مرگ نجات دهید — برخلاف دکتر معمولی، فقط اعضای مافیا را می‌توانید نجات دهید، نه شهروندان را. اگر عضوی از مافیا توسط حرفه‌ای، زودیاک یا هر منبع دیگری هدف شلیک قرار بگیرد و شما او را نجات دهید، در بازی باقی می‌ماند. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است. نمی‌توانید دو شب پشت هم یک نفر را نجات دهید — کسی که دیشب نجات دادید در فهرست نشان داده می‌شود اما قابل انتخاب دوباره نیست.', shield: false, independent: false, builtin: false },
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
     { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و فقط یک نتیجهٔ مثبت یا منفی می‌گیرید — نه چیزی مشخص مثل «مافیا» یا هر برچسب دیگر.', shield: false, independent: false, builtin: false },
-    { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید — در کل بازی حداکثر دو بار (اگر یک شب تصمیم بگیرید کسی را هدف نگیرید، از این دو بار کم نمی‌شود). اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید. زودیاک هم مثل مافیا برای شما هدف امن است — نه او آسیب می‌بیند و نه شما حذف می‌شوید.', shield: true, independent: false, builtin: false },
+    { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید — در کل بازی حداکثر دو بار (اگر یک شب تصمیم بگیرید کسی را هدف نگیرید، از این دو بار کم نمی‌شود). اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید. زودیاک هم مثل مافیا برای شما هدف امن است — نه او آسیب می‌بیند و نه شما حذف می‌شوید. به‌جای شلیک معمولی، می‌توانید «سلاخی» را هم انتخاب کنید — باید نقش دقیق فرد هدف را حدس بزنید. اگر درست حدس بزنید، او به هر حال می‌میرد، حتی با شیلد، نجات دکتر یا حتی اگر زودیاک باشد؛ اگر اشتباه حدس بزنید، هیچ اتفاقی نمی‌افتد (نه او کشته می‌شود، نه شما حذف می‌شوید)، اما این توانایی برای همیشه از شما گرفته می‌شود — فقط یک اشتباه در کل بازی مجاز است. سلاخی هم مثل شلیک معمولی یکی از همان دو فرصت کل بازی‌تان را مصرف می‌کند.', shield: true, independent: false, builtin: false },
     { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید. این کار فقط یک‌بار در کل بازی ممکن است.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، مافیا می‌تواند به‌جای شلیک، یک «شهروند ساده» را به مافیا اضافه کند.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
@@ -1764,10 +1813,12 @@
     voteHistory: [],        // (host: authoritative; player: local copy) every completed round ever — [{day, round, rows:[{voter, targets}]}], see recordVoteHistory
     gameLog: [],             // (host: authoritative; player: local copy, only ever received once the game ends) full chronological narrative — [{day, phase:'day'|'night'|'final', text}], see logGameEvent. Night entries include normally-PRIVATE per-role decisions (who blocked/saved/investigated/shot whom) — safe to compile since this is never sent to anyone before App.showGameOver. Built specifically for a game nobody was actively narrating (No God Mode above all, but sent in every mode) — see App.viewGameLog/renderGameLogInto.
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
-    night: { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] }, // (host) this night's decisions
+    night: { blockedId: null, savedId: null, lecterSavedId: null, professionalTargetId: null, professionalSlaughterGuessKey: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, deferredLecterPrompt: null, killDeciderIds: new Set(), decisionsLog: [] }, // (host) this night's decisions
     lastMatadorBlockedId: null, // (host) whoever ماتادور blocked LAST night (survives state.night's own per-night reset — see startNight) — ماتادور may not block the exact same person two nights running, see startMafiaPhaseStep
+    lastLecterSavedId: null, // (host) whoever دکتر لکتر saved LAST night (survives state.night's own per-night reset — see startNight) — same once-per-night-not-twice-in-a-row rule as ماتادور's own block, see startMafiaPhaseStep
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
     doctorSelfSaveUsed: false, // (host) whole-game limit on the Doctor saving themselves
+    lecterSelfSaveUsed: false, // (host) same whole-game limit as doctorSelfSaveUsed, for دکتر لکتر's own self-save
     constantineReviveUsed: false, // (host) whole-game limit — کنستانتین may only revive one person, ever
     mafiaActivityLog: [],   // (host) shared night-by-night log of mafia shots + blocks, sent to every mafia member
     mafiaChatLog: [],       // (host: authoritative log; player: local copy) {name, text}[] — Mafia-only night chat
@@ -1776,11 +1827,14 @@
     oceanTeam: new Set(),   // (host) player ids اوشن has recruited so far (not including اوشن themselves)
     gunsRemaining: GUNNER_MAX_GUNS, // (host) how many more times تفنگدار may hand over the gun this game
     professionalShotsRemaining: PROFESSIONAL_MAX_SHOTS, // (host) how many more times حرفه‌ای may actually fire this game
+    godfatherSlaughterDisabled: false, // (host) true the instant پدر خوانده guesses a سلاخی wrong once — permanently gone for the rest of the game, see resolveNight
+    professionalSlaughterDisabled: false, // (host) same one-mistake-ever rule as godfatherSlaughterDisabled, for حرفه‌ای's own سلاخی option — see resolveNight
     gunsCancelled: false,   // (host) true once the gun has been fired at a civilian — no more handovers
     pendingGun: null,       // (host) { holderId } once تفنگدار hands the gun over, until it's fired/declined the next day
     gunDeadlineTimer: null, // (host) the day-gun decision's OWN pending setTimeout handle — separate from state.deadlineTimer since this now runs concurrently with voting (see armGunDeadline)
     myRole: null,           // (player) last role payload received, for the "View My Role" peek
     roleReturnScreen: null, // (player) screen to return to after peeking at role
+    roleGuideIds: [], // (host: derived from selectedRoleIds; player/host-self: local copy) role ids actually in play this game — see App.assignRoles' broadcast / renderRoleGuide. Everyone already has the full HARDCODED_ROLES catalog + translations baked into their own copy of this script, so only the id LIST needs to travel — never pre-rendered text, which would otherwise be stuck in whichever language the HOST happened to be in when it was sent.
     voteRound: null,        // (player) 1 or 2, which round the current vote screen is for
     voteCandidates: [],     // (player) candidates offered for the current vote
     selectedCandidateIds: new Set(), // (player) chosen candidates before submit; may be empty
@@ -1788,7 +1842,7 @@
     previousVoteNames: [], // (player) names this player already voted for this round, when voteAlreadySubmitted is true (empty = they abstained, not "never voted" — see the same follow-up)
     nightActionRole: null,       // (player) which role this night-action prompt is for
     selectedNightTargetId: null, // (player) chosen target before submit
-    selectedSlaughterRoleKey: null, // (player, پدر خوانده only) chosen role guess for سلاخی before submit — see renderNightActionScreen/renderHostSelfNightActionBody
+    selectedSlaughterRoleKey: null, // (player, پدر خوانده or حرفه‌ای) chosen role guess for سلاخی before submit — see renderNightActionScreen/renderHostSelfNightActionBody
     selectedDayGunTargetId: null, // (player) chosen target for the day-gun decision before submit
     pendingDayGunMsg: null, // (player, incl. God-Mode host-self) the gun holder's own pending decision, if it's them — see attachGunDecisionSection / updateHostSelfActionCard
     hostSelfActionClosed: false, // (God Mode host-self) true once the CURRENT state.lastPhaseMsg-driven action has been answered — see closeHostSelfCard/updateHostSelfActionCard for why this exists at all
@@ -3212,6 +3266,17 @@
       sendToPlayer(entry, { type: 'role', role: roleDef.team, roleId: roleDef.id, name: roleDef.name, description: roleDef.description, shield: !!roleDef.shield });
     });
 
+    // Role Guide: every already-joined player gets the full list of role
+    // ids actually in play this game (not pre-rendered names/descriptions —
+    // see state.roleGuideIds' own comment for why just the ids travel).
+    // A late joiner drawing from pendingRoleSlots below gets this too, via
+    // resyncPlayer's own copy of the same line.
+    state.roleGuideIds = Array.from(state.selectedRoleIds);
+    joinedIds.forEach((id) => {
+      sendToPlayer(state.players.get(id), { type: 'role-guide', roleIds: state.roleGuideIds });
+    });
+    updateRoleGuideButtonVisibility();
+
     // ...and reserve the rest for anyone who's still fumbling with their
     // phone — they draw from this the moment they actually join (see the
     // 'name' handler in setupHostDataChannel), instead of being turned away
@@ -3442,6 +3507,9 @@
     if(entry.role){
       sendToPlayer(entry, { type: 'role', role: entry.role, roleId: entry.roleId, name: entry.roleName, description: entry.roleDesc, shield: !!entry.roleShield });
     }
+    if(state.rolesAssigned){
+      sendToPlayer(entry, { type: 'role-guide', roleIds: state.roleGuideIds });
+    }
     if(entry.activityLog && entry.activityLog.length){
       sendToPlayer(entry, { type: 'activity-log', log: entry.activityLog });
     }
@@ -3582,6 +3650,16 @@
     else if(obj.type === 'activity-log'){
       state.myActivityLog = obj.log || [];
       state.hasActivityLog = true;
+    }
+    else if(obj.type === 'role-guide'){
+      // Harmless no-op here in practice — App.assignRoles already sets
+      // state.roleGuideIds directly on the host's own device (the host is
+      // the one broadcasting this, not receiving it) — but sendToPlayer's
+      // isHostSelf branch routes every message through here uniformly, so
+      // this keeps that path correct too rather than relying on it never
+      // actually being exercised.
+      state.roleGuideIds = obj.roleIds || [];
+      updateRoleGuideButtonVisibility();
     }
     else if(obj.type === 'mafia-chat-log'){
       state.mafiaChatLog = obj.log || [];
@@ -3788,9 +3866,11 @@
       body.appendChild(label);
       recruitCheckbox.el = label.querySelector('input');
     }
-    // سلاخی — پدر خوانده only (see startMafiaPhaseStep's own canSlaughter
-    // gate); mutually exclusive with recruiting instead, same reasoning as
-    // the real-player screen's own version (renderNightActionScreen).
+    // سلاخی — پدر خوانده or حرفه‌ای (see startMafiaPhaseStep/
+    // startCivilianPhaseStep's own canSlaughter gates, both of which also
+    // disappear for good after one wrong guess); mutually exclusive with
+    // recruiting instead, same reasoning as the real-player screen's own
+    // version (renderNightActionScreen).
     let slaughterSection = null, slaughterCheckboxEl = null;
     if(msg.canSlaughter){
       const label = document.createElement('label');
@@ -4745,16 +4825,31 @@
   function findAliveByRoleName(name){
     return Array.from(state.players.entries()).filter(([id, e]) => e.alive && e.roleName === name);
   }
+  // A پدر خوانده سلاخی attempt blocks its target's own night action too —
+  // "attacked and blocked at the same time," regardless of whether the role
+  // guess turns out right or wrong (see handleNightAction's 'mafia' branch,
+  // which sets both state.night.mafiaTargetId and slaughterGuessKey
+  // together, synchronously, before the civilian/زودیاک phases — the only
+  // other places this is ever checked — are even reached). Deliberately
+  // NOT extended to حرفه‌ای's own سلاخی: حرفه‌ای acts during the civilian
+  // phase, at the same time as whoever they might target, so there's no
+  // reliable "before" to block from — see startCivilianPhaseStep's own
+  // comment on this.
   function isBlockedTonight(id){
-    return id === state.night.blockedId;
+    return id === state.night.blockedId || (!!state.night.slaughterGuessKey && id === state.night.mafiaTargetId);
   }
 
-  // ---------------- پدر خوانده's سلاخی (Slaughter) ----------------
-  // Instead of a normal shot, پدر خوانده alone may target someone AND guess
-  // their exact role. A correct guess is unavoidable (see resolveNight's
-  // guaranteedDeaths — bypasses both a shield and the Doctor's save, same
-  // unblockable treatment حرفه‌ای's backfire already gets); a wrong guess is a
-  // complete no-op, indistinguishable from Mafia not shooting at all.
+  // ---------------- سلاخی (Slaughter) — پدر خوانده and حرفه‌ای ----------------
+  // Instead of a normal shot, پدر خوانده or حرفه‌ای may target someone AND
+  // guess their exact role. A correct guess is unavoidable (see
+  // resolveNight's guaranteedDeaths — bypasses both a shield and the
+  // Doctor's save, same unblockable treatment حرفه‌ای's own normal-shot
+  // backfire already gets) — and, uniquely to this ability, can even kill
+  // the otherwise-immune زودیاک. A wrong guess is a complete no-op for the
+  // target (indistinguishable from no shot at all) but permanently takes
+  // Slaughter away from whichever of the two attempted it, for the rest of
+  // the game — see state.godfatherSlaughterDisabled/
+  // professionalSlaughterDisabled, both only ever set in resolveNight.
   //
   // The picker offers every DISTINCT role actually held by someone in THIS
   // game — dead or alive, so an already-eliminated role stays a valid guess
@@ -4788,9 +4883,11 @@
     // Captured BEFORE the reset below wipes it — whatever ماتادور blocked
     // (or null, on a skip / no ماتادور in play / Night 1's own introduction-
     // only night) on the night that's ending becomes the one exclusion for
-    // the night that's about to start (see startMafiaPhaseStep).
+    // the night that's about to start (see startMafiaPhaseStep). Same
+    // treatment for دکتر لکتر's own last save.
     state.lastMatadorBlockedId = state.night.blockedId;
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
+    state.lastLecterSavedId = state.night.lecterSavedId;
+    state.night = { blockedId: null, savedId: null, lecterSavedId: null, professionalTargetId: null, professionalSlaughterGuessKey: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, deferredLecterPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night');
@@ -4866,8 +4963,11 @@
   // the phase knows to wait for their answer; a blocked actor gets a "you were
   // blocked" notice instead and is never added, since there's nothing left to
   // wait for from them. Shared by both the civilian-phase (civilianPending)
-  // and زودیاک's solo zodiac-phase (zodiacPending).
-  function promptCivilianRole(key, roleName, buildCandidates, title, eligible, pendingSet){
+  // and زودیاک's solo zodiac-phase (zodiacPending). Optional `extra` fields
+  // (e.g. حرفه‌ای's own canSlaughter/roleChoices — see startCivilianPhaseStep)
+  // get merged straight into the sent message, same shape مافیا's own
+  // hand-rolled night-action message already uses for its own سلاخی fields.
+  function promptCivilianRole(key, roleName, buildCandidates, title, eligible, pendingSet, extra){
     const holders = findAliveByRoleName(roleName);
     if(!holders.length) return;
     const [actorId, actorEntry] = holders[0];
@@ -4880,7 +4980,7 @@
     const candidates = buildCandidates(actorId);
     if(!candidates.length) return;
     pendingSet.add(key);
-    sendToPlayer(actorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: key, title, candidates, allowSkip: true });
+    sendToPlayer(actorEntry, Object.assign({ type: 'phase', phase: 'night-action', day: state.day, role: key, title, candidates, allowSkip: true }, extra));
   }
 
   function startCivilianPhaseStep(){
@@ -4906,16 +5006,26 @@
     }, t('chooseToInvestigate'), null, pending);
 
     // زودیاک stays targetable/selectable by حرفه‌ای and تفنگدار too — it just never
-    // actually dies (see resolveNight / resolveDayGunAction). Whole-game cap
-    // (PROFESSIONAL_MAX_SHOTS) same pattern as تفنگدار's own gunsRemaining —
-    // only an ACTUAL shot counts against it (see handleNightAction's own
-    // 'professional' branch), so declining to act tonight never costs them
-    // one of their two.
+    // actually dies to a NORMAL shot (see resolveNight / resolveDayGunAction).
+    // Whole-game cap (PROFESSIONAL_MAX_SHOTS) same pattern as تفنگدار's own
+    // gunsRemaining — only an ACTUAL shot counts against it (see
+    // handleNightAction's own 'professional' branch), so declining to act
+    // tonight never costs them one of their two. حرفه‌ای also gets the exact
+    // same سلاخی option پدر خوانده has (see buildSlaughterRoleChoices/
+    // resolveNight) — a correct role guess kills regardless of shield/save,
+    // even زودیاک; a wrong guess is a complete non-event AND permanently
+    // disables the option for the rest of the game (professionalSlaughterDisabled)
+    // — unlike پدر خوانده's own version, this does NOT block the target's
+    // night action: حرفه‌ای acts in the SAME civilian-phase batch as whoever
+    // they might target, with no reliable ordering to block from (see
+    // isBlockedTonight's own comment).
+    const professionalCanSlaughter = !state.professionalSlaughterDisabled;
     promptCivilianRole('professional', ROLE_NAME_PROFESSIONAL, (proId) => {
       return Array.from(state.players.entries())
         .filter(([id, e]) => e.alive && id !== proId)
         .map(([id, e]) => ({ id, name: e.name }));
-    }, t('chooseToShoot'), () => state.professionalShotsRemaining > 0, pending);
+    }, t('chooseToShoot'), () => state.professionalShotsRemaining > 0, pending,
+      { canSlaughter: professionalCanSlaughter, roleChoices: professionalCanSlaughter ? buildSlaughterRoleChoices() : undefined });
 
     // تفنگدار may also hand the gun to زودیاک itself — nothing stops that handover.
     promptCivilianRole('gunner', ROLE_NAME_GUNNER, (gunnerId) => {
@@ -5033,8 +5143,9 @@
         // checked explicitly regardless, rather than relying on that being
         // the only path here). roleChoices is only computed/sent at all when
         // it'll actually be used — everyone else's prompt stays exactly the
-        // size it always was.
-        const canSlaughter = entry.roleName === ROLE_NAME_GODFATHER;
+        // size it always was. Disappears for good the instant پدر خوانده
+        // guesses one wrong — see resolveNight.
+        const canSlaughter = entry.roleName === ROLE_NAME_GODFATHER && !state.godfatherSlaughterDisabled;
         const roleChoices = canSlaughter ? buildSlaughterRoleChoices() : undefined;
         sendToPlayer(entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'mafia', title: t('chooseToShoot'), candidates, allowSkip: false, canRecruit, canSlaughter, roleChoices });
       });
@@ -5066,6 +5177,31 @@
           state.night.deferredMatadorPrompt = { entry: matadorEntry, candidates };
         } else {
           sendToPlayer(matadorEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: t('chooseToBlock'), candidates, allowSkip: true });
+        }
+      }
+    }
+
+    // دکتر لکتر — like the regular دکتر, but restricted to Mafia-aligned
+    // targets only (team: 'mafia' covers every mafia-aligned role, not
+    // just plain مافیای ساده), including themselves up to once ever (same
+    // doctorSelfSaveUsed-style whole-game limit as the regular دکتر's own
+    // self-save). Same "not the same person twice in a row" treatment as
+    // ماتادور's own block, reusing the identical disabledNote convention.
+    const lecters = findAliveByRoleName(ROLE_NAME_LECTER);
+    if(lecters.length){
+      const [lecterId, lecterEntry] = lecters[0];
+      const candidates = Array.from(state.players.entries())
+        .filter(([id, e]) => e.alive && e.role === 'mafia' && (id !== lecterId || !state.lecterSelfSaveUsed))
+        .map(([id, e]) => ({ id, name: e.name, disabledNote: id === state.lastLecterSavedId ? t('lecterRepeatSaveNote') : undefined }));
+      if(candidates.length){
+        state.night.mafiaPending.add('lecter');
+        // Same single-prompt-screen collision as ماتادور's own deferral —
+        // only reachable when پدرخوانده is dead and the random fallback
+        // kill-decider pick happens to be دکتر لکتر themselves.
+        if(killDeciderIds.has(lecterId)){
+          state.night.deferredLecterPrompt = { entry: lecterEntry, candidates };
+        } else {
+          sendToPlayer(lecterEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'lecter', title: t('chooseToSaveMafia'), candidates, allowSkip: true });
         }
       }
     }
@@ -5195,7 +5331,7 @@
   function handleNightAction(voterId, role, targetId, recruit, slaughterRoleKey){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
-    const isMafiaPhaseRole = (role === 'mafia' || role === 'matador');
+    const isMafiaPhaseRole = (role === 'mafia' || role === 'matador' || role === 'lecter');
     const isCivilianPhaseRole = CIVILIAN_PHASE_ROLES.indexOf(role) !== -1;
     const expectedPhase = isMafiaPhaseRole ? 'night-mafia-phase'
       : isCivilianPhaseRole ? 'night-civilian-phase'
@@ -5259,6 +5395,26 @@
       recordNightDecision(voter, effectiveTargetName ? t('actYouBlocked', { name: effectiveTargetName }) : t('actYouNoBlock'));
       state.night.mafiaPending.delete('matador');
       checkMafiaPhaseComplete();
+    } else if(role === 'lecter'){
+      // Same repeat-target backstop as ماتادور's own — client already sends
+      // that candidate disabled (see startMafiaPhaseStep), this just covers
+      // a stale/bypassed client. Silently treated as "chose not to save"
+      // rather than rejecting the submission outright.
+      const repeatRejected = !!(targetId && targetId === state.lastLecterSavedId);
+      const effectiveTargetId = repeatRejected ? null : (targetId || null);
+      const effectiveTargetName = repeatRejected ? null : targetName;
+      state.night.lecterSavedId = effectiveTargetId;
+      if(effectiveTargetId && effectiveTargetId === voterId) state.lecterSelfSaveUsed = true;
+      // Reuses the regular دکتر's own strings — "You saved {name}" reads
+      // exactly the same whether the save was Mafia-restricted or not, and
+      // the shared Mafia team log already has its own distinct wording
+      // (actLecterSaved/actLecterNoSave) so the team always knows this was
+      // specifically دکتر لکتر's doing, same as ماتادور's own block log.
+      logActivity(voter, prefix + (effectiveTargetName ? t('actYouSaved', { name: effectiveTargetName }) : t('actYouNoSave')));
+      logMafiaActivity(prefix + (effectiveTargetName ? t('actLecterSaved', { name: effectiveTargetName }) : t('actLecterNoSave')));
+      recordNightDecision(voter, effectiveTargetName ? t('actYouSaved', { name: effectiveTargetName }) : t('actYouNoSave'));
+      state.night.mafiaPending.delete('lecter');
+      checkMafiaPhaseComplete();
     } else if(role === 'doctor'){
       state.night.savedId = targetId || null;
       if(targetId && targetId === voterId) state.doctorSelfSaveUsed = true;
@@ -5307,12 +5463,22 @@
       state.night.civilianPending.delete('detective');
       checkCivilianPhaseComplete();
     } else if(role === 'professional'){
+      // سلاخی only ever means anything for a real shot (not a skip), and
+      // only while the option hasn't already been burned by an earlier
+      // wrong guess this game — re-checked here rather than just trusted
+      // from the client, same trust model as مافیا's own isSlaughter check.
+      const isSlaughter = !!(targetId && slaughterRoleKey && !state.professionalSlaughterDisabled);
       state.night.professionalTargetId = targetId || null;
-      // Only an ACTUAL shot spends one of the whole-game two — same
-      // "a skip costs nothing" treatment as تفنگدار's own gunsRemaining.
+      if(isSlaughter) state.night.professionalSlaughterGuessKey = slaughterRoleKey;
+      // Only an ACTUAL shot (slaughter or normal) spends one of the
+      // whole-game two — same "a skip costs nothing" treatment as تفنگدار's
+      // own gunsRemaining.
       if(targetId) state.professionalShotsRemaining -= 1;
-      logActivity(voter, prefix + (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
-      recordNightDecision(voter, targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot'));
+      const decisionText = !targetName ? t('actYouNoShot')
+        : isSlaughter ? t('actYouAttemptedSlaughter', { name: targetName, role: slaughterRoleLabel(slaughterRoleKey) })
+        : t('actYouShot', { name: targetName });
+      logActivity(voter, prefix + decisionText);
+      recordNightDecision(voter, decisionText);
       state.night.civilianPending.delete('professional');
       checkCivilianPhaseComplete();
     } else if(role === 'gunner'){
@@ -5366,11 +5532,25 @@
       // just trusted from the client, same as every other decision here
       // trusts its own sender's eligibility for that role in the first
       // place (this app's whole trust model — see the file-level notes).
-      const isSlaughter = !!(targetId && !recruit && slaughterRoleKey && voter.roleName === ROLE_NAME_GODFATHER);
+      const isSlaughter = !!(targetId && !recruit && slaughterRoleKey && voter.roleName === ROLE_NAME_GODFATHER && !state.godfatherSlaughterDisabled);
       if(recruit) state.night.mafiaRecruitId = targetId;
       else{
         state.night.mafiaTargetId = targetId;
-        if(isSlaughter) state.night.slaughterGuessKey = slaughterRoleKey;
+        if(isSlaughter){
+          state.night.slaughterGuessKey = slaughterRoleKey;
+          // "Attacked and blocked at the same time" — the target can't use
+          // their own night action tonight either way, right guess or
+          // wrong (see isBlockedTonight, checked by every civilian/زودیاک
+          // phase prompt still to come this night). Same notice ماتادور's
+          // own block already sends, deliberately — this shouldn't reveal
+          // anything beyond "something stopped you," same as every other
+          // night-outcome in this game.
+          const slaughterTarget = state.players.get(targetId);
+          if(slaughterTarget){
+            logActivity(slaughterTarget, prefix + t('actYouWereBlocked'));
+            sendToPlayer(slaughterTarget, { type: 'phase', phase: 'night', day: state.day, note: t('youWereBlocked') });
+          }
+        }
       }
       // Unlike every other role, the actual outcome (shot / recruited /
       // backfired / slaughtered) isn't known yet — that's only decided once
@@ -5385,20 +5565,29 @@
           ? t('actYouAttemptedSlaughter', { name: targetName, role: slaughterRoleLabel(slaughterRoleKey) })
           : (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
       state.night.mafiaPending.delete('kill');
-      // If this same player is also tonight's ماتادور, their block prompt was
-      // held back (see startMafiaPhaseStep) so it wouldn't collide with the
-      // kill prompt — send it now that they've answered the first one.
-      const deferred = state.night.deferredMatadorPrompt;
-      if(deferred && deferred.entry === voter){
+      // If this same player is also tonight's ماتادور OR دکتر لکتر, their
+      // own prompt was held back (see startMafiaPhaseStep) so it wouldn't
+      // collide with the kill prompt — send it now that they've answered
+      // the first one. Only ever at most one of these two actually fires
+      // for a given voter (ماتادور and دکتر لکتر are always two different
+      // players), but both are checked unconditionally since there's no
+      // cheap way to know in advance which role (if any) this voter holds.
+      const deferredMatador = state.night.deferredMatadorPrompt;
+      if(deferredMatador && deferredMatador.entry === voter){
         state.night.deferredMatadorPrompt = null;
-        sendToPlayer(deferred.entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: t('chooseToBlock'), candidates: deferred.candidates, allowSkip: true });
+        sendToPlayer(deferredMatador.entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'matador', title: t('chooseToBlock'), candidates: deferredMatador.candidates, allowSkip: true });
+      }
+      const deferredLecter = state.night.deferredLecterPrompt;
+      if(deferredLecter && deferredLecter.entry === voter){
+        state.night.deferredLecterPrompt = null;
+        sendToPlayer(deferredLecter.entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'lecter', title: t('chooseToSaveMafia'), candidates: deferredLecter.candidates, allowSkip: true });
       }
       checkMafiaPhaseComplete(); // outcome (shot / recruited / failed) is logged once it resolves, in resolveNight()
     }
   }
 
   App.forceContinueNight = function(){
-    if(state.gamePhase === 'night-mafia-phase'){ state.night.mafiaPending.clear(); state.night.deferredMatadorPrompt = null; }
+    if(state.gamePhase === 'night-mafia-phase'){ state.night.mafiaPending.clear(); state.night.deferredMatadorPrompt = null; state.night.deferredLecterPrompt = null; }
     else if(state.gamePhase === 'night-zodiac-phase') state.night.zodiacPending.clear();
     else if(state.gamePhase === 'night-civilian-phase') state.night.civilianPending.clear();
     advanceNight();
@@ -5444,7 +5633,22 @@
     const professional = professionalEntries.find(([id]) => id !== state.night.blockedId);
     if(state.night.professionalTargetId && professional){
       const target = state.players.get(state.night.professionalTargetId);
-      if(target){
+      // حرفه‌ای's own سلاخی — same guaranteedDeaths/slaughteredIds treatment
+      // as پدر خوانده's version (bypasses shield + Doctor's save, and CAN
+      // kill the normally-immune زودیاک), with the same one-mistake-ever
+      // rule: a wrong guess is a complete non-event — crucially, NOT the
+      // civilian-backfire case below, this is a different alternative to a
+      // normal shot entirely — and permanently burns the option for the
+      // rest of the game (professionalSlaughterDisabled, checked by
+      // startCivilianPhaseStep from here on).
+      if(state.night.professionalSlaughterGuessKey && target){
+        if(slaughterRoleKeyFor(target) === state.night.professionalSlaughterGuessKey){
+          guaranteedDeaths.add(state.night.professionalTargetId);
+          slaughteredIds.add(state.night.professionalTargetId);
+        } else {
+          state.professionalSlaughterDisabled = true;
+        }
+      } else if(target){
         if(target.role === 'mafia' || target.independent) rawDeaths.add(state.night.professionalTargetId);
         else guaranteedDeaths.add(professional[0]);
       }
@@ -5473,17 +5677,23 @@
         // treatment as حرفه‌ای's own backfire above, bypassing both the
         // shield check and a Doctor's save entirely. Deliberately NOT
         // exempting زودیاک here, unlike every other night-kill source
-        // (شلیک/تفنگدار/حرفه‌ای) — a correct سلاخی guess is the one way
-        // پدر خوانده can kill زودیاک without a day vote (see the
-        // transferZodiacLegacy call in the death-application loop below,
-        // needed now that a night kill can genuinely end زودیاک's life —
-        // previously only eliminatePlayer, the day-vote path, ever had to
-        // worry about that). A wrong guess adds the target to NEITHER
-        // death set at all — a complete no-op, indistinguishable from
-        // Mafia not shooting anyone.
+        // (شلیک/تفنگدار/حرفه‌ای) — a correct سلاخی guess is one of the two
+        // ways (alongside حرفه‌ای's own version above) پدر خوانده or حرفه‌ای
+        // can kill زودیاک without a day vote (see the transferZodiacLegacy
+        // call in the death-application loop below, needed now that a
+        // night kill can genuinely end زودیاک's life — previously only
+        // eliminatePlayer, the day-vote path, ever had to worry about
+        // that). A wrong guess adds the target to NEITHER death set at
+        // all — a complete no-op, indistinguishable from Mafia not
+        // shooting anyone — AND permanently burns پدر خوانده's own سلاخی
+        // option for the rest of the game, same one-mistake-ever rule as
+        // حرفه‌ای's own version (godfatherSlaughterDisabled, checked by
+        // startMafiaPhaseStep from here on).
         if(slaughterRoleKeyFor(target) === state.night.slaughterGuessKey){
           guaranteedDeaths.add(state.night.mafiaTargetId);
           slaughteredIds.add(state.night.mafiaTargetId);
+        } else {
+          state.godfatherSlaughterDisabled = true;
         }
         logMafiaActivity(t('nightLogPrefix', { day: state.day }) + t('actMafiaSlaughterAttempt', { name: target.name }));
       } else {
@@ -5500,11 +5710,13 @@
     // اوشن's fatal mistake: recruiting a Mafia member into the group.
     state.night.extraDeathIds.forEach(id => rawDeaths.add(id));
 
-    // Shields absorb one death each (consumed), then a Doctor's save clears anyone
-    // left. زودیاک (or any independent role) never actually dies here regardless —
-    // it just stays alive, indistinguishable from a shield absorbing the hit or a
-    // Doctor's save from the group's perspective (see gunHitNoEffect/resolveNight
-    // callers for the same "don't reveal why" treatment on تفنگدار's gun).
+    // Shields absorb one death each (consumed), then a Doctor's save (or, for
+    // a Mafia-aligned target, دکتر لکتر's own Mafia-only version) clears
+    // anyone left. زودیاک (or any independent role) never actually dies here
+    // regardless — it just stays alive, indistinguishable from a shield
+    // absorbing the hit or a save from the group's perspective (see
+    // gunHitNoEffect/resolveNight callers for the same "don't reveal why"
+    // treatment on تفنگدار's gun).
     const finalDeaths = new Set();
     rawDeaths.forEach(id => {
       const entry = state.players.get(id);
@@ -5512,6 +5724,7 @@
       if(entry.independent) return;
       if(entry.roleShield){ entry.roleShield = false; return; }
       if(id === state.night.savedId) return;
+      if(id === state.night.lecterSavedId) return;
       finalDeaths.add(id);
     });
     // Guaranteed deaths skip both the shield check and the Doctor's save — nothing stops them.
@@ -5618,9 +5831,11 @@
     state.gameLog = [];
     state.inquiriesRemaining = 0;
     state.winner = null;
-    state.night = { blockedId: null, savedId: null, professionalTargetId: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
+    state.night = { blockedId: null, savedId: null, lecterSavedId: null, professionalTargetId: null, professionalSlaughterGuessKey: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, deferredLecterPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
     state.lastMatadorBlockedId = null;
+    state.lastLecterSavedId = null;
     state.doctorSelfSaveUsed = false;
+    state.lecterSelfSaveUsed = false;
     state.constantineReviveUsed = false;
     state.mafiaActivityLog = [];
     state.mafiaChatLog = [];
@@ -5631,6 +5846,8 @@
     state.gunsCancelled = false;
     state.pendingGun = null;
     state.professionalShotsRemaining = PROFESSIONAL_MAX_SHOTS;
+    state.godfatherSlaughterDisabled = false;
+    state.professionalSlaughterDisabled = false;
     clearGunDeadline();
     clearCriticalReplyTimeout();
     // God Mode: the host's browser plays through the SAME page across
@@ -5642,6 +5859,7 @@
     // Harmless to always reset regardless of godMode — a plain host device
     // never reads these fields for anything.
     state.myRole = null;
+    state.roleGuideIds = [];
     state.amAlive = true;
     state.gameEnded = false;
     state.inOceanGroup = false;
@@ -5658,6 +5876,7 @@
     state.hostSelfActionClosed = false;
     updateHostSelfActionCard();
     attachGunDecisionSection(activeScreenId());
+    updateRoleGuideButtonVisibility();
     // noGodMode/actDeadlineMinutes/voteDeadlineMinutes deliberately carry
     // over into the next game, same as numPlayers/numMafia/etc. — but any
     // TIMER actually in flight from the game that just ended must not leak
@@ -6199,6 +6418,10 @@
           document.querySelectorAll('.activity-link').forEach(el => { el.style.display = 'block'; });
           updatePlayerFooterBar();
         }
+        else if(msg.type === 'role-guide'){
+          state.roleGuideIds = msg.roleIds || [];
+          updateRoleGuideButtonVisibility();
+        }
         else if(msg.type === 'revived'){ handleRevived(msg); }
         else if(msg.type === 'day-gun-pending'){
           // The gun holder's own decision — now independent of whatever
@@ -6711,9 +6934,10 @@
   }
 
   // Shared by the real player's night-action screen and (in God Mode) the
-  // host-self's own night-action card — the guessed-role list for پدر
-  // خوانده's سلاخی is the same radio-list-of-roles pattern the candidate
-  // list right above it already uses, just over msg.roleChoices instead of
+  // host-self's own night-action card — the guessed-role list for سلاخی
+  // (پدر خوانده's or حرفه‌ای's — see startMafiaPhaseStep/
+  // startCivilianPhaseStep) is the same radio-list-of-roles pattern the
+  // candidate list right above it already uses, just over msg.roleChoices instead of
   // msg.candidates and keyed by role identity (c.key) instead of a player
   // id. radioName keeps the two consumers' native radio groups from ever
   // being confused for one another if both happened to exist in the same
@@ -7240,6 +7464,62 @@
     });
   }
 
+  /* ---------------- Role Guide ---------------- */
+  // Always-reachable, never-a-spoiler reference: WHICH roles exist in this
+  // game's pool and what each one does — never who holds which. Works
+  // identically for the host, a real player, and God Mode's host-self
+  // (all three just read state.roleGuideIds — see its own comment — and
+  // the shared HARDCODED_ROLES/roleDescription() every device already has
+  // a full local copy of, so no translated text ever needs to travel over
+  // the wire, only the id list).
+  App.toggleRoleGuide = function(){
+    const panel = $('role-guide-panel');
+    if(!panel) return;
+    if(panel.classList.contains('open')){ panel.classList.remove('open'); return; }
+    renderRoleGuide();
+    panel.classList.add('open');
+  };
+  function updateRoleGuideButtonVisibility(){
+    const btn = $('role-guide-btn');
+    if(btn) btn.style.display = (state.roleGuideIds && state.roleGuideIds.length) ? 'flex' : 'none';
+  }
+  // Sorted the same way the host's own setup checklist is (Mafia, then
+  // Independent, then Village) — a familiar, consistent order rather than
+  // whatever arbitrary order the ids happened to arrive in.
+  function renderRoleGuide(){
+    const box = $('role-guide-list');
+    if(!box) return;
+    box.innerHTML = '';
+    const ids = state.roleGuideIds || [];
+    const rolesInPlay = HARDCODED_ROLES.filter(r => ids.indexOf(r.id) !== -1)
+      .slice().sort((a, b) => roleGroupRank(a) - roleGroupRank(b));
+    if(!rolesInPlay.length){
+      box.innerHTML = '<p class="hint">' + escapeHtml(t('roleGuideEmpty')) + '</p>';
+      return;
+    }
+    rolesInPlay.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'role-guide-row';
+      const header = document.createElement('div');
+      header.className = 'role-guide-row-header';
+      header.innerHTML =
+        '<div class="role-info"><span class="role-name">' + escapeHtml(r.name) + '</span>' + roleTeamTagHtml(r) + '</div>' +
+        '<span class="role-guide-chevron">›</span>';
+      const desc = document.createElement('p');
+      desc.className = 'hint role-guide-desc';
+      desc.style.display = 'none';
+      desc.textContent = roleDescription(r);
+      header.onclick = () => {
+        const nowOpen = desc.style.display !== 'block';
+        desc.style.display = nowOpen ? 'block' : 'none';
+        row.classList.toggle('open', nowOpen);
+      };
+      row.appendChild(header);
+      row.appendChild(desc);
+      box.appendChild(row);
+    });
+  }
+
   // The God can remove any player from the game at any time — day or
   // night, mid-phase or not — for real-world situations no in-game rule
   // anticipates (someone has to leave, a phone is unrecoverable, they're
@@ -7363,6 +7643,12 @@
     // stale alive/connected status for a row the host might act on next.
     const managePanel = $('manage-players-panel');
     if(managePanel && managePanel.classList.contains('open')) renderManagePlayersPanel();
+    // Role Guide's own text (role names + descriptions) is read straight
+    // from roleDescription()/HARDCODED_ROLES at render time, same
+    // language-dependence as everything else here — an open panel needs
+    // the same re-render on a language switch.
+    const roleGuidePanel = $('role-guide-panel');
+    if(roleGuidePanel && roleGuidePanel.classList.contains('open')) renderRoleGuide();
   }
 
   // Whichever host screen actually has live game-state content that a
@@ -7438,6 +7724,8 @@
         escapeHtml(t('debugGunsRemainingLabel')) + ': ' + state.gunsRemaining + ' · ' +
         escapeHtml(t('debugGunsCancelledLabel')) + ': ' + escapeHtml(state.gunsCancelled ? t('yes') : t('no')) + '<br>' +
         escapeHtml(t('debugProfessionalShotsLabel')) + ': ' + state.professionalShotsRemaining + '<br>' +
+        escapeHtml(t('debugGodfatherSlaughterLabel')) + ': ' + escapeHtml(state.godfatherSlaughterDisabled ? t('debugSlaughterDisabled') : t('debugSlaughterAvailable')) + ' · ' +
+        escapeHtml(t('debugProfessionalSlaughterLabel')) + ': ' + escapeHtml(state.professionalSlaughterDisabled ? t('debugSlaughterDisabled') : t('debugSlaughterAvailable')) + '<br>' +
         escapeHtml(t('debugPendingGunLabel')) + ': ' + (pendingHolder ? escapeHtml(pendingHolder.name) : escapeHtml(t('debugNone'))) + '<br>' +
         escapeHtml(t('debugPendingRolesLabel')) + ': ' + (pendingRoles.length ? (pendingRoles.length + ' — ' + escapeHtml(pendingRolesSummaryText())) : escapeHtml(t('debugNone'))) + '<br>' +
         escapeHtml(t('debugNoGodModeLabel')) + ': ' + escapeHtml(state.noGodMode ? t('yes') : t('no')) + ' · ' +
