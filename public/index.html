@@ -837,6 +837,13 @@
       <p class="hint" data-i18n="chooseSlaughterRoleHint" style="margin-bottom:10px;"></p>
       <div id="night-action-slaughter-role-list" class="stack"></div>
     </div>
+    <!-- بمب‌گذار only — never checkbox-gated like سلاخی above, since there's
+         no "plant the bomb without a code" option at all; shown whenever
+         this role's own prompt is (see renderNightActionScreen). -->
+    <div id="night-action-bomb-code-section" style="display:none; margin-top:14px;">
+      <p class="hint" data-i18n="chooseBombCodeHint" style="margin-bottom:10px;"></p>
+      <div id="night-action-bomb-code-list" class="stack"></div>
+    </div>
     <div class="grow"></div>
     <div class="stack">
       <button class="btn btn-primary" onclick="App.submitNightAction()" data-i18n="btnConfirm"></button>
@@ -1049,6 +1056,12 @@
       <div class="host-self-card-eyebrow" data-i18n="gunDecisionEyebrow"></div>
       <div class="host-self-card-body" id="host-self-gun-body"></div>
     </div>
+    <!-- محافظ's own pending bomb-defuse decision — same independent-block
+         treatment as the gun action right above (see startBombDefuseStep). -->
+    <div id="host-self-bomb-action" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--line);">
+      <div class="host-self-card-eyebrow" data-i18n="bombDecisionEyebrow"></div>
+      <div class="host-self-card-body" id="host-self-bomb-body"></div>
+    </div>
   </div>
 </div>
 
@@ -1063,6 +1076,13 @@
 <div id="gun-decision-section" class="host-self-section" style="display:none;">
   <div class="host-self-card-eyebrow" id="gun-decision-section-eyebrow"></div>
   <div class="host-self-card-body" id="gun-decision-section-body"></div>
+</div>
+
+<!-- Same idea again, for a REAL محافظ with a pending bomb-defuse decision —
+     see attachBombDecisionSection. -->
+<div id="bomb-decision-section" class="host-self-section" style="display:none;">
+  <div class="host-self-card-eyebrow" id="bomb-decision-section-eyebrow"></div>
+  <div class="host-self-card-body" id="bomb-decision-section-body"></div>
 </div>
 
 <!-- Group chats (Mafia / اوشن / زودیاک) — one shared bottom dock of pull-up
@@ -1158,6 +1178,8 @@
   const ROLE_NAME_GODFATHER = 'پدر خوانده';
   const ROLE_NAME_MATADOR = 'ماتادور';
   const ROLE_NAME_LECTER = 'دکتر لکتر';
+  const ROLE_NAME_BOMBER = 'بمب‌گذار';
+  const ROLE_NAME_GUARDIAN = 'محافظ';
   const ROLE_NAME_PROFESSIONAL = 'حرفه‌ای';
   const ROLE_NAME_DOCTOR = 'دکتر';
   const ROLE_NAME_DETECTIVE = 'کاراگاه';
@@ -1170,6 +1192,8 @@
   const ROLE_NAME_PLAIN_VILLAGER = 'شهروند ساده';
   const GUNNER_MAX_GUNS = 2; // whole-game limit on how many times تفنگدار may hand over the gun
   const PROFESSIONAL_MAX_SHOTS = 2; // whole-game limit on how many times حرفه‌ای may actually fire — same "decided not to act doesn't count against it" treatment as تفنگدار's own cap (see handleNightAction's own 'professional' branch)
+  const BOMBER_MAX_USES = 1; // whole-game limit — بمب‌گذار gets exactly one bomb, ever, consumed the moment they actually place it (see handleNightAction's own 'bomber' branch)
+  const BOMB_CODE_DIGITS = ['0','1','2','3','4','5','6','7','8','9']; // بمب‌گذار's own code, and what محافظ picks from — a single digit, 0-9
 
   /* ---------------- Language / i18n ---------------- */
   // Role names themselves (پدر خوانده, اوشن, etc.) are proper nouns chosen by
@@ -1387,6 +1411,19 @@
       gunHitDiedCivilian: '{name} با شلیک اسلحهٔ {shooter} از بازی خارج شد — او یک شهروند بود.',
       gunHitNoEffect: '{shooter} به {name} شلیک کرد، اما هیچ اتفاقی نیفتاد.',
       gunNotFired: 'امروز اسلحه‌ای شلیک نشد.',
+      chooseBombTarget: 'کسی را برای کار گذاشتن بمب انتخاب کنید',
+      chooseBombCodeHint: 'یک کد یک‌رقمی (۰ تا ۹) برای بمب انتخاب کنید.',
+      actYouPlantedBomb: 'شما بمبی جلوی {name} کار گذاشتید.', actYouNoBomb: 'شما تصمیم گرفتید بمبی کار نگذارید.',
+      actBomberPlanted: 'بمب‌گذار بمبی جلوی {name} کار گذاشت.', actBomberNoBomb: 'بمب‌گذار بمبی کار نگذاشت.',
+      actBombExploded: 'بمب جلوی {name} منفجر شد.',
+      bombDisarmedAnnouncement: 'امروز یک بمب پیدا و خلع‌سلاح شد.',
+      bombExplodedNoEffect: 'بمبی جلوی {name} منفجر شد، اما شیلدش جلوی آن را گرفت و او سالم ماند.',
+      bombExplodedKilled: '{name} در انفجار بمب از بازی خارج شد.',
+      bombDefuseHint: 'بمب‌گذار بمبی کار گذاشته است. می‌توانید کد یک‌رقمی آن را حدس بزنید، یا بگذارید منفجر شود.',
+      btnGuessBombCode: 'حدس زدن کد', btnLetBombExplode: 'بگذار منفجر شود',
+      pickBombCodeFirst: 'ابتدا یک کد انتخاب کنید.',
+      actYouGuessedBombCode: 'شما کد {digit} را حدس زدید.', actYouLetBombExplode: 'شما گذاشتید بمب منفجر شود.',
+      bombDecisionEyebrow: 'یک بمب در انتظار است',
       btnGotIt: 'متوجه شدم',
       btnFireGun: 'شلیک', dayLogPrefix: 'روز {day}: ', decisionSubmittedWaiting: 'تصمیم شما ثبت شد — لطفاً صبر کنید…',
       debugPanelTitle: 'پنل توسعه‌دهنده — فقط برای اشکال‌زدایی', btnCloseDebug: 'بستن',
@@ -1414,6 +1451,7 @@
       debugProfessionalShotsLabel: 'شلیک‌های باقی‌ماندهٔ حرفه‌ای',
       debugGodfatherSlaughterLabel: 'سلاخی پدر خوانده', debugProfessionalSlaughterLabel: 'سلاخی حرفه‌ای',
       debugSlaughterAvailable: 'در دسترس', debugSlaughterDisabled: 'برای همیشه غیرفعال',
+      debugBomberUsedLabel: 'بمب‌گذار استفاده کرده', debugPendingBombLabel: 'بمب در حال انتظار', debugBombCodeLabel: 'کد',
       debugGunsCancelledLabel: 'اسلحه‌ها لغو شده', debugPendingGunLabel: 'اسلحه در دست', debugNone: 'هیچ‌کدام',
       debugPendingRolesLabel: 'نقش‌های توزیع‌نشده',
       debugNoGodModeLabel: 'حالت بدون گاد', debugDeadlineLabel: 'مهلت فعلی', debugGodModeLabel: 'حالت گاد-بازیکن',
@@ -1633,6 +1671,19 @@
       gunHitDiedCivilian: '{name} left the game, shot by {shooter}\'s gun — they were a civilian.',
       gunHitNoEffect: "{shooter} shot at {name}, but nothing happened.",
       gunNotFired: 'No shot was fired today.',
+      chooseBombTarget: 'Choose someone to plant the bomb on',
+      chooseBombCodeHint: 'Pick a single-digit code (0-9) for the bomb.',
+      actYouPlantedBomb: 'You planted a bomb on {name}.', actYouNoBomb: 'You chose not to plant a bomb.',
+      actBomberPlanted: 'بمب‌گذار planted a bomb on {name}.', actBomberNoBomb: 'بمب‌گذار did not plant a bomb.',
+      actBombExploded: 'The bomb on {name} exploded.',
+      bombDisarmedAnnouncement: 'A bomb was found and disarmed today.',
+      bombExplodedNoEffect: "A bomb exploded on {name}, but their shield absorbed it — they're safe.",
+      bombExplodedKilled: '{name} was killed in the explosion.',
+      bombDefuseHint: 'بمب‌گذار has planted a bomb. You may guess its single-digit code, or let it explode.',
+      btnGuessBombCode: 'Guess the Code', btnLetBombExplode: 'Let It Explode',
+      pickBombCodeFirst: 'Pick a code first.',
+      actYouGuessedBombCode: 'You guessed code {digit}.', actYouLetBombExplode: 'You let the bomb explode.',
+      bombDecisionEyebrow: 'A bomb is pending',
       btnGotIt: 'Got it',
       btnFireGun: 'Fire', dayLogPrefix: 'Day {day}: ', decisionSubmittedWaiting: 'Your decision was submitted — please wait…',
       debugPanelTitle: 'Debug Panel — dev/troubleshooting only', btnCloseDebug: 'Close',
@@ -1660,6 +1711,7 @@
       debugProfessionalShotsLabel: "حرفه‌ای's shots remaining",
       debugGodfatherSlaughterLabel: "پدر خوانده's Slaughter", debugProfessionalSlaughterLabel: "حرفه‌ای's Slaughter",
       debugSlaughterAvailable: 'Available', debugSlaughterDisabled: 'Permanently disabled',
+      debugBomberUsedLabel: "بمب‌گذار's bomb used", debugPendingBombLabel: 'Pending bomb', debugBombCodeLabel: 'code',
       debugGunsCancelledLabel: 'Guns cancelled', debugPendingGunLabel: 'Gun currently held by', debugNone: 'None',
       debugPendingRolesLabel: 'Undistributed roles',
       debugNoGodModeLabel: 'No God Mode', debugDeadlineLabel: 'Current deadline', debugGodModeLabel: 'God Mode',
@@ -1677,6 +1729,8 @@
     'role-godfather': "Each night you decide who Mafia will target. If کاراگاه investigates you, you always read as an innocent civilian. Instead of a normal shot, you alone may choose to Slaughter (سلاخی) your target — you must also guess their exact role. Guess right and they die no matter what, even a shield, the Doctor's save, or even زودیاک; guess wrong and nothing happens, same as no shot at all. Whoever you target with Slaughter can't use their own night action that night either way, right guess or wrong. But you only get one wrong guess in the whole game — the first time you guess wrong, Slaughter is permanently taken away from you and you're left with a normal shot only from then on. Once you're out, no other Mafia member can use this.",
     'role-matador': "Each night you choose one civilian to block; they can't use their ability that night. You can't block the exact same person on two nights in a row — whoever you blocked last night is shown but can't be selected again.",
     'role-lecter': "Each night you may save one Mafia member (even yourself) from dying — unlike the regular Doctor, you may only save Mafia members, never civilians. If a Mafia member is targeted by حرفه‌ای, زودیاک, or any other source and you save them, they stay in the game. Saving yourself is only possible once in the whole game. You can't save the exact same person on two nights in a row — whoever you saved last night is shown but can't be selected again.",
+    'role-bomber': "You're a Mafia member with no shield. Just once in the whole game, at night, you may plant a bomb on someone (even a fellow Mafia member) and set it to a single-digit code (0-9). محافظ gets a chance to guess that code; if they can't guess it correctly, the bomb explodes the next day — right before round 1 voting concludes: if the target has a shield, it's stripped and they survive; otherwise they die. This even works on زودیاک, who has no immunity against this bomb. If محافظ guesses correctly, the bomb is disarmed and nothing happens. This ability can only ever be used once, whether it ends in an explosion or a disarm.",
+    'role-guardian': "You're a civilian. Whenever بمب‌گذار plants a bomb, you get a chance to guess its single-digit code (0-9) or let it explode. Guess correctly and the bomb is disarmed. Your other ability: if زودیاک targets you with their own night shot, زودیاک dies instead of you — you come away unharmed. That's the only protection you have — if Mafia targets you and you have no shield, you die like any other civilian.",
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
     'role-detective': "Each night you investigate someone and get back a simple positive or negative — never a specific label like \"Mafia\" or anything else.",
     'role-professional': "Each night you may target someone — at most twice in the whole game (declining to act tonight doesn't cost you one). Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead. زودیاک is just as safe a target as Mafia — neither they nor you are affected. Instead of a normal shot, you may also choose to Slaughter (سلاخی) your target — you must also guess their exact role. Guess right and they die no matter what, even a shield, the Doctor's save, or even زودیاک; guess wrong and nothing happens at all (to either of you), but the option is permanently taken away from you — you only get one wrong guess in the whole game. Slaughter still spends one of your two whole-game shots, same as a normal one.",
@@ -1725,6 +1779,8 @@
     { id: 'role-godfather', team: 'mafia', name: 'پدر خوانده', description: 'هر شب شما تصمیم می‌گیرید مافیا چه کسی را هدف قرار دهد. اگر کاراگاه شما را بررسی کند، همیشه به‌عنوان یک شهروند بی‌گناه دیده می‌شوید. به‌جای شلیک معمولی، فقط شما می‌توانید «سلاخی» را انتخاب کنید — باید نقش دقیق هدفتان را هم حدس بزنید. اگر درست حدس بزنید، او به هر حال می‌میرد، حتی با شیلد، نجات دکتر یا حتی اگر زودیاک باشد؛ اگر اشتباه حدس بزنید، هیچ اتفاقی نمی‌افتد، درست مثل عدم شلیک. کسی را که برای سلاخی هدف می‌گیرید، همان شب نمی‌تواند از توانایی خودش استفاده کند — چه حدستان درست باشد چه غلط. اما این توانایی را فقط یک‌بار می‌توانید در کل بازی اشتباه حدس بزنید؛ با اولین حدس اشتباه، سلاخی برای همیشه از شما گرفته می‌شود و از آن پس فقط شلیک معمولی برایتان باقی می‌ماند. وقتی شما از بازی خارج شوید، هیچ عضو دیگر مافیا نمی‌تواند از این توانایی استفاده کند.', shield: true, independent: false, builtin: false },
     { id: 'role-matador', team: 'mafia', name: 'ماتادور', description: 'هر شب یک شهروند را برای مسدود کردن انتخاب می‌کنید؛ آن فرد آن شب نمی‌تواند از توانایی خود استفاده کند. نمی‌توانید دو شب پشت هم یک نفر را مسدود کنید — کسی که دیشب مسدود کردید در فهرست نشان داده می‌شود اما قابل انتخاب دوباره نیست.', shield: false, independent: false, builtin: false },
     { id: 'role-lecter', team: 'mafia', name: 'دکتر لکتر', description: 'هر شب می‌توانید یک عضو مافیا (حتی خودتان) را از مرگ نجات دهید — برخلاف دکتر معمولی، فقط اعضای مافیا را می‌توانید نجات دهید، نه شهروندان را. اگر عضوی از مافیا توسط حرفه‌ای، زودیاک یا هر منبع دیگری هدف شلیک قرار بگیرد و شما او را نجات دهید، در بازی باقی می‌ماند. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است. نمی‌توانید دو شب پشت هم یک نفر را نجات دهید — کسی که دیشب نجات دادید در فهرست نشان داده می‌شود اما قابل انتخاب دوباره نیست.', shield: false, independent: false, builtin: false },
+    { id: 'role-bomber', team: 'mafia', name: 'بمب‌گذار', description: 'شما عضو مافیا هستید و شیلد ندارید. فقط یک‌بار در کل بازی می‌توانید شب‌هنگام بمبی جلوی یکی از بازیکنان (حتی اعضای مافیا) بگذارید و برای آن یک کد یک‌رقمی (۰ تا ۹) تعیین کنید. محافظ فرصت می‌کند آن کد را حدس بزند؛ اگر نتواند درست حدس بزند، بمب روز بعد — دقیقاً پیش از پایان رأی‌گیری دور اول — منفجر می‌شود: اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد، در غیر این صورت کشته می‌شود؛ این حتی شامل زودیاک هم می‌شود، که در برابر این بمب مصونیتی ندارد. اگر محافظ کد را درست حدس بزند، بمب خلع‌سلاح می‌شود و هیچ اتفاقی نمی‌افتد. این توانایی فقط یک‌بار در کل بازی قابل استفاده است — هم در صورت انفجار و هم خلع‌سلاح شدن، دیگر بمبی باقی نمی‌ماند.', shield: false, independent: false, builtin: false },
+    { id: 'role-guardian', team: 'villager', name: 'محافظ', description: 'شما عضو شهروندان هستید. هر وقت بمب‌گذار بمبی کار بگذارد، به شما فرصت داده می‌شود کد یک‌رقمی آن (۰ تا ۹) را حدس بزنید یا بگذارید منفجر شود. اگر کد را درست حدس بزنید، بمب خلع‌سلاح می‌شود. توانایی دیگر شما: اگر زودیاک شما را هدف شلیک شبانهٔ خودش قرار دهد، به‌جای شما، خود زودیاک کشته می‌شود و شما سالم می‌مانید — این تنها محافظتی است که دارید؛ اگر مافیا شما را هدف بگیرد و شیلدی نداشته باشید، مثل هر شهروند دیگری کشته می‌شوید.', shield: false, independent: false, builtin: false },
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
     { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و فقط یک نتیجهٔ مثبت یا منفی می‌گیرید — نه چیزی مشخص مثل «مافیا» یا هر برچسب دیگر.', shield: false, independent: false, builtin: false },
     { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید — در کل بازی حداکثر دو بار (اگر یک شب تصمیم بگیرید کسی را هدف نگیرید، از این دو بار کم نمی‌شود). اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید. زودیاک هم مثل مافیا برای شما هدف امن است — نه او آسیب می‌بیند و نه شما حذف می‌شوید. به‌جای شلیک معمولی، می‌توانید «سلاخی» را هم انتخاب کنید — باید نقش دقیق فرد هدف را حدس بزنید. اگر درست حدس بزنید، او به هر حال می‌میرد، حتی با شیلد، نجات دکتر یا حتی اگر زودیاک باشد؛ اگر اشتباه حدس بزنید، هیچ اتفاقی نمی‌افتد (نه او کشته می‌شود، نه شما حذف می‌شوید)، اما این توانایی برای همیشه از شما گرفته می‌شود — فقط یک اشتباه در کل بازی مجاز است. سلاخی هم مثل شلیک معمولی یکی از همان دو فرصت کل بازی‌تان را مصرف می‌کند.', shield: true, independent: false, builtin: false },
@@ -1813,7 +1869,7 @@
     voteHistory: [],        // (host: authoritative; player: local copy) every completed round ever — [{day, round, rows:[{voter, targets}]}], see recordVoteHistory
     gameLog: [],             // (host: authoritative; player: local copy, only ever received once the game ends) full chronological narrative — [{day, phase:'day'|'night'|'final', text}], see logGameEvent. Night entries include normally-PRIVATE per-role decisions (who blocked/saved/investigated/shot whom) — safe to compile since this is never sent to anyone before App.showGameOver. Built specifically for a game nobody was actively narrating (No God Mode above all, but sent in every mode) — see App.viewGameLog/renderGameLogInto.
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
-    night: { blockedId: null, savedId: null, lecterSavedId: null, professionalTargetId: null, professionalSlaughterGuessKey: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, deferredLecterPrompt: null, killDeciderIds: new Set(), decisionsLog: [] }, // (host) this night's decisions
+    night: { blockedId: null, savedId: null, lecterSavedId: null, professionalTargetId: null, professionalSlaughterGuessKey: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, deferredLecterPrompt: null, deferredBomberPrompt: null, killDeciderIds: new Set(), decisionsLog: [] }, // (host) this night's decisions
     lastMatadorBlockedId: null, // (host) whoever ماتادور blocked LAST night (survives state.night's own per-night reset — see startNight) — ماتادور may not block the exact same person two nights running, see startMafiaPhaseStep
     lastLecterSavedId: null, // (host) whoever دکتر لکتر saved LAST night (survives state.night's own per-night reset — see startNight) — same once-per-night-not-twice-in-a-row rule as ماتادور's own block, see startMafiaPhaseStep
     nightStepIndex: 0,      // (host) index into NIGHT_STEP_ORDER for the current night
@@ -1832,6 +1888,9 @@
     gunsCancelled: false,   // (host) true once the gun has been fired at a civilian — no more handovers
     pendingGun: null,       // (host) { holderId } once تفنگدار hands the gun over, until it's fired/declined the next day
     gunDeadlineTimer: null, // (host) the day-gun decision's OWN pending setTimeout handle — separate from state.deadlineTimer since this now runs concurrently with voting (see armGunDeadline)
+    bomberUsed: false,      // (host) true the instant بمب‌گذار actually places their one-and-only bomb (set or disarmed, doesn't matter — see handleNightAction's 'bomber' branch)
+    pendingBomb: null,      // (host) { bomberId, targetId, code } from the night it's placed until it's disarmed or exploded the following day — see startBombDefuseStep/resolveBomb
+    bombDeadlineTimer: null, // (host) محافظ's own pending setTimeout handle — separate track from state.deadlineTimer/gunDeadlineTimer, same reasoning as armGunDeadline's own comment
     myRole: null,           // (player) last role payload received, for the "View My Role" peek
     roleReturnScreen: null, // (player) screen to return to after peeking at role
     roleGuideIds: [], // (host: derived from selectedRoleIds; player/host-self: local copy) role ids actually in play this game — see App.assignRoles' broadcast / renderRoleGuide. Everyone already has the full HARDCODED_ROLES catalog + translations baked into their own copy of this script, so only the id LIST needs to travel — never pre-rendered text, which would otherwise be stuck in whichever language the HOST happened to be in when it was sent.
@@ -1843,8 +1902,11 @@
     nightActionRole: null,       // (player) which role this night-action prompt is for
     selectedNightTargetId: null, // (player) chosen target before submit
     selectedSlaughterRoleKey: null, // (player, پدر خوانده or حرفه‌ای) chosen role guess for سلاخی before submit — see renderNightActionScreen/renderHostSelfNightActionBody
+    selectedBombDigit: null, // (player, بمب‌گذار only) chosen code digit before submit — see renderNightActionScreen/renderHostSelfNightActionBody
     selectedDayGunTargetId: null, // (player) chosen target for the day-gun decision before submit
     pendingDayGunMsg: null, // (player, incl. God-Mode host-self) the gun holder's own pending decision, if it's them — see attachGunDecisionSection / updateHostSelfActionCard
+    selectedBombGuessDigit: null, // (player, محافظ only) chosen code guess before submit — see renderBombDefuseUI
+    pendingBombMsg: null, // (player, incl. God-Mode host-self) محافظ's own pending bomb-defuse decision, if it's them — see attachBombDecisionSection / updateHostSelfActionCard
     hostSelfActionClosed: false, // (God Mode host-self) true once the CURRENT state.lastPhaseMsg-driven action has been answered — see closeHostSelfCard/updateHostSelfActionCard for why this exists at all
     myActivityLog: [],           // (player) night-by-night history of this player's (or their mafia team's) actions
     hasActivityLog: false,       // (player) whether to show the "My Activity" link at all
@@ -1873,6 +1935,9 @@
     // attachGunDecisionSection's own comment. A no-op whenever nothing's
     // actually pending (the common case).
     attachGunDecisionSection(id);
+    // Same idea again for محافظ's own pending bomb-defuse decision — see
+    // attachBombDecisionSection's own comment.
+    attachBombDecisionSection(id);
     // Persistent My Role/My Activity/Vote History bar — see its own
     // comment. A no-op for the host's own screens (state.role !== 'player').
     updatePlayerFooterBar();
@@ -3165,9 +3230,11 @@
         } else if(msg.type === 'inquiry-vote'){
           handlePlayerInquiryVote(playerId, msg.choice);
         } else if(msg.type === 'night-action'){
-          handleNightAction(playerId, msg.role, msg.targetId, msg.recruit, msg.slaughterRoleKey);
+          handleNightAction(playerId, msg.role, msg.targetId, msg.recruit, msg.slaughterRoleKey, msg.bombCode);
         } else if(msg.type === 'day-gun-action'){
           handleDayGunAction(playerId, msg.targetId);
+        } else if(msg.type === 'bomb-guess'){
+          handleBombGuess(playerId, msg.digit);
         } else if(msg.type === 'mafia-chat'){
           handleMafiaChat(playerId, msg.text);
         } else if(msg.type === 'ocean-chat'){
@@ -3574,6 +3641,9 @@
     if(entry.pendingDayGunMsg){
       sendToPlayer(entry, entry.pendingDayGunMsg);
     }
+    if(entry.pendingBombMsg){
+      sendToPlayer(entry, entry.pendingBombMsg);
+    }
   }
 
   // God Mode: the host-self player-side dispatcher — everything
@@ -3639,6 +3709,18 @@
     }
     else if(obj.type === 'day-gun-result'){
       state.pendingDayGunMsg = null;
+    }
+    else if(obj.type === 'bomb-pending'){
+      // Same reasoning as day-gun-pending above.
+      state.pendingBombMsg = obj;
+      state.selectedBombGuessDigit = null;
+    }
+    else if(obj.type === 'bomb-result'){
+      // No showAckBanner call here, same as day-gun-result above —
+      // announceBombOutcome already called it directly on this same
+      // physical device; this branch is only updating host-self's own
+      // "player-side" state.
+      state.pendingBombMsg = null;
     }
     else if(obj.type === 'eliminated'){
       state.amAlive = false;
@@ -3716,7 +3798,8 @@
     const actionBody = $('host-self-action-body');
     const mainBlock = $('host-self-main-action');
     const gunBlock = $('host-self-gun-action');
-    if(!section || !actionBody || !mainBlock || !gunBlock) return;
+    const bombBlock = $('host-self-bomb-action');
+    if(!section || !actionBody || !mainBlock || !gunBlock || !bombBlock) return;
     const self = state.godMode ? state.players.get(HOST_SELF_ID) : null;
     const alive = !!(self && self.alive) && !state.gameEnded;
     section.classList.toggle('open', alive && !!state.myRole);
@@ -3789,7 +3872,15 @@
     }
     gunBlock.style.display = hasGunAction ? 'block' : 'none';
 
-    actionBody.style.display = (hasMainAction || hasGunAction) ? 'block' : 'none';
+    // محافظ's own bomb-defuse decision — same independent-block treatment
+    // as the gun action right above.
+    const hasBombAction = !!state.pendingBombMsg;
+    if(hasBombAction){
+      renderBombDefuseUI($('host-self-bomb-body'), state.pendingBombMsg, App.hostSelfSubmitBombGuess, App.hostSelfSkipBombGuess);
+    }
+    bombBlock.style.display = hasBombAction ? 'block' : 'none';
+
+    actionBody.style.display = (hasMainAction || hasGunAction || hasBombAction) ? 'block' : 'none';
   }
   // Closes only the MAIN phase-derived action (vote/inquiry/night-action) —
   // see state.hostSelfActionClosed. Never touches the gun block; that one
@@ -3908,6 +3999,20 @@
         };
       }
     }
+    // بمب‌گذار's code picker — never checkbox-gated (unlike سلاخی above),
+    // just always present whenever msg.bombCodeChoices is at all — see
+    // renderNightActionScreen's identical treatment.
+    state.selectedBombDigit = null;
+    if(msg.bombCodeChoices){
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.style.marginBottom = '10px';
+      hint.textContent = t('chooseBombCodeHint');
+      body.appendChild(hint);
+      const codeList = document.createElement('div');
+      renderSlaughterRoleChoices(codeList, msg.bombCodeChoices.map(d => ({ key: d, name: d })), 'host-self-bomb-code', (key) => { state.selectedBombDigit = key; });
+      body.appendChild(codeList);
+    }
     const list = document.createElement('div');
     list.className = 'stack';
     (msg.candidates || []).forEach(c => {
@@ -3944,13 +4049,15 @@
     const recruit = !!(recruitEl && recruitEl.checked);
     const slaughterEl = $('host-self-slaughter-checkbox');
     const slaughterRoleKey = (slaughterEl && slaughterEl.checked) ? state.selectedSlaughterRoleKey : null;
-    handleNightAction(HOST_SELF_ID, state.nightActionRole, targetId, recruit, slaughterRoleKey);
+    const bombCode = (state.nightActionRole === 'bomber' && targetId) ? state.selectedBombDigit : null;
+    handleNightAction(HOST_SELF_ID, state.nightActionRole, targetId, recruit, slaughterRoleKey, bombCode);
     closeHostSelfCard();
   }
   App.hostSelfSubmitNightAction = function(){
     if(!state.selectedNightTargetId){ toast(t('pickSomeoneFirst')); return; }
     const slaughterEl = $('host-self-slaughter-checkbox');
     if(slaughterEl && slaughterEl.checked && !state.selectedSlaughterRoleKey){ toast(t('pickRoleFirst')); return; }
+    if(state.nightActionRole === 'bomber' && !state.selectedBombDigit){ toast(t('pickBombCodeFirst')); return; }
     hostSelfSendNightAction(state.selectedNightTargetId);
   };
   App.hostSelfSkipNightAction = function(){
@@ -3968,6 +4075,18 @@
   App.hostSelfSkipDayGunAction = function(){
     handleDayGunAction(HOST_SELF_ID, null);
     state.pendingDayGunMsg = null;
+    updateHostSelfActionCard();
+  };
+
+  App.hostSelfSubmitBombGuess = function(){
+    if(!state.selectedBombGuessDigit){ toast(t('pickBombCodeFirst')); return; }
+    handleBombGuess(HOST_SELF_ID, state.selectedBombGuessDigit);
+    state.pendingBombMsg = null;
+    updateHostSelfActionCard();
+  };
+  App.hostSelfSkipBombGuess = function(){
+    handleBombGuess(HOST_SELF_ID, null);
+    state.pendingBombMsg = null;
     updateHostSelfActionCard();
   };
 
@@ -3993,6 +4112,14 @@
     // the day's discussion/inquiry-vote, not only once voting has already
     // opened. Never true on Day 1 (nothing's been handed off yet).
     if(state.pendingGun) startDayGunStep();
+    // بمب‌گذار's bomb (if placed last night) gets the exact same "starts at
+    // the top of the morning" treatment — محافظ can try the code any time
+    // from here through the inquiry vote, the day's conversation, and
+    // round 1 of voting, whichever is still open when they decide. Unlike
+    // the gun, this one has a hard, FORCED deadline too — see
+    // closeVotingRound1's own forced-resolution hook — since the whole
+    // point is "resolved one way or another before round 1 concludes."
+    if(state.pendingBomb) startBombDefuseStep();
     const anyoneEliminatedYet = Array.from(state.players.values()).some(e => !e.alive);
     if(state.inquiriesRemaining > 0 && anyoneEliminatedYet) startInquiryVote();
     else goToDayScreen();
@@ -4197,13 +4324,38 @@
   // stalling the whole game behind an unwatched banner.
   const ACK_BANNER_MS = 20000;
   let ackBannerTimer = null;
-  function showAckBanner(text){
+  // onDismiss (host-side only — see closeVotingRound1's own forced bomb
+  // resolution) fires once this SPECIFIC banner is actually dismissed,
+  // whether by a tap or the ACK_BANNER_MS timeout — never by a later call
+  // simply replacing it (see that case's own guard below). Added
+  // specifically so بمب‌گذار's bomb explosion banner can genuinely be SEEN
+  // before the day's voting-result banner takes over the same overlay,
+  // instead of the two colliding in the same tick the way every other
+  // back-to-back announcement here is allowed to (that's fine for
+  // day-result/inquiry-result/day-gun, which all have a persistent
+  // underlying screen with the same text — the bomb explosion has no such
+  // screen, so losing its banner would lose the information outright).
+  let ackBannerOnDismiss = null;
+  function showAckBanner(text, onDismiss){
     const banner = $('ack-banner');
     const textEl = $('ack-banner-text');
-    if(!banner || !textEl) return;
+    if(!banner || !textEl){ if(onDismiss) onDismiss(); return; }
+    // If a PREVIOUS call's own onDismiss is still pending (a rare collision
+    // — e.g. the day-gun resolving at the same moment the bomb's own
+    // banner is still up), fire it now rather than silently dropping it —
+    // losing that one banner's own "seen" guarantee in a genuinely
+    // simultaneous collision is the same acceptable trade-off already
+    // established for every other such collision here, but silently never
+    // continuing whatever it was gating (stalling the game) is not.
+    if(ackBannerOnDismiss){
+      const prevCb = ackBannerOnDismiss;
+      ackBannerOnDismiss = null;
+      prevCb();
+    }
     textEl.textContent = text;
     banner.style.display = 'flex';
     if(ackBannerTimer){ clearTimeout(ackBannerTimer); ackBannerTimer = null; }
+    ackBannerOnDismiss = onDismiss || null;
     ackBannerTimer = setTimeout(App.dismissAckBanner, ACK_BANNER_MS);
     if(ackBannerTimer && typeof ackBannerTimer.unref === 'function') ackBannerTimer.unref();
   }
@@ -4211,6 +4363,9 @@
     const banner = $('ack-banner');
     if(banner) banner.style.display = 'none';
     if(ackBannerTimer){ clearTimeout(ackBannerTimer); ackBannerTimer = null; }
+    const cb = ackBannerOnDismiss;
+    ackBannerOnDismiss = null;
+    if(cb) cb();
   };
 
   // ---------------- Day-gun: independent deadline ----------------
@@ -4240,6 +4395,127 @@
     }, ms);
     if(state.gunDeadlineTimer && typeof state.gunDeadlineTimer.unref === 'function') state.gunDeadlineTimer.unref();
   }
+
+  // ---------------- بمب‌گذار / محافظ: the bomb ----------------
+  // Independent of whatever else is going on (same spirit as the day-gun
+  // above) but with a HARD deadline the gun doesn't have: it must be
+  // resolved — disarmed or exploded — no later than the moment round 1 of
+  // that day's voting closes (see closeVotingRound1's own forced-resolution
+  // call). Started at the top of the morning (startDayOrInquiry) so محافظ
+  // can try any time before then.
+  function clearBombDeadline(){
+    if(state.bombDeadlineTimer){ clearTimeout(state.bombDeadlineTimer); state.bombDeadlineTimer = null; }
+  }
+  function armBombDeadline(){
+    clearBombDeadline();
+    if(!autoPacingOn()) return;
+    let ms = state.voteDeadlineMinutes * 60 * 1000 * Math.max(1, aliveEntries().length);
+    try{
+      const override = localStorage.getItem('mafia-deadline-ms-override');
+      if(override) ms = parseInt(override, 10);
+    }catch(e){}
+    // Under auto-pacing, round 1 voting opens (and can close) well before
+    // this timer would ever fire on its own in a normal game — that's
+    // fine, it's just a safety net matching every other armXDeadline here;
+    // closeVotingRound1's own forced-resolution is what ACTUALLY bounds
+    // this in practice.
+    state.bombDeadlineTimer = setTimeout(() => {
+      state.bombDeadlineTimer = null;
+      resolveBomb('exploded');
+    }, ms);
+    if(state.bombDeadlineTimer && typeof state.bombDeadlineTimer.unref === 'function') state.bombDeadlineTimer.unref();
+  }
+  // Sends محافظ their own defuse prompt — a no-op if محافظ isn't alive
+  // (nobody left to try; the bomb just silently waits for the forced
+  // resolution at round 1's close instead, same as if they'd simply never
+  // answered).
+  function startBombDefuseStep(){
+    const guardians = findAliveByRoleName(ROLE_NAME_GUARDIAN);
+    if(!guardians.length) return;
+    const [guardianId, guardianEntry] = guardians[0];
+    armBombDeadline();
+    const msg = { type: 'bomb-pending', day: state.day, codeChoices: BOMB_CODE_DIGITS };
+    // Cached on the entry (like entry.pendingDayGunMsg) so a reconnecting
+    // محافظ gets this prompt back alongside whatever their main phase also is.
+    guardianEntry.pendingBombMsg = msg;
+    sendToPlayer(guardianEntry, msg);
+  }
+  function handleBombGuess(voterId, digit){
+    const guardians = findAliveByRoleName(ROLE_NAME_GUARDIAN);
+    if(!state.pendingBomb || !guardians.length || guardians[0][0] !== voterId) return;
+    const guardianEntry = guardians[0][1];
+    const prefix = t('dayLogPrefix', { day: state.day });
+    const correct = !!(digit && digit === state.pendingBomb.code);
+    logActivity(guardianEntry, prefix + (digit ? t('actYouGuessedBombCode', { digit }) : t('actYouLetBombExplode')));
+    guardianEntry.pendingBombMsg = null;
+    resolveBomb(correct ? 'disarmed' : 'exploded');
+  }
+  // onResolved (host-side only) — used ONLY by closeVotingRound1's own
+  // forced resolution, so the rest of that function (the actual voting
+  // result) waits for the HOST to actually see/dismiss this bomb banner
+  // first, instead of the two colliding in the same tick (see
+  // showAckBanner's own onDismiss comment for why that matters here
+  // specifically). A plain mid-day guess/skip via handleBombGuess, or the
+  // standalone armBombDeadline timeout, both call this with no callback at
+  // all — nothing waiting on those.
+  function resolveBomb(outcome, onResolved){
+    if(!state.pendingBomb){ if(onResolved) onResolved(); return; }
+    clearBombDeadline();
+    const { bomberId, targetId } = state.pendingBomb;
+    const bomberEntry = state.players.get(bomberId);
+    const target = state.players.get(targetId);
+    state.pendingBomb = null;
+    const guardians = findAliveByRoleName(ROLE_NAME_GUARDIAN);
+    if(guardians.length) guardians[0][1].pendingBombMsg = null;
+    if(outcome === 'disarmed'){
+      // Deliberately never names the target — see the role's own request:
+      // a timely disarm means nobody ever finds out where it was hidden,
+      // unlike an explosion (which always reveals the target below).
+      announceBombOutcome(t('bombDisarmedAnnouncement'), onResolved);
+      return;
+    }
+    // 'exploded' — whether from a genuine wrong guess, محافظ explicitly
+    // letting it happen, or nobody ever answering at all.
+    let text;
+    if(target && target.alive){
+      if(target.roleShield){
+        target.roleShield = false;
+        text = t('bombExplodedNoEffect', { name: target.name });
+      } else {
+        target.alive = false;
+        sendToPlayer(target, { type: 'eliminated' });
+        // زودیاک is NOT exempt here — same deliberate exception سلاخی
+        // already has (this is now the third way to kill زودیاک outside a
+        // day vote). transferZodiacLegacy is the same no-op-for-anyone-else
+        // call every other زودیاک-capable death already makes.
+        transferZodiacLegacy(target);
+        text = t('bombExplodedKilled', { name: target.name });
+      }
+      if(bomberEntry) logMafiaActivity(t('dayLogPrefix', { day: state.day }) + t('actBombExploded', { name: target.name }));
+    }
+    if(text){
+      state.winner = checkWinner();
+      // A bomb kill that ends the game outright skips the callback
+      // entirely — same reasoning as announceDayGunOutcome's own game-over
+      // interrupt — there's no voting result left worth waiting to show.
+      announceBombOutcome(text, state.winner ? null : onResolved);
+      if(state.winner) App.showGameOver();
+    } else if(onResolved){
+      // Target was already gone by some other means before the bomb ever
+      // got its chance — a genuine non-event, nothing to announce, so
+      // nothing to wait on either; continue right away.
+      onResolved();
+    }
+  }
+  // Public (everyone alive hears it) — always the deliberate dismiss-or-
+  // timeout banner (see showAckBanner), never a plain toast: the user's
+  // own request is that EVERY bomb outcome gets a pop-up, disarmed or not.
+  function announceBombOutcome(text, onDismiss){
+    aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'bomb-result', text }));
+    showAckBanner(text, onDismiss);
+    logGameEvent('day', text);
+  }
+
   // Small persistent note (+ manual force-skip fallback, for a normally-
   // hosted game where nothing auto-expires this — see armGunDeadline) on
   // BOTH the host's day screen and voting screen — since the decision now
@@ -4564,6 +4840,23 @@
   }
 
   function closeVotingRound1(){
+    // بمب‌گذار's bomb (if still pending) is FORCED to resolve right here —
+    // "as soon as the last person votes on round 1, or time runs out" is
+    // exactly this function's own two triggers (maybeAutoCloseVoting and
+    // armVoteDeadline both funnel into App.closeVoting -> here). An
+    // unanswered بمب‌گذار's bomb explodes, same as an explicit wrong
+    // guess/skip — it can never silently carry over into the defense/final
+    // round. The REST of this function (the actual voting result) is
+    // deliberately held back until the bomb's own banner is actually
+    // dismissed (tap or timeout) — see resolveBomb/showAckBanner's own
+    // onDismiss comment — matching the user's own "[bomb pop-up], and
+    // immediately voting results are presented" request as two genuinely
+    // sequential reveals, not two banners racing to overwrite each other
+    // in the same tick.
+    if(state.pendingBomb){ resolveBomb('exploded', closeVotingRound1Continued); return; }
+    closeVotingRound1Continued();
+  }
+  function closeVotingRound1Continued(){
     recordVoteHistory(1, state.votesRound1, aliveEntries().map(([id]) => id));
     const counts = new Map();
     state.votesRound1.forEach(ids => ids.forEach(id => counts.set(id, (counts.get(id) || 0) + 1)));
@@ -4893,7 +5186,7 @@
     // treatment for دکتر لکتر's own last save.
     state.lastMatadorBlockedId = state.night.blockedId;
     state.lastLecterSavedId = state.night.lecterSavedId;
-    state.night = { blockedId: null, savedId: null, lecterSavedId: null, professionalTargetId: null, professionalSlaughterGuessKey: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, deferredLecterPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
+    state.night = { blockedId: null, savedId: null, lecterSavedId: null, professionalTargetId: null, professionalSlaughterGuessKey: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, deferredLecterPrompt: null, deferredBomberPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
     aliveEntries().forEach(([id, entry]) => sendToPlayer(entry, { type: 'phase', phase: 'night', day: state.day }));
     $('night-day').textContent = t('nightLabel', { n: state.day });
     showScreen('screen-host-night');
@@ -5212,6 +5505,33 @@
       }
     }
 
+    // بمب‌گذار — exactly one bomb for the whole game (BOMBER_MAX_USES),
+    // consumed the moment they actually place it (see handleNightAction's
+    // own 'bomber' branch), win or lose. Can target anyone alive, including
+    // their own teammates, same convention as پدر خوانده's own kill. The
+    // code itself (bombCodeChoices) is sent right alongside the target
+    // list — unlike سلاخی's optional checkbox, this picker is always
+    // shown, never gated, since بمب‌گذار has no "plant it without a code"
+    // option at all.
+    const bombers = findAliveByRoleName(ROLE_NAME_BOMBER);
+    if(bombers.length && !state.bomberUsed){
+      const [bomberId, bomberEntry] = bombers[0];
+      const candidates = Array.from(state.players.entries())
+        .filter(([id, e]) => e.alive && id !== bomberId)
+        .map(([id, e]) => ({ id, name: e.name }));
+      if(candidates.length){
+        state.night.mafiaPending.add('bomber');
+        // Same single-prompt-screen collision as ماتادور/دکتر لکتر's own
+        // deferral — only reachable when پدرخوانده is dead and the random
+        // fallback kill-decider pick happens to be بمب‌گذار themselves.
+        if(killDeciderIds.has(bomberId)){
+          state.night.deferredBomberPrompt = { entry: bomberEntry, candidates };
+        } else {
+          sendToPlayer(bomberEntry, { type: 'phase', phase: 'night-action', day: state.day, role: 'bomber', title: t('chooseBombTarget'), candidates, allowSkip: true, bombCodeChoices: BOMB_CODE_DIGITS });
+        }
+      }
+    }
+
     if(!state.night.mafiaPending.size){ advanceNight(); return; }
     showScreen('screen-host-night');
   }
@@ -5334,10 +5654,10 @@
     state.gameLog.push({ day: state.day, phase, text });
   }
 
-  function handleNightAction(voterId, role, targetId, recruit, slaughterRoleKey){
+  function handleNightAction(voterId, role, targetId, recruit, slaughterRoleKey, bombCode){
     const voter = state.players.get(voterId);
     if(!voter || !voter.alive) return;
-    const isMafiaPhaseRole = (role === 'mafia' || role === 'matador' || role === 'lecter');
+    const isMafiaPhaseRole = (role === 'mafia' || role === 'matador' || role === 'lecter' || role === 'bomber');
     const isCivilianPhaseRole = CIVILIAN_PHASE_ROLES.indexOf(role) !== -1;
     const expectedPhase = isMafiaPhaseRole ? 'night-mafia-phase'
       : isCivilianPhaseRole ? 'night-civilian-phase'
@@ -5420,6 +5740,24 @@
       logMafiaActivity(prefix + (effectiveTargetName ? t('actLecterSaved', { name: effectiveTargetName }) : t('actLecterNoSave')));
       recordNightDecision(voter, effectiveTargetName ? t('actYouSaved', { name: effectiveTargetName }) : t('actYouNoSave'));
       state.night.mafiaPending.delete('lecter');
+      checkMafiaPhaseComplete();
+    } else if(role === 'bomber'){
+      // One bomb, ever — consumed right here on an actual placement,
+      // regardless of how it eventually resolves (see resolveBomb). A skip
+      // costs nothing, same "decided not to act doesn't count against you"
+      // treatment as every other whole-game cap in this file.
+      if(targetId && bombCode){
+        state.bomberUsed = true;
+        state.pendingBomb = { bomberId: voterId, targetId, code: bombCode };
+        logActivity(voter, prefix + t('actYouPlantedBomb', { name: targetName }));
+        logMafiaActivity(prefix + t('actBomberPlanted', { name: targetName }));
+        recordNightDecision(voter, t('actYouPlantedBomb', { name: targetName }));
+      } else {
+        logActivity(voter, prefix + t('actYouNoBomb'));
+        logMafiaActivity(prefix + t('actBomberNoBomb'));
+        recordNightDecision(voter, t('actYouNoBomb'));
+      }
+      state.night.mafiaPending.delete('bomber');
       checkMafiaPhaseComplete();
     } else if(role === 'doctor'){
       state.night.savedId = targetId || null;
@@ -5571,13 +5909,13 @@
           ? t('actYouAttemptedSlaughter', { name: targetName, role: slaughterRoleLabel(slaughterRoleKey) })
           : (targetName ? t('actYouShot', { name: targetName }) : t('actYouNoShot')));
       state.night.mafiaPending.delete('kill');
-      // If this same player is also tonight's ماتادور OR دکتر لکتر, their
-      // own prompt was held back (see startMafiaPhaseStep) so it wouldn't
-      // collide with the kill prompt — send it now that they've answered
-      // the first one. Only ever at most one of these two actually fires
-      // for a given voter (ماتادور and دکتر لکتر are always two different
-      // players), but both are checked unconditionally since there's no
-      // cheap way to know in advance which role (if any) this voter holds.
+      // If this same player is also tonight's ماتادور, دکتر لکتر, OR
+      // بمب‌گذار, their own prompt was held back (see startMafiaPhaseStep)
+      // so it wouldn't collide with the kill prompt — send it now that
+      // they've answered the first one. Only ever at most one of these
+      // three actually fires for a given voter (each is always a different
+      // player), but all three are checked unconditionally since there's
+      // no cheap way to know in advance which role (if any) this voter holds.
       const deferredMatador = state.night.deferredMatadorPrompt;
       if(deferredMatador && deferredMatador.entry === voter){
         state.night.deferredMatadorPrompt = null;
@@ -5588,12 +5926,17 @@
         state.night.deferredLecterPrompt = null;
         sendToPlayer(deferredLecter.entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'lecter', title: t('chooseToSaveMafia'), candidates: deferredLecter.candidates, allowSkip: true });
       }
+      const deferredBomber = state.night.deferredBomberPrompt;
+      if(deferredBomber && deferredBomber.entry === voter){
+        state.night.deferredBomberPrompt = null;
+        sendToPlayer(deferredBomber.entry, { type: 'phase', phase: 'night-action', day: state.day, role: 'bomber', title: t('chooseBombTarget'), candidates: deferredBomber.candidates, allowSkip: true, bombCodeChoices: BOMB_CODE_DIGITS });
+      }
       checkMafiaPhaseComplete(); // outcome (shot / recruited / failed) is logged once it resolves, in resolveNight()
     }
   }
 
   App.forceContinueNight = function(){
-    if(state.gamePhase === 'night-mafia-phase'){ state.night.mafiaPending.clear(); state.night.deferredMatadorPrompt = null; state.night.deferredLecterPrompt = null; }
+    if(state.gamePhase === 'night-mafia-phase'){ state.night.mafiaPending.clear(); state.night.deferredMatadorPrompt = null; state.night.deferredLecterPrompt = null; state.night.deferredBomberPrompt = null; }
     else if(state.gamePhase === 'night-zodiac-phase') state.night.zodiacPending.clear();
     else if(state.gamePhase === 'night-civilian-phase') state.night.civilianPending.clear();
     advanceNight();
@@ -5708,10 +6051,24 @@
       }
     }
 
-    // زودیاک's shot — a plain kill attempt like Mafia's, no backfire mechanic.
-    // Its target list already excludes independent roles, but since زودیاک is
-    // the only one so far it can never target itself anyway.
-    if(state.night.zodiacTargetId) rawDeaths.add(state.night.zodiacTargetId);
+    // زودیاک's shot — a plain kill attempt like Mafia's, no backfire mechanic
+    // ... UNLESS the target is محافظ, whose whole gimmick is exactly the
+    // reverse: زودیاک dies instead, guaranteed (bypassing زودیاک's own
+    // usual immunity to everything but a day vote or a correct سلاخی
+    // guess — this is a third way to kill زودیاک). محافظ themselves is
+    // untouched either way — never added to ANY death set here, regardless
+    // of their own shield (they don't need it against this specific
+    // attacker). Looked up fresh at resolve time rather than cached at
+    // submission, same as حرفه‌ای's own professionalEntries lookup above.
+    if(state.night.zodiacTargetId){
+      const zodiacTarget = state.players.get(state.night.zodiacTargetId);
+      if(zodiacTarget && zodiacTarget.roleName === ROLE_NAME_GUARDIAN){
+        const zodiacShooters = findAliveByRoleName(ROLE_NAME_ZODIAC);
+        if(zodiacShooters.length) guaranteedDeaths.add(zodiacShooters[0][0]);
+      } else {
+        rawDeaths.add(state.night.zodiacTargetId);
+      }
+    }
 
     // اوشن's fatal mistake: recruiting a Mafia member into the group.
     state.night.extraDeathIds.forEach(id => rawDeaths.add(id));
@@ -5837,7 +6194,7 @@
     state.gameLog = [];
     state.inquiriesRemaining = 0;
     state.winner = null;
-    state.night = { blockedId: null, savedId: null, lecterSavedId: null, professionalTargetId: null, professionalSlaughterGuessKey: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, deferredLecterPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
+    state.night = { blockedId: null, savedId: null, lecterSavedId: null, professionalTargetId: null, professionalSlaughterGuessKey: null, mafiaTargetId: null, mafiaRecruitId: null, slaughterGuessKey: null, revivedId: null, zodiacTargetId: null, extraDeathIds: [], mafiaPending: new Set(), zodiacPending: new Set(), civilianPending: new Set(), deferredMatadorPrompt: null, deferredLecterPrompt: null, deferredBomberPrompt: null, killDeciderIds: new Set(), decisionsLog: [] };
     state.lastMatadorBlockedId = null;
     state.lastLecterSavedId = null;
     state.doctorSelfSaveUsed = false;
@@ -5854,7 +6211,10 @@
     state.professionalShotsRemaining = PROFESSIONAL_MAX_SHOTS;
     state.godfatherSlaughterDisabled = false;
     state.professionalSlaughterDisabled = false;
+    state.bomberUsed = false;
+    state.pendingBomb = null;
     clearGunDeadline();
+    clearBombDeadline();
     clearCriticalReplyTimeout();
     // God Mode: the host's browser plays through the SAME page across
     // multiple games (see App.createLobby/receiveAsHostSelf), unlike a real
@@ -5879,9 +6239,13 @@
     state.selectedNightTargetId = null;
     state.selectedDayGunTargetId = null;
     state.pendingDayGunMsg = null;
+    state.selectedBombDigit = null;
+    state.selectedBombGuessDigit = null;
+    state.pendingBombMsg = null;
     state.hostSelfActionClosed = false;
     updateHostSelfActionCard();
     attachGunDecisionSection(activeScreenId());
+    attachBombDecisionSection(activeScreenId());
     updateRoleGuideButtonVisibility();
     // noGodMode/actDeadlineMinutes/voteDeadlineMinutes deliberately carry
     // over into the next game, same as numPlayers/numMafia/etc. — but any
@@ -6453,6 +6817,21 @@
           state.pendingDayGunMsg = null;
           attachGunDecisionSection(activeScreenId());
         }
+        else if(msg.type === 'bomb-pending'){
+          // محافظ's own decision — same independent-of-whatever-else-is-
+          // showing treatment as the gun above, see startBombDefuseStep.
+          state.pendingBombMsg = msg;
+          attachBombDecisionSection(activeScreenId());
+        }
+        else if(msg.type === 'bomb-result'){
+          // Public (everyone alive hears it) — ALWAYS the deliberate
+          // dismiss-or-timeout banner, disarmed or exploded alike (unlike
+          // day-gun-result, there's no lesser "just a toast" case here —
+          // see announceBombOutcome).
+          showAckBanner(msg.text);
+          state.pendingBombMsg = null;
+          attachBombDecisionSection(activeScreenId());
+        }
         else if(msg.type === 'mafia-chat-log'){
           state.mafiaChatLog = msg.log || [];
           renderMafiaChat();
@@ -6942,12 +7321,14 @@
   // Shared by the real player's night-action screen and (in God Mode) the
   // host-self's own night-action card — the guessed-role list for سلاخی
   // (پدر خوانده's or حرفه‌ای's — see startMafiaPhaseStep/
-  // startCivilianPhaseStep) is the same radio-list-of-roles pattern the
-  // candidate list right above it already uses, just over msg.roleChoices instead of
-  // msg.candidates and keyed by role identity (c.key) instead of a player
-  // id. radioName keeps the two consumers' native radio groups from ever
-  // being confused for one another if both happened to exist in the same
-  // document at once (they never do in practice, but see night-target vs
+  // startCivilianPhaseStep), and (despite the name) also بمب‌گذار's own
+  // code-digit picker, are the same radio-list pattern the candidate list
+  // right above it already uses, just over msg.roleChoices/bombCodeChoices
+  // instead of msg.candidates and keyed by an arbitrary string (c.key —
+  // a role id, or a literal digit) instead of a player id. radioName keeps
+  // each consumer's native radio group from ever being confused with
+  // another if more than one happened to exist in the same document at
+  // once (they never do in practice, but see night-target vs
   // host-self-night-target for the same existing precaution).
   function renderSlaughterRoleChoices(container, choices, radioName, onSelect){
     container.innerHTML = '';
@@ -7002,6 +7383,17 @@
         if(recruitCheckbox.checked && slaughterCheckbox){ slaughterCheckbox.checked = false; slaughterSection.style.display = 'none'; }
       } : null;
     }
+    // بمب‌گذار's code picker — unlike سلاخی's optional checkbox-gated
+    // section, this one is simply always shown whenever msg.bombCodeChoices
+    // is present at all (بمب‌گذار has no "plant without a code" option).
+    const bombCodeSection = $('night-action-bomb-code-section');
+    if(bombCodeSection){
+      state.selectedBombDigit = null;
+      bombCodeSection.style.display = msg.bombCodeChoices ? 'block' : 'none';
+      if(msg.bombCodeChoices){
+        renderSlaughterRoleChoices($('night-action-bomb-code-list'), msg.bombCodeChoices.map(d => ({ key: d, name: d })), 'night-bomb-code', (key) => { state.selectedBombDigit = key; });
+      }
+    }
     const list = $('night-action-candidate-list');
     list.innerHTML = '';
     (msg.candidates || []).forEach(c => {
@@ -7030,7 +7422,11 @@
     const recruit = !!(recruitEl && recruitEl.checked);
     const slaughterEl = $('night-action-slaughter-checkbox');
     const slaughterRoleKey = (slaughterEl && slaughterEl.checked) ? state.selectedSlaughterRoleKey : null;
-    try{ state.playerDC.send(JSON.stringify({ type: 'night-action', role: state.nightActionRole, targetId, recruit, slaughterRoleKey })); }
+    // بمب‌گذار's own code picker is never checkbox-gated (unlike سلاخی's
+    // optional alternate mode) — it's simply always there whenever this
+    // role's own prompt is, so the digit travels whenever targetId does.
+    const bombCode = (state.nightActionRole === 'bomber' && targetId) ? state.selectedBombDigit : null;
+    try{ state.playerDC.send(JSON.stringify({ type: 'night-action', role: state.nightActionRole, targetId, recruit, slaughterRoleKey, bombCode })); }
     catch(e){ toast(t('lostHostConnection')); return; }
     $('night-waiting-note').style.display = 'none';
     showScreen('screen-player-night-waiting');
@@ -7040,6 +7436,7 @@
     if(!state.selectedNightTargetId){ toast(t('pickSomeoneFirst')); return; }
     const slaughterEl = $('night-action-slaughter-checkbox');
     if(slaughterEl && slaughterEl.checked && !state.selectedSlaughterRoleKey){ toast(t('pickRoleFirst')); return; }
+    if(state.nightActionRole === 'bomber' && !state.selectedBombDigit){ toast(t('pickBombCodeFirst')); return; }
     sendNightAction(state.selectedNightTargetId);
   };
   App.skipNightAction = function(){
@@ -7130,6 +7527,70 @@
     // 'day-gun-result' handler) arrives as a toast, not a screen change.
     state.pendingDayGunMsg = null;
     attachGunDecisionSection(activeScreenId());
+  }
+
+  // محافظ's own defuse decision — same shape as renderDayGunCandidates
+  // (hint + options + two action buttons), just a digit radio list
+  // (reusing renderSlaughterRoleChoices, same as بمب‌گذار's own night
+  // picker) instead of a player-candidate list.
+  function renderBombDefuseUI(container, msg, onGuess, onSkip){
+    container.innerHTML = '';
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.style.margin = '4px 0 10px';
+    hint.textContent = t('bombDefuseHint');
+    container.appendChild(hint);
+    const list = document.createElement('div');
+    renderSlaughterRoleChoices(list, (msg.codeChoices || []).map(d => ({ key: d, name: d })), 'bomb-defuse-digit', (key) => { state.selectedBombGuessDigit = key; });
+    container.appendChild(list);
+    const actions = document.createElement('div');
+    actions.className = 'host-self-card-actions';
+    const guessBtn = document.createElement('button');
+    guessBtn.className = 'btn btn-primary';
+    guessBtn.textContent = t('btnGuessBombCode');
+    guessBtn.onclick = onGuess;
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn btn-ghost';
+    skipBtn.textContent = t('btnLetBombExplode');
+    skipBtn.onclick = onSkip;
+    actions.appendChild(guessBtn); actions.appendChild(skipBtn);
+    container.appendChild(actions);
+  }
+
+  // Real player: محافظ's own pending decision, shown as a subsection of
+  // whatever screen they're currently on — same pattern as
+  // attachGunDecisionSection, see its own comment for the reasoning.
+  function attachBombDecisionSection(activeId){
+    const el = $('bomb-decision-section');
+    if(!el) return;
+    if(!state.pendingBombMsg || state.role !== 'player' || !activeId || activeId.indexOf('screen-player-') !== 0){
+      el.style.display = 'none';
+      return;
+    }
+    const screen = $(activeId);
+    if(!screen){ el.style.display = 'none'; return; }
+    if(el.parentNode !== screen) screen.appendChild(el);
+    const eyebrow = $('bomb-decision-section-eyebrow');
+    if(eyebrow) eyebrow.textContent = t('bombDecisionEyebrow');
+    renderBombDefuseUI($('bomb-decision-section-body'), state.pendingBombMsg, App.submitBombGuess, App.skipBombGuess);
+    el.style.display = 'block';
+  }
+
+  App.submitBombGuess = function(){
+    if(!state.selectedBombGuessDigit){ toast(t('pickBombCodeFirst')); return; }
+    sendBombGuess(state.selectedBombGuessDigit);
+  };
+  App.skipBombGuess = function(){
+    sendBombGuess(null);
+  };
+  function sendBombGuess(digit){
+    try{ state.playerDC.send(JSON.stringify({ type: 'bomb-guess', digit })); }
+    catch(e){ toast(t('lostHostConnection')); return; }
+    // Optimistic clear, same reasoning as sendDayGunAction above — the
+    // public result (see the 'bomb-result' handler) arrives as its own
+    // deliberate pop-up, not a screen change.
+    state.pendingBombMsg = null;
+    attachBombDecisionSection(activeScreenId());
   }
 
   function nightResultText(deadNames, slaughteredNames, revivedName, day){
@@ -7733,6 +8194,8 @@
         escapeHtml(t('debugGodfatherSlaughterLabel')) + ': ' + escapeHtml(state.godfatherSlaughterDisabled ? t('debugSlaughterDisabled') : t('debugSlaughterAvailable')) + ' · ' +
         escapeHtml(t('debugProfessionalSlaughterLabel')) + ': ' + escapeHtml(state.professionalSlaughterDisabled ? t('debugSlaughterDisabled') : t('debugSlaughterAvailable')) + '<br>' +
         escapeHtml(t('debugPendingGunLabel')) + ': ' + (pendingHolder ? escapeHtml(pendingHolder.name) : escapeHtml(t('debugNone'))) + '<br>' +
+        escapeHtml(t('debugBomberUsedLabel')) + ': ' + escapeHtml(state.bomberUsed ? t('yes') : t('no')) + ' · ' +
+        escapeHtml(t('debugPendingBombLabel')) + ': ' + (state.pendingBomb ? escapeHtml((state.players.get(state.pendingBomb.targetId) || {}).name || t('playerLabel')) + ' (' + escapeHtml(t('debugBombCodeLabel')) + ' ' + state.pendingBomb.code + ')' : escapeHtml(t('debugNone'))) + '<br>' +
         escapeHtml(t('debugPendingRolesLabel')) + ': ' + (pendingRoles.length ? (pendingRoles.length + ' — ' + escapeHtml(pendingRolesSummaryText())) : escapeHtml(t('debugNone'))) + '<br>' +
         escapeHtml(t('debugNoGodModeLabel')) + ': ' + escapeHtml(state.noGodMode ? t('yes') : t('no')) + ' · ' +
         escapeHtml(t('debugGodModeLabel')) + ': ' + escapeHtml(state.godMode ? t('yes') : t('no')) +
