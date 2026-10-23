@@ -433,14 +433,18 @@ runScenario('03-eighteen-player-god-mode', async (log) => {
     host.App.continueAfterEyesClosed();
 
     // ساول گودمن is now Mafia's only alive member left (پدر خوانده and
-    // ماتادور both dead) — with no پدرخوانده to make the call, the engine
-    // picks the kill decider at random from alive Mafia, which is
-    // trivially ساول گودمن here. Since a Mafia member has already died,
-    // their prompt now grows the "recruit instead of shoot" option (see
-    // startMafiaPhaseStep's canRecruit). The target must presently hold
-    // ROLE_NAME_PLAIN_VILLAGER exactly — پv[0] (revived last night) does.
-    log.step(saulName + ' (ساول گودمن, Mafia\'s last original member) RECRUITS ' + pv[0] + ' instead of shooting...');
-    await actNight(saulName, pv[0], { recruit: true });
+    // ماتادور both dead) — with no پدرخوانده to make the call, ساول گودمن
+    // himself steps up as tonight's kill/buy decider (see
+    // startMafiaPhaseStep). Since a Mafia member has already died, his own
+    // prompt now grows the Buy option (canRecruit). Choosing it is its own
+    // submission (no target) — WHO actually gets bought is a SEPARATE,
+    // sequential follow-up prompt sent right back to ساول گودمن himself.
+    // The target must presently hold ROLE_NAME_PLAIN_VILLAGER exactly —
+    // پv[0] (revived last night) does.
+    log.step(saulName + ' (ساول گودمن, Mafia\'s last original member) chooses to BUY instead of shooting...');
+    await actNight(saulName, null, { chooseBuy: true });
+    log.step(saulName + ' then picks ' + pv[0] + ' as the actual recruit target...');
+    await actNight(saulName, pv[0]);
 
     // زودیاک پسر has now succeeded زودیاک — same night-action mechanics,
     // just under their inherited identity. Targets the last confirmed

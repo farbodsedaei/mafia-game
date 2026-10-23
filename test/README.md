@@ -137,7 +137,7 @@ classes), not on anything internal to `index.html`.
    also the first scenario to build and exercise full God Mode driving
    infrastructure (`device.js`'s `hostSelfRoleInfo`/`isHostSelfActionVisible`/
    `isHostSelfGunActionVisible`/`pickHostSelfCandidate`/
-   `setHostSelfRecruitCheckbox`, `game-flow.js`'s `hostSelfVote`/
+   `hostSelfChooseBuyInsteadOfShoot`, `game-flow.js`'s `hostSelfVote`/
    `hostSelfNightAction`/`hostSelfInquiryVote`/`hostSelfDayGunDecision`, and
    the auto-pacing-aware `autoAssignRolesAndBegin`/
    `playDay1AndSkipNight1AutoPaced`/`fullVoteRound1`/`fullVoteFinal`). New
@@ -729,8 +729,8 @@ classes), not on anything internal to `index.html`.
     only, never a civilian, حرفه‌ای, or زودیاک. `device.js` gained
     `setSlaughterCheckbox`/`pickSlaughterRole`/`isSlaughterToggleVisible`;
     `game-flow.js`'s shared `nightAction` gained an `opts.slaughterGuessRole`
-    param (mirrors `opts.recruit`) so any scenario can drive either role's
-    Slaughter option through the same generic helper.
+    param so any scenario can drive either role's Slaughter option through
+    the same generic helper.
 
     Running the full suite after adding this one surfaced two genuinely
     PRE-EXISTING scenario bugs, unrelated to this new one, both from an
@@ -746,6 +746,35 @@ classes), not on anything internal to `index.html`.
     other outcome change needed. Both fixes are a good illustration of why
     this project's own standing habit is to run the full suite (not just a
     targeted scenario) after any change to a shared cap/limit mechanic.
+
+17. `17-saul-buy-option` — covers پدر خوانده's Shoot/Buy either-or (ساول
+    گودمن's recruit mechanic, restructured into its own top-level choice
+    instead of a checkbox riding alongside the shoot candidate list). Night
+    2, before Mafia has lost anyone: the choice isn't even offered yet, and
+    a completely ordinary kill works exactly as it always has, with ساول
+    گودمن never prompted at all. Day 3 eliminates a throwaway plain مافیا
+    ساده, unlocking the option. Night 3: پدر خوانده chooses Buy — his own
+    shoot candidate list disappears, every alive player (including an
+    uninvolved civilian bystander) gets the public "Mafia tried to buy
+    someone instead of shooting" banner with no name ever revealed, and
+    ساول گودمن then gets his OWN separate follow-up prompt to actually pick
+    who — confirms the recruit is a team switch (the target survives, now
+    reading as Mafia), not a kill. Day 4 eliminates پدر خوانده himself.
+    Night 4: with no پدر خوانده left, ساول گودمن himself steps into the
+    kill/buy decider role (replacing the old random-fallback pick);
+    choosing Buy now means two SEQUENTIAL prompts to the same person (the
+    choice, then his own recruit-target pick) — confirmed as a real
+    follow-up, not a stall — and targeting someone already Mafia (not a
+    plain villager) fails the recruit quietly, with still no shot that
+    night either. `device.js` gained `chooseBuyInsteadOfShoot`/
+    `hostSelfChooseBuyInsteadOfShoot`/`isMafiaBuyChoiceVisible`/
+    `isShootCandidateListVisible`; `game-flow.js`'s shared `nightAction`/
+    `hostSelfNightAction` traded their old `opts.recruit` (which used to
+    check a now-removed checkbox on the SAME submission as the target) for
+    `opts.chooseBuy`, which submits the Buy choice on its own with no
+    target at all. Scenario 03's own pre-existing use of the old
+    `opts.recruit` checkbox was updated in the same pass — split into two
+    sequential `nightAction` calls to match the new flow.
 
 Still not covered by anything: the structural `verify.js`-style static
 checks (brace/paren balance, fa/en STRINGS parity) an earlier pass of this

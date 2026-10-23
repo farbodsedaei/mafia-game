@@ -112,21 +112,40 @@ function pickNightTarget(device, name) {
   input.checked = true;
   if (typeof input.onchange === 'function') input.onchange();
 }
-// ساول گودمن: the kill-decider's own night-action prompt grows a "recruit
-// instead of shoot" checkbox once Saul is alive and Mafia has already lost
-// someone (see startMafiaPhaseStep's canRecruit). Check it BEFORE submitting
-// (sendNightAction reads it live at submit time).
-function setRecruitCheckbox(device, checked) {
-  const el = $(device, 'night-action-recruit-checkbox');
-  if (!el) throw new Error('setRecruitCheckbox: #night-action-recruit-checkbox not present');
-  el.checked = !!checked;
+// پدر خوانده (or ساول گودمن himself, standing in when there's no پدر
+// خوانده) can choose to buy instead of shoot, once Saul is alive and
+// Mafia has already lost someone (see startMafiaPhaseStep's canRecruit).
+// Selects the Buy radio AND submits immediately — the decider never picks
+// a target themselves once buying (see submitNightAction); WHO gets
+// bought is a separate, later decision on ساول گودمن's own follow-up
+// prompt (just a plain nightAction() call once that prompt arrives).
+function chooseBuyInsteadOfShoot(device) {
+  const el = $(device, 'night-action-choice-buy');
+  if (!el) throw new Error('chooseBuyInsteadOfShoot: #night-action-choice-buy not present');
+  el.checked = true;
+  if (typeof el.onchange === 'function') el.onchange();
+  device.App.submitNightAction();
+}
+// True once the Mafia kill-decider's own Shoot/Buy choice is actually
+// offered on this device's CURRENT night-action prompt — see
+// startMafiaPhaseStep's own canRecruit gate (matches isSlaughterToggleVisible's
+// own precedent exactly).
+function isMafiaBuyChoiceVisible(device) {
+  const el = $(device, 'night-action-mafia-choice');
+  return !!(el && el.style.display !== 'none');
+}
+// Whether the shoot candidate list is currently showing on the Mafia
+// kill-decider's own prompt — hidden the instant Buy is selected (see
+// applyMafiaChoiceVisibility in index.html), shown again on Shoot.
+function isShootCandidateListVisible(device) {
+  const el = $(device, 'night-action-candidate-list');
+  return !!(el && el.style.display !== 'none');
 }
 
 // سلاخی (Slaughter) — the alternate-to-a-normal-shot option پدر خوانده and
 // حرفه‌ای both have: check the box (revealing the role-guess list), then
-// pick the guessed role by name. Mirrors setRecruitCheckbox/pickNightTarget
-// exactly; the actual TARGET is still chosen the normal way via
-// pickNightTarget — this only picks WHICH role to guess.
+// pick the guessed role by name. The actual TARGET is still chosen the
+// normal way via pickNightTarget — this only picks WHICH role to guess.
 function setSlaughterCheckbox(device, checked) {
   const el = $(device, 'night-action-slaughter-checkbox');
   if (!el) throw new Error('setSlaughterCheckbox: #night-action-slaughter-checkbox not present');
@@ -233,10 +252,13 @@ function pickHostSelfCandidate(host, listId, name) {
   input.checked = true;
   if (typeof input.onchange === 'function') input.onchange({ target: input });
 }
-function setHostSelfRecruitCheckbox(host, checked) {
-  const el = $(host, 'host-self-recruit-checkbox');
-  if (!el) throw new Error('setHostSelfRecruitCheckbox: #host-self-recruit-checkbox not present');
-  el.checked = !!checked;
+// Host-self equivalent of chooseBuyInsteadOfShoot above.
+function hostSelfChooseBuyInsteadOfShoot(host) {
+  const el = $(host, 'host-self-choice-buy');
+  if (!el) throw new Error('hostSelfChooseBuyInsteadOfShoot: #host-self-choice-buy not present');
+  el.checked = true;
+  if (typeof el.onchange === 'function') el.onchange();
+  host.App.hostSelfSubmitNightAction();
 }
 // Peeks at the God-Mode host's OWN role via the same App.viewMyRole()/
 // closeMyRole() "peek and return" a real player's "My Role" link uses —
@@ -390,12 +412,12 @@ module.exports = {
   createDevice,
   $, text, setValue, activeScreenId, readDebugStateText,
   checkVoteCandidate, pickNightTarget, selectRoleInPlay, deselectRoleInPlay, isRoleInPlay,
-  pickDayGunTarget, isGunDecisionVisible, setRecruitCheckbox,
+  pickDayGunTarget, isGunDecisionVisible, chooseBuyInsteadOfShoot, isMafiaBuyChoiceVisible, isShootCandidateListVisible,
   setSlaughterCheckbox, pickSlaughterRole, isSlaughterToggleVisible,
   roleInfo, roomCode, connectedNamedCount,
   readVoteTally, readGameOverRoster,
   isHostSelfActionVisible, isHostSelfGunActionVisible, pickHostSelfCandidate,
-  setHostSelfRecruitCheckbox, hostSelfRoleInfo,
+  hostSelfChooseBuyInsteadOfShoot, hostSelfRoleInfo,
   sleep, waitFor,
   dropConnection, killWebSocket, blockFutureReconnects, lastMockConnection,
   teardown

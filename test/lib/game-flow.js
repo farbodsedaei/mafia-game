@@ -7,8 +7,8 @@
 const {
   createDevice, activeScreenId, setValue, roomCode, connectedNamedCount, waitFor, roleInfo,
   checkVoteCandidate, readVoteTally, pickNightTarget, pickDayGunTarget, isGunDecisionVisible,
-  setRecruitCheckbox, setSlaughterCheckbox, pickSlaughterRole, isHostSelfActionVisible, isHostSelfGunActionVisible, pickHostSelfCandidate,
-  setHostSelfRecruitCheckbox, hostSelfRoleInfo
+  chooseBuyInsteadOfShoot, setSlaughterCheckbox, pickSlaughterRole, isHostSelfActionVisible, isHostSelfGunActionVisible, pickHostSelfCandidate,
+  hostSelfChooseBuyInsteadOfShoot, hostSelfRoleInfo
 } = require('./device');
 
 // Host device is assumed already created by the scenario (so it can tweak
@@ -150,9 +150,12 @@ function logTally(host, log, roundLabel) {
 // screen regardless of which role it actually is (see renderNightActionScreen
 // in index.html) — so one helper drives all of them. Pass a target name to
 // act, or omit it to skip (a real, always-available choice for every one of
-// these roles). opts.recruit checks the "recruit instead of shoot" box that
-// only appears on the Mafia kill-decider's own prompt once ساول گودمن is
-// alive and Mafia has already lost someone (see setRecruitCheckbox).
+// these roles). opts.chooseBuy picks the Mafia kill-decider's own Buy option
+// instead of shooting (only ever offered once ساول گودمن is alive and
+// Mafia has already lost someone — see chooseBuyInsteadOfShoot) — target
+// must be omitted in this case; WHO actually gets bought is a separate,
+// later decision on ساول گودمن's own follow-up prompt (just another plain
+// nightAction() call once that prompt arrives — no opts needed for it).
 // opts.slaughterGuessRole checks the سلاخی box instead (پدر خوانده's or
 // حرفه‌ای's own alternate-to-a-normal-shot option — see setSlaughterCheckbox)
 // and guesses the given role name; target is still required in this case —
@@ -160,7 +163,7 @@ function logTally(host, log, roundLabel) {
 async function nightAction(device, log, target, opts) {
   await waitFor(() => activeScreenId(device) === 'screen-player-night-action',
     { message: device.label + ' never got their night-action prompt' });
-  if (opts && opts.recruit) setRecruitCheckbox(device, true);
+  if (opts && opts.chooseBuy) { chooseBuyInsteadOfShoot(device); return; }
   if (opts && opts.slaughterGuessRole) {
     setSlaughterCheckbox(device, true);
     pickSlaughterRole(device, opts.slaughterGuessRole);
@@ -195,7 +198,7 @@ async function hostSelfVote(host, log, targets) {
 }
 async function hostSelfNightAction(host, log, target, opts) {
   await waitFor(() => isHostSelfActionVisible(host), { message: 'host-self never got a night-action prompt' });
-  if (opts && opts.recruit) setHostSelfRecruitCheckbox(host, true);
+  if (opts && opts.chooseBuy) { hostSelfChooseBuyInsteadOfShoot(host); return; }
   if (target) {
     pickHostSelfCandidate(host, 'host-self-card-body', target);
     host.App.hostSelfSubmitNightAction();
