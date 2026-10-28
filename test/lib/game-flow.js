@@ -43,7 +43,7 @@ async function joinPlayers(baseURL, host, names, log, expectedTotal) {
 }
 
 // Assigns roles then begins the game (the two manual host taps every
-// normally-hosted — non-God-Mode, non-No-God-Mode — game requires), waits
+// normally-hosted — non-God-Mode — game requires), waits
 // for every player to actually receive their role card, and returns a
 // {label -> {isMafia, title}} map (captured before beginGame() moves
 // everyone off the role screen) plus the flat list of Mafia names, so the
@@ -220,9 +220,9 @@ async function hostSelfDayGunDecision(host, log, target) {
   }
 }
 
-// ---------------- God Mode / No God Mode: auto-paced flow ----------------
-// state.godMode (and state.noGodMode) make autoPacingOn() true, which
-// changes the game's OWN pacing in exactly three places (grep
+// ---------------- God Mode: auto-paced flow ----------------
+// state.godMode makes autoPacingOn() true, which changes the game's OWN
+// pacing in exactly three places (grep
 // "autoPacingOn()" in index.html to confirm there are no others):
 //   - maybeAutoStartGame(): the instant every declared seat has a name,
 //     deals roles and begins the game itself — no manual

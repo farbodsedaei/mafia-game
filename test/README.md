@@ -225,37 +225,37 @@ classes), not on anything internal to `index.html`.
    `05-no-seat-reclaim-plus-test-mode` accordingly, with the Test-Mode-
    specific Part 2 and its non-Test-Mode control case both dropped.)
 
-6. `06-no-god-mode-full-game-log` — feature test for a reported request:
-   "in No God Mode where the app drives the game with no host or god, at
-   the end of the game the app should produce a full log — actions and
-   votes — clarifying how the game was done." A No God Mode game genuinely
-   has nobody watching the host device as it plays out, so nothing about
-   HOW it actually unfolded (who blocked whom, what a detective's
-   investigation actually found, who Mafia actually shot) was ever visible
-   anywhere once the moment passed — only the bare public outcome. Added
-   `state.gameLog` (`index.html`): every public day/night/inquiry/day-gun
-   outcome gets one line the moment it's announced (`logGameEvent`), and —
-   safe only once the game has fully ended — each night's individual,
-   previously-PRIVATE decisions (already comprehensively tracked per
-   night-acting role via the existing `recordNightDecision`/
-   `state.night.decisionsLog`) get folded in too, right when that night
-   resolves. Bundled into the existing `'game-over'` message (a new `log`
-   field) and rendered — merged chronologically with the already-separate,
-   continuously-updated `state.voteHistory` feed — behind a new "View Full
-   Game Log" link on every game-over screen (host's own, and every real
-   player's, via the shared `App.viewGameLog()`/`renderGameLogInto` — same
-   precedent as My Role/My Activity/Vote History already being screens the
-   host also visits, see `showScreen`'s own comment on that pattern). This
-   scenario runs a real 5-player No God Mode game entirely hands-off (zero
-   manual role-assign/begin/vote-open calls — only the 3 genuinely
-   auto-triggered moments are waited on, never driven) through two day-vote
-   eliminations and one real night (a Mafia kill + a detective
-   investigation) to a Mafia win, then checks the FINAL rendered log — on
-   the host's own screen AND independently on an eliminated player's
-   device (proving the `'game-over'` message's own log data, not just the
-   host's local copy) — actually contains all of it: both eliminations,
-   the night kill, the detective's investigation target, and the final
-   winner line.
+6. `06-full-game-log` — feature test for a reported request: "at the end of
+   the game the app should produce a full log — actions and votes —
+   clarifying how the game was done." Originally built around a
+   since-removed "No God Mode" (the game drove itself with nobody watching
+   the host device at all) as the motivating case, but the feature itself
+   — nothing about HOW a game actually unfolded (who blocked whom, what a
+   detective's investigation actually found, who Mafia actually shot) was
+   ever visible anywhere once the moment passed, in ANY mode — never
+   depended on that, so the scenario now runs as a plain manually-hosted
+   game instead (renamed from `06-no-god-mode-full-game-log` to match).
+   Added `state.gameLog` (`index.html`): every public
+   day/night/inquiry/day-gun outcome gets one line the moment it's
+   announced (`logGameEvent`), and — safe only once the game has fully
+   ended — each night's individual, previously-PRIVATE decisions (already
+   comprehensively tracked per night-acting role via the existing
+   `recordNightDecision`/`state.night.decisionsLog`) get folded in too,
+   right when that night resolves. Bundled into the existing `'game-over'`
+   message (a new `log` field) and rendered — merged chronologically with
+   the already-separate, continuously-updated `state.voteHistory` feed —
+   behind a new "View Full Game Log" link on every game-over screen
+   (host's own, and every real player's, via the shared
+   `App.viewGameLog()`/`renderGameLogInto` — same precedent as My Role/My
+   Activity/Vote History already being screens the host also visits, see
+   `showScreen`'s own comment on that pattern). This scenario runs a real
+   5-player game through two day-vote eliminations and one real night (a
+   Mafia kill + a detective investigation) to a Mafia win, then checks the
+   FINAL rendered log — on the host's own screen AND independently on an
+   eliminated player's device (proving the `'game-over'` message's own log
+   data, not just the host's local copy) — actually contains all of it:
+   both eliminations, the night kill, the detective's investigation
+   target, and the final winner line.
 
 7. `07-vote-history-always-visible` — regression test for a reported bug:
    "the vote history should be visible by all players in all scenarios and
@@ -291,20 +291,20 @@ classes), not on anything internal to `index.html`.
 8. `08-godmode-deadline-fields-visible` — regression test for a reported
    bug: "in god as player mode (host mode), we should still be able to
    adjust the number of minutes for actions and talking during day."
-   `#no-god-deadline-fields` (the act-deadline/vote-deadline minute
-   steppers) was shown only when `state.noGodMode` was on — but God Mode
-   drives itself off those exact same two numbers too, via the same shared
-   `autoPacingOn()` engine (`armActDeadline`/`armVoteDeadline`), so a host
-   who enabled ONLY God Mode had no way to see or adjust them at all, even
-   though their own game was actively timing everything against those
-   defaults. Fixed with a one-line change (`index.html`) — gate the
-   fields' visibility on `autoPacingOn()` instead of `state.noGodMode`
-   directly; `App.stepActDeadline`/`stepVoteDeadline` themselves were never
-   mode-gated to begin with, so no other change was needed. A pure
-   setup-screen check, no lobby/game required — confirms the fields are
-   hidden by default, appear under God Mode ALONE, that adjusting them
-   actually changes the underlying values (not just visibility), and that
-   the original No-God-Mode-alone path (and both together) still work.
+   `#auto-deadline-fields` (the act-deadline/vote-deadline minute steppers,
+   renamed from `#no-god-deadline-fields` once a since-removed "No God
+   Mode" toggle went away) used to be gated on that now-gone toggle alone
+   — but God Mode drives itself off those exact same two numbers too, via
+   the shared `autoPacingOn()` engine (`armActDeadline`/`armVoteDeadline`),
+   so a host who enabled God Mode had no way to see or adjust them at all,
+   even though their own game was actively timing everything against
+   those defaults. Fixed with a one-line change (`index.html`) — gate the
+   fields' visibility on `autoPacingOn()` directly; `App.stepActDeadline`/
+   `stepVoteDeadline` themselves were never mode-gated to begin with, so
+   no other change was needed. A pure setup-screen check, no lobby/game
+   required — confirms the fields are hidden by default, appear under God
+   Mode, and that adjusting them actually changes the underlying values
+   (not just visibility).
 
 9. `09-defense-gets-its-own-deadline` — regression test for a reported
    bug: "the time for defence should be default time per player (i.e. 5
@@ -320,8 +320,8 @@ classes), not on anything internal to `index.html`.
    `armVoteDeadline` call. Uses the test-only `mafia-deadline-ms-override`
    localStorage key (read live on every arm by `armAutoDeadlineMs`) to
    force the deadline down to ~400ms instead of real minutes, so the
-   eventual auto-advance can actually be observed. **Part A** (No God
-   Mode) confirms the host lands on, and genuinely STAYS on, the defense
+   eventual auto-advance can actually be observed. **Part A** (God Mode)
+   confirms the host lands on, and genuinely STAYS on, the defense
    screen right after round 1 closes (doesn't fold straight into voting
    any more), then that the overridden deadline expires on its own and
    opens the final vote with no manual click. **Part B** (a normally-
@@ -590,7 +590,7 @@ classes), not on anything internal to `index.html`.
       while a room is active, and auto-resumes from it on the next page
       load (`resumeAsHost`) with no confirmation prompt needed (unlike the
       player Welcome-Back flow — there's only ever one legitimate host for
-      a room, and critically for No God Mode specifically, this device may
+      a room, and critically under God Mode's auto-pacing, this device may
       have nobody actually watching it to tap through one) — reconnecting
       with the same `hostToken` and rebuilding every player's WebRTC
       connection exactly like the existing same-tab reconnect path already
@@ -606,8 +606,8 @@ classes), not on anything internal to `index.html`.
       full-length auto-pacing deadline for the resumed phase, if any (no
       serializable reference to "what was this timer going to call"
       survives a reload, so exact remaining time can't be preserved — a
-      minor pacing hiccup beats a No-God-Mode game silently stalling
-      forever with nobody left to nudge it). Deliberately local-only (never
+      minor pacing hiccup beats the game silently stalling forever with
+      nobody left to nudge it under God Mode). Deliberately local-only (never
       sent anywhere) and same-device-only — a different device picking up
       hosting entirely is a separate, bigger piece of work, not attempted
       here (see the 2026-09-10 discussion this was scoped from).
@@ -790,10 +790,10 @@ target's own device receives `'eliminated'` immediately followed by
 directly for a target whose death ends the game, not the intermediate
 elimination screen — a `waitFor` on the latter will simply time out.
 
-**God Mode / No God Mode** (`state.godMode`/`state.noGodMode`) both make
-`autoPacingOn()` true, which changes the game's own pacing in exactly two
-places where something auto-STARTS with no stable screen to wait on first
-(confirmed by grepping every `autoPacingOn()` call site in `index.html`):
+**God Mode** (`state.godMode`) makes `autoPacingOn()` true, which changes
+the game's own pacing in exactly two places where something auto-STARTS
+with no stable screen to wait on first (confirmed by grepping every
+`autoPacingOn()` call site in `index.html`):
 - `maybeAutoStartGame()` — deals roles and begins the game itself the
   instant every declared seat has a name, after two chained ~8s reveal
   pauses (so wait generously — `timeout: 20000` — rather than calling

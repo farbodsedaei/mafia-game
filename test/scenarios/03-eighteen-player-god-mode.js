@@ -10,8 +10,8 @@
 // Three structural facts shape almost every line below:
 //
 //   1. God Mode makes autoPacingOn() true (see index.html's own
-//      autoPacingOn — it's shared with No God Mode), which changes the
-//      game's pacing in two places where something auto-starts with no
+//      autoPacingOn), which changes the game's pacing in two places where
+//      something auto-starts with no
 //      stable screen to wait on first: maybeAutoStartGame deals roles and
 //      begins the game itself once every seat has a name; goToDayScreen
 //      auto-starts that day's voting for any day > 1 (no stable

@@ -2,7 +2,7 @@
 // Regression test for a reported bug: "the time for defence should be
 // default time per player (i.e. 5 mins) to talk."
 //
-// Under auto-pacing (No God Mode / God Mode), broadcastDefensePhase used
+// Under auto-pacing (God Mode), broadcastDefensePhase used
 // to call App.startFinalVote() immediately — folding the defense
 // statement into the exact same window as final voting itself, so the
 // accused got literally zero dedicated time to actually talk before
@@ -19,14 +19,15 @@
 // eventual auto-advance can actually be observed within a fast test.
 const { runScenario } = require('../lib/scenario');
 const { startServer } = require('../lib/server-runner');
-const { createDevice, activeScreenId, waitFor, sleep, teardown } = require('../lib/device');
+const { createDevice, activeScreenId, setValue, waitFor, sleep, teardown } = require('../lib/device');
 const { joinPlayers, autoAssignRolesAndBegin, playDay1AndSkipNight1AutoPaced, castVotes } = require('../lib/game-flow');
 
 const NAMES = ['Amir', 'Bita', 'Cyrus', 'Dara', 'Elham'];
+const HOST_SELF_NAME = 'Reza';
 const OVERRIDE_MS = '400';
 
 runScenario('09-defense-gets-its-own-deadline', async (log) => {
-  log.banner('PART A — No God Mode: the defense phase gets its own dedicated deadline');
+  log.banner('PART A — God Mode: the defense phase gets its own dedicated deadline');
   {
     const server = await startServer();
     const host = createDevice(server.baseURL, { label: 'host' });
@@ -34,12 +35,12 @@ runScenario('09-defense-gets-its-own-deadline', async (log) => {
     try {
       host.window.localStorage.setItem('mafia-deadline-ms-override', OVERRIDE_MS);
       host.App.goLanding('host');
-      host.App.setNoGodMode(true);
-      host.App.stepPlayers(NAMES.length - 6);
+      host.App.setGodMode(true);
+      setValue(host, 'input-host-self-name', HOST_SELF_NAME);
       host.App.stepInquiries(-1);
       host.App.createLobby();
-      ({ players } = await joinPlayers(server.baseURL, host, NAMES, log));
-      await autoAssignRolesAndBegin(host, players, log);
+      ({ players } = await joinPlayers(server.baseURL, host, NAMES, log, NAMES.length + 1));
+      await autoAssignRolesAndBegin(host, players, log, HOST_SELF_NAME);
       await playDay1AndSkipNight1AutoPaced(host, players, log);
 
       log.step('Day 2: majority-voting a target into the defense phase...');
