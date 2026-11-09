@@ -196,10 +196,15 @@
   /* Request to Talk — host's own queue button, stacked below
      manage-players-btn on the same (right) side — see updateTalkRequestsUI. */
   .talk-requests-btn{left:auto; right:8px; top:62px;}
+  /* Role Check — God Mode only, stacked below talk-requests-btn on the
+     same (right) side — see updateRoleCheckButtonVisibility. */
+  .role-check-btn{left:auto; right:8px; top:90px;}
   .debug-panel{display:none; position:fixed; inset:0; z-index:2000; background:rgba(6,7,10,0.97); overflow-y:auto; padding:18px 18px 40px;}
   .debug-panel.open{display:block;}
   .debug-panel h3{font-size:15px; margin:18px 0 8px; color:var(--gold);}
   .debug-panel .debug-row{padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.04); margin-bottom:6px; font-size:13px; line-height:1.5;}
+  .debug-panel .debug-row.selectable{cursor:pointer;}
+  .debug-panel .debug-row.selectable.selected{background:var(--gold-dim); color:var(--gold);}
   .role-guide-row{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:8px;}
   .role-guide-row-header{display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer;}
   .role-guide-chevron{color:var(--text-muted); font-size:18px; line-height:1; transition:transform .15s; flex-shrink:0;}
@@ -1002,6 +1007,26 @@
   <div id="talk-requests-list" style="margin-top:16px;"></div>
 </div>
 
+<!-- "Role Check" — God Mode only, day only: lets a host who's ALSO
+     playing (and therefore doesn't know everyone else's real role while
+     their own seat is alive — see hostSelfBlocksDebug) accuse a player of
+     having revealed their role out loud, without unfairly spoiling the
+     host's own game via the full debug panel. Pick a player, then pick
+     the role they're suspected of actually holding, from the full roster
+     dealt out this game — including roles whose original holder is
+     already eliminated (see renderRoleCheckPanel). A correct guess kicks
+     them immediately and names the role to everyone; a wrong guess means
+     they were bluffing and stay in — everyone is still told which role
+     was checked and came back wrong. See
+     App.toggleRoleCheckPanel/App.confirmRoleCheck. -->
+<button id="role-check-btn" class="debug-toggle-btn role-check-btn" style="display:none;" onclick="App.toggleRoleCheckPanel()">&#127917;</button>
+<div id="role-check-panel" class="debug-panel">
+  <div class="eyebrow" data-i18n="roleCheckPanelTitle"></div>
+  <p class="hint" style="margin-top:10px;" data-i18n="roleCheckHint"></p>
+  <button class="btn btn-ghost" style="margin-top:14px;" onclick="App.toggleRoleCheckPanel()" data-i18n="btnCloseRoleCheck"></button>
+  <div id="role-check-body" style="margin-top:16px;"></div>
+</div>
+
 <!-- Dev/troubleshooting only: full roles + activity log, God's console only -->
 <button id="debug-toggle-btn" class="debug-toggle-btn" onclick="App.toggleDebugPanel()">&#128295;</button>
 <div id="debug-panel" class="debug-panel">
@@ -1455,6 +1480,15 @@
       talkRequestsPanelTitle: 'درخواست‌های صحبت', btnCloseTalkRequests: 'بستن',
       noTalkRequestsYet: 'فعلاً کسی درخواست صحبت نداده است.', btnDoneTalking: 'صحبت تمام شد',
       talkRequestLabel: 'درخواست صحبت', talkRequestedLabel: 'درخواست صحبت ثبت شد',
+      roleCheckPanelTitle: 'بررسی فاش‌سازی نقش', btnCloseRoleCheck: 'بستن',
+      roleCheckHint: 'یک بازیکن که فکر می‌کنید نقش خود را فاش کرده انتخاب کنید، سپس نقشی را که حدس می‌زنید دارد انتخاب کنید.',
+      roleCheckNoPlayers: 'بازیکن زنده‌ای برای بررسی وجود ندارد.',
+      roleCheckPickPlayer: 'یک بازیکن را انتخاب کنید', roleCheckPickRole: 'نقشی که فکر می‌کنید دارد را انتخاب کنید',
+      btnConfirmRoleCheck: 'بررسی کن',
+      roleCheckConfirmPrompt: '{name} را در برابر نقش «{role}» بررسی می‌کنید؟ اگر درست باشد، فوراً از بازی اخراج خواهد شد.',
+      actRevealedKick: 'شما به‌دلیل فاش کردن نقش خود («{role}») از بازی اخراج شدید.',
+      roleCheckRevealedAnnouncement: '{name} نقش خود («{role}») را فاش کرد و فوراً از بازی اخراج شد.',
+      roleCheckBluffAnnouncement: 'گاد {name} را در برابر نقش «{role}» بررسی کرد — اشتباه بود؛ {name} در بازی می‌ماند.',
       roleGuideTitle: 'راهنمای نقش‌ها', btnCloseRoleGuide: 'بستن',
       roleGuideHint: 'فقط نقش‌هایی که در این بازی حضور دارند. برای دیدن توضیحات هر نقش روی آن ضربه بزنید.',
       roleGuideEmpty: 'نقش‌ها هنوز مشخص نشده‌اند.',
@@ -1720,6 +1754,15 @@
       talkRequestsPanelTitle: 'Talk Requests', btnCloseTalkRequests: 'Close',
       noTalkRequestsYet: "Nobody's asked to talk yet.", btnDoneTalking: 'Done talking',
       talkRequestLabel: 'Request to Talk', talkRequestedLabel: 'Talk request sent',
+      roleCheckPanelTitle: 'Role Reveal Check', btnCloseRoleCheck: 'Close',
+      roleCheckHint: 'Pick a player you suspect revealed their role, then pick the role you think they actually have.',
+      roleCheckNoPlayers: 'No alive players to check.',
+      roleCheckPickPlayer: 'Pick a player', roleCheckPickRole: 'Pick the role you think they have',
+      btnConfirmRoleCheck: 'Check',
+      roleCheckConfirmPrompt: 'Check {name} against the role "{role}"? If correct, they will be kicked from the game immediately.',
+      actRevealedKick: 'You were kicked from the game for revealing your role ({role}).',
+      roleCheckRevealedAnnouncement: '{name} revealed their role ({role}) and was kicked from the game immediately.',
+      roleCheckBluffAnnouncement: 'God checked {name} against the role "{role}" — wrong; {name} stays in the game.',
       roleGuideTitle: 'Role Guide', btnCloseRoleGuide: 'Close',
       roleGuideHint: "Only the roles actually in this game. Tap any role to see what it does.",
       roleGuideEmpty: 'Roles have not been decided yet.',
@@ -1765,7 +1808,7 @@
     'role-doctor': 'Each night you choose someone (even yourself) to save from death. Saving yourself only works once per game.',
     'role-detective': "Each night you investigate someone and get back a simple positive or negative — never a specific label like \"Mafia\" or anything else.",
     'role-professional': "Each night you may target someone — at most twice in the whole game (declining to act tonight doesn't cost you one). Hit a shielded Mafia and they lose their shield; hit an unshielded Mafia and they're eliminated; hit a civilian and you're eliminated instead. زودیاک is just as safe a target as Mafia — neither they nor you are affected. Instead of a normal shot, you may also choose to Slaughter (سلاخی) your target — you must also guess their exact role. Guess right and they die no matter what, even a shield, the Doctor's save, or even زودیاک; guess wrong and nothing happens at all (to either of you), but the option is permanently taken away from you — you only get one wrong guess in the whole game. Slaughter still spends one of your two whole-game shots, same as a normal one.",
-    'role-constantine': 'Each night you may bring one eliminated player back into the game, if you wish. This is only possible once in the whole game.',
+    'role-constantine': "Each night you may bring one eliminated player back into the game, if you wish — except anyone killed by تفنگدار's gun, which is final and can never be undone. This is only possible once in the whole game.",
     'role-saul': "If a Mafia member has already died, پدر خوانده may choose each night to buy someone instead of shooting — you separately pick who actually gets bought (it must be a plain Villager, or the attempt simply fails quietly). If there's no پدر خوانده in the game, you decide yourself each night whether to shoot or buy. The moment buying is chosen, every player is told Mafia attempted to buy someone tonight instead of shooting — no name or outcome revealed. Either way, Mafia gets no shot that night.",
     'role-ocean': "You form a group. Each night you may add one person to it. Group members can open their eyes and talk quietly at night. Adding a Mafia member, or either زودیاک (the original or their successor), gets you announced dead by morning.",
     'role-gunner': "You have a gun you may hand to another player each night — at most twice per game. After the day's conversation, right before voting opens, that player must decide whether to shoot someone. If they didn't survive the night, the gun returns to you instead, and you decide. A shielded target only loses their shield; anyone else dies, and their team (Mafia or civilian) is announced to everyone. If a civilian is fired at by mistake AND actually dies from it, any remaining guns are cancelled and won't be handed over again — a shielded or otherwise-surviving civilian, or a shot at زودیاک (who's immune either way), costs nothing and leaves your remaining guns intact.",
@@ -1815,7 +1858,7 @@
     { id: 'role-doctor', team: 'villager', name: 'دکتر', description: 'هر شب یک نفر (حتی خودتان) را برای نجات از مرگ انتخاب می‌کنید. نجاتِ خودتان فقط یک‌بار در کل بازی ممکن است.', shield: false, independent: false, builtin: false },
     { id: 'role-detective', team: 'villager', name: 'کاراگاه', description: 'هر شب درباره یک نفر تحقیق می‌کنید و فقط یک نتیجهٔ مثبت یا منفی می‌گیرید — نه چیزی مشخص مثل «مافیا» یا هر برچسب دیگر.', shield: false, independent: false, builtin: false },
     { id: 'role-professional', team: 'villager', name: 'حرفه‌ای', description: 'هر شب می‌توانید یک نفر را هدف بگیرید — در کل بازی حداکثر دو بار (اگر یک شب تصمیم بگیرید کسی را هدف نگیرید، از این دو بار کم نمی‌شود). اگر مافیای دارای شیلد را بزنید شیلدش را از دست می‌دهد؛ اگر مافیای بدون شیلد را بزنید حذف می‌شود؛ اگر شهروند را بزنید خودتان حذف می‌شوید. زودیاک هم مثل مافیا برای شما هدف امن است — نه او آسیب می‌بیند و نه شما حذف می‌شوید. به‌جای شلیک معمولی، می‌توانید «سلاخی» را هم انتخاب کنید — باید نقش دقیق فرد هدف را حدس بزنید. اگر درست حدس بزنید، او به هر حال می‌میرد، حتی با شیلد، نجات دکتر یا حتی اگر زودیاک باشد؛ اگر اشتباه حدس بزنید، هیچ اتفاقی نمی‌افتد (نه او کشته می‌شود، نه شما حذف می‌شوید)، اما این توانایی برای همیشه از شما گرفته می‌شود — فقط یک اشتباه در کل بازی مجاز است. سلاخی هم مثل شلیک معمولی یکی از همان دو فرصت کل بازی‌تان را مصرف می‌کند.', shield: true, independent: false, builtin: false },
-    { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید. این کار فقط یک‌بار در کل بازی ممکن است.', shield: true, independent: false, builtin: false },
+    { id: 'role-constantine', team: 'villager', name: 'کنستانتین', description: 'هر شب می‌توانید یکی از بازیکنانی که از بازی خارج شده‌اند را دوباره زنده کنید، اگر بخواهید — به‌جز کسی که با اسلحهٔ تفنگدار از بازی خارج شده باشد، که غیرقابل‌برگشت است. این کار فقط یک‌بار در کل بازی ممکن است.', shield: true, independent: false, builtin: false },
     { id: 'role-saul', team: 'mafia', name: 'ساول گودمن', description: 'اگر یکی از اعضای مافیا کشته شده باشد، پدر خوانده می‌تواند هر شب به‌جای شلیک تصمیم بگیرد کسی را بخرد — در این صورت شما جداگانه خودتان انتخاب می‌کنید چه کسی خریداری و به مافیا اضافه شود (باید «شهروند ساده» باشد، وگرنه تلاش بی‌نتیجه می‌ماند). اگر پدر خوانده در بازی نباشد، خودِ شما تصمیم می‌گیرید هر شب شلیک کنید یا بخرید. به محض انتخاب خرید، همه بازیکنان باخبر می‌شوند که مافیا امشب تلاش کرد کسی را بخرد، بدون آنکه نام یا نتیجه فاش شود؛ در هر صورت آن شب مافیا شلیکی نخواهد داشت.', shield: false, independent: false, builtin: false },
     { id: 'role-ocean', team: 'villager', name: 'اوشن', description: 'شما یک گروه تشکیل می‌دهید. هر شب می‌توانید یک نفر را به گروه اضافه کنید. اعضای گروه شب‌ها می‌توانند چشمشان را باز کنند و آرام صحبت کنند. اگر عضو مافیا یا زودیاک (اصلی یا جایگزین آن) را اضافه کنید، صبح خبر مرگ خودتان اعلام می‌شود.', shield: false, independent: false, builtin: false },
     { id: 'role-gunner', team: 'villager', name: 'تفنگدار', description: 'شما یک اسلحه دارید که هر شب می‌توانید آن را به یک بازیکن دیگر بدهید — در کل بازی حداکثر دو بار. آن بازیکن، بعد از گفتگوی روز و درست پیش از شروع رأی‌گیری، باید تصمیم بگیرد که به کسی شلیک کند یا نه. اگر گیرنده شب را زنده نماند، اسلحه به خود شما برمی‌گردد و این‌بار خودتان باید تصمیم بگیرید. اگر هدف شیلد داشته باشد فقط شیلدش را از دست می‌دهد؛ در غیر این صورت کشته می‌شود و تیم او (مافیا یا شهروند) برای همه اعلام می‌شود. اگر اسلحه به‌اشتباه روی یک شهروند شلیک شود و او واقعاً کشته شود، اسلحه‌های باقی‌مانده (اگر باشند) لغو می‌شوند و دیگر واگذار نخواهند شد — اما اگر همان شهروند زنده بماند (مثلاً به‌خاطر شیلد) یا هدف زودیاک باشد (که در هر صورت کشته نمی‌شود)، اسلحه‌های باقی‌مانده دست‌نخورده باقی می‌مانند.', shield: false, independent: false, builtin: false },
@@ -1897,6 +1940,11 @@
     // resetTalkRequestsForNewDay.
     talkRequestedIds: new Set(),
     talkUsedIds: new Set(),
+    // "Role Check" (God Mode only, day only — see App.confirmRoleCheck):
+    // mid-pick UI state for the host's own floating panel, never broadcast
+    // to anyone. Reset whenever the panel closes or the check completes.
+    roleCheckSelectedPlayerId: null,
+    roleCheckSelectedRoleId: null,
     voteHistory: [],        // (host: authoritative; player: local copy) every completed round ever — [{day, round, rows:[{voter, targets}]}], see recordVoteHistory
     gameLog: [],             // (host: authoritative; player: local copy, only ever received once the game ends) full chronological narrative — [{day, phase:'day'|'night'|'final', text}], see logGameEvent. Night entries include normally-PRIVATE per-role decisions (who blocked/saved/investigated/shot whom) — safe to compile since this is never sent to anyone before App.showGameOver. Sent in every mode — see App.viewGameLog/renderGameLogInto.
     winner: null,           // (host) 'village' | 'mafia' | null once the game has ended
@@ -1978,6 +2026,10 @@
     // during an active day — see updateTalkRequestsUI's own comment. A
     // no-op for every real player device (state.role !== 'host').
     updateTalkRequestsUI();
+    // Host: the floating "Role Check" button/panel — same day-phase gate
+    // as Request to Talk above, plus its own God-Mode-only condition — see
+    // updateRoleCheckButtonVisibility's own comment.
+    updateRoleCheckButtonVisibility();
     // Persistent My Role/My Activity/Vote History bar — see its own
     // comment. A no-op for the host's own screens (state.role !== 'player').
     updatePlayerFooterBar();
@@ -2689,6 +2741,12 @@
     // they're hosting, God Mode or not. See the button's own HTML comment.
     const manageBtn = $('manage-players-btn');
     if(manageBtn) manageBtn.style.display = state.role === 'host' ? 'block' : 'none';
+    // Role Check depends on this exact same hostSelfBlocksDebug() signal
+    // (see its own comment) — refresh it at every one of this function's
+    // call sites too, not just on a screen change, since a mid-day kill
+    // (day gun, bomb) can flip that signal with no screen transition of
+    // its own to catch it otherwise.
+    updateRoleCheckButtonVisibility();
   }
 
   App.openManageRoles = function(returnTo){
@@ -3766,6 +3824,11 @@
       // "player-side" state.
       state.pendingBombMsg = null;
     }
+    else if(obj.type === 'role-check-result'){
+      // No showAckBanner call here, same reasoning as bomb-result above —
+      // App.confirmRoleCheck already called it directly on this same
+      // physical device; nothing else needs updating for host-self.
+    }
     else if(obj.type === 'eliminated'){
       state.amAlive = false;
       updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
@@ -3777,6 +3840,11 @@
     }
     else if(obj.type === 'revived'){
       state.amAlive = true;
+      updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
+    }
+    else if(obj.type === 'revived-by-host'){
+      state.amAlive = true;
+      toast(t('backInGame'));
       updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
     }
     else if(obj.type === 'activity-log'){
@@ -4290,6 +4358,11 @@
           target.alive = false;
           outcome = 'died';
           sendToPlayer(target, { type: 'eliminated' });
+          // A gun kill is final — کنستانتین's own revive candidate list
+          // (see startCivilianPhaseStep) excludes anyone with this flag.
+          // Cleared on an eventual revive (App.revivePlayer/resolveNight)
+          // so a LATER, different death isn't wrongly blocked too.
+          target.notRevivable = true;
           // End-of-day voting is open from the start of the day, so this
           // kill may well be landing mid-round — see
           // removeDeadVoterAndCandidate's own comment. Also covers
@@ -4720,6 +4793,150 @@
     if(!panel) return;
     panel.classList.toggle('open');
     if(panel.classList.contains('open')) renderTalkRequestsPanel();
+  };
+
+  // ---------------- Role Check (God Mode only, day only) ----------------
+  // Lets a host who's ALSO playing (and therefore doesn't know everyone
+  // else's real role while their own seat is alive — see
+  // hostSelfBlocksDebug) accuse a player of having revealed their role out
+  // loud at the table, without unfairly spoiling the host's own game with
+  // the full debug panel. The host picks a player, then picks the role
+  // they SUSPECT that player actually holds, from the full roster dealt
+  // out this game — including roles whose original holder is already
+  // eliminated (see roleCheckRosterRoles). A correct guess means a genuine
+  // reveal: that player is kicked immediately and everyone is told which
+  // role, by name. A wrong guess means they were bluffing: they stay in
+  // the game, and everyone is STILL told which role was checked and came
+  // back wrong — the user's own explicit call, so the group always learns
+  // what just happened either way, not just on a successful catch.
+  const ROLE_CHECK_DAY_PHASES = ['day', 'inquiry-vote', 'voting1', 'voting2', 'defense'];
+  function updateRoleCheckButtonVisibility(){
+    const btn = $('role-check-btn');
+    if(!btn) return;
+    const isDayPhase = ROLE_CHECK_DAY_PHASES.indexOf(state.gamePhase) !== -1;
+    const allowed = state.role === 'host' && state.godMode && hostSelfBlocksDebug() && isDayPhase;
+    btn.style.display = allowed ? 'block' : 'none';
+    if(!allowed){
+      const panel = $('role-check-panel');
+      if(panel) panel.classList.remove('open');
+      state.roleCheckSelectedPlayerId = null;
+      state.roleCheckSelectedRoleId = null;
+    }
+  }
+  App.toggleRoleCheckPanel = function(){
+    const panel = $('role-check-panel');
+    if(!panel) return;
+    if(panel.classList.contains('open')){
+      panel.classList.remove('open');
+      state.roleCheckSelectedPlayerId = null;
+      state.roleCheckSelectedRoleId = null;
+      return;
+    }
+    renderRoleCheckPanel();
+    panel.classList.add('open');
+  };
+  // Always includes the two builtin roles regardless of
+  // state.selectedRoleIds — buildTeamRoleDeck falls back to them for every
+  // slot without a custom role, so they're genuinely always a real
+  // possibility whether or not they're still checked on the setup screen.
+  function roleCheckRosterRoles(){
+    return HARDCODED_ROLES.filter(r => r.builtin || state.selectedRoleIds.has(r.id))
+      .slice().sort((a, b) => roleGroupRank(a) - roleGroupRank(b));
+  }
+  function renderRoleCheckPanel(){
+    const box = $('role-check-body');
+    if(!box) return;
+    box.innerHTML = '';
+    const candidates = Array.from(state.players.entries()).filter(([id, e]) => !e.isHostSelf && e.alive);
+    if(!candidates.length){
+      box.innerHTML = '<p class="hint">' + escapeHtml(t('roleCheckNoPlayers')) + '</p>';
+      return;
+    }
+    const playerHeading = document.createElement('h3');
+    playerHeading.textContent = t('roleCheckPickPlayer');
+    box.appendChild(playerHeading);
+    candidates.forEach(([id, entry]) => {
+      const row = document.createElement('div');
+      row.className = 'debug-row selectable' + (state.roleCheckSelectedPlayerId === id ? ' selected' : '');
+      row.innerHTML = '<strong>' + escapeHtml(entry.name) + '</strong>';
+      row.onclick = () => {
+        state.roleCheckSelectedPlayerId = id;
+        state.roleCheckSelectedRoleId = null;
+        renderRoleCheckPanel();
+      };
+      box.appendChild(row);
+    });
+    if(!state.roleCheckSelectedPlayerId) return;
+
+    const roleHeading = document.createElement('h3');
+    roleHeading.textContent = t('roleCheckPickRole');
+    box.appendChild(roleHeading);
+    roleCheckRosterRoles().forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'debug-row selectable' + (state.roleCheckSelectedRoleId === r.id ? ' selected' : '');
+      row.innerHTML = '<strong>' + escapeHtml(r.name) + '</strong>' + roleTeamTagHtml(r);
+      row.onclick = () => {
+        state.roleCheckSelectedRoleId = r.id;
+        renderRoleCheckPanel();
+      };
+      box.appendChild(row);
+    });
+    if(!state.roleCheckSelectedRoleId) return;
+
+    const targetEntry = state.players.get(state.roleCheckSelectedPlayerId);
+    const roleDef = HARDCODED_ROLES.find(r => r.id === state.roleCheckSelectedRoleId);
+    if(!targetEntry || !roleDef) return;
+    const confirmSection = document.createElement('div');
+    confirmSection.style.cssText = 'margin-top:14px; padding-top:14px; border-top:1px solid var(--line-strong);';
+    const prompt = document.createElement('p');
+    prompt.textContent = t('roleCheckConfirmPrompt', { name: targetEntry.name, role: roleDef.name });
+    confirmSection.appendChild(prompt);
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'btn btn-primary';
+    confirmBtn.style.marginTop = '8px';
+    confirmBtn.textContent = t('btnConfirmRoleCheck');
+    confirmBtn.onclick = () => App.confirmRoleCheck();
+    confirmSection.appendChild(confirmBtn);
+    box.appendChild(confirmSection);
+  }
+  // A recruited ad-hoc Mafia member (ساول گودمن's buy — see
+  // handleNightAction's recruit branch) has no fixed roleId of their own
+  // (roleId: null, roleName: the generic "newly recruited" label) — judged
+  // by what they actually are RIGHT NOW, per the user's own explicit call,
+  // that's equivalent to plain "مافیا ساده" for this check, not whatever
+  // they were originally dealt.
+  function roleCheckEffectiveRoleId(entry){
+    return entry.roleId || (entry.role === 'mafia' ? 'builtin-mafia' : 'builtin-villager');
+  }
+  App.confirmRoleCheck = function(){
+    const targetId = state.roleCheckSelectedPlayerId;
+    const entry = state.players.get(targetId);
+    const roleDef = HARDCODED_ROLES.find(r => r.id === state.roleCheckSelectedRoleId);
+    state.roleCheckSelectedPlayerId = null;
+    state.roleCheckSelectedRoleId = null;
+    const panel = $('role-check-panel');
+    if(panel) panel.classList.remove('open');
+    if(!entry || !entry.alive || !roleDef) return;
+    const correct = roleCheckEffectiveRoleId(entry) === roleDef.id;
+    const prefix = t('dayLogPrefix', { day: state.day });
+    if(correct){
+      logActivity(entry, prefix + t('actRevealedKick', { role: roleDef.name }));
+      eliminatePlayer(targetId);
+      state.winner = checkWinner();
+      const text = t('roleCheckRevealedAnnouncement', { name: entry.name, role: roleDef.name });
+      aliveEntries().forEach(([id, e]) => sendToPlayer(e, { type: 'role-check-result', text }));
+      logGameEvent('day', text);
+      showAckBanner(text);
+      if(state.winner){ App.showGameOver(); return; }
+      renderDebugPanel();
+      renderManagePlayersPanel();
+      refreshCurrentHostScreen();
+    } else {
+      const text = t('roleCheckBluffAnnouncement', { name: entry.name, role: roleDef.name });
+      aliveEntries().forEach(([id, e]) => sendToPlayer(e, { type: 'role-check-result', text }));
+      logGameEvent('day', text);
+      showAckBanner(text);
+    }
   };
 
   function startInquiryVote(){
@@ -5517,8 +5734,10 @@
     }, t('chooseToSave'), null, pending);
 
     promptCivilianRole('constantine', ROLE_NAME_CONSTANTINE, () => {
+      // تفنگدار's day-gun is a final kill — see resolveDayGunAction's own
+      // notRevivable flag — never offered as a revive target.
       return Array.from(state.players.entries())
-        .filter(([id, e]) => !e.alive)
+        .filter(([id, e]) => !e.alive && !e.notRevivable)
         .map(([id, e]) => ({ id, name: e.name }));
     }, t('chooseToRevive'), () => !state.constantineReviveUsed, pending);
 
@@ -6430,8 +6649,9 @@
     let revivedEntry = null;
     if(state.night.revivedId){
       const revived = state.players.get(state.night.revivedId);
-      if(revived && !revived.alive){
+      if(revived && !revived.alive && !revived.notRevivable){
         revived.alive = true;
+        revived.notRevivable = false;
         revivedEntry = revived;
         revivedName = revived.name;
       }
@@ -6451,7 +6671,19 @@
       const entry = state.players.get(id);
       if(entry) sendToPlayer(entry, { type: 'eliminated' });
     });
-    if(revivedEntry) sendToPlayer(revivedEntry, { type: 'revived', deadNames, slaughteredNames });
+    if(revivedEntry){
+      sendToPlayer(revivedEntry, { type: 'revived', deadNames, slaughteredNames });
+      // Catch them up on whatever their own group (مافیا/اوشن/زودیاک) said
+      // while they were dead — every group's own broadcast (logOceanChat
+      // etc.) only ever sends to CURRENTLY ALIVE members, so a dead
+      // player's LOCAL copy of each log is frozen from the moment they
+      // died; 'revived' flips chat VISIBILITY back on (see handleRevived)
+      // but was never also catching the CONTENT up to date. Same group
+      // checks resyncPlayer's own reconnect-mid-game path already uses.
+      if(revivedEntry.role === 'mafia' && state.mafiaChatLog.length) sendToPlayer(revivedEntry, { type: 'mafia-chat-log', log: state.mafiaChatLog });
+      if(getOceanGroupIds().has(state.night.revivedId) && state.oceanChatLog.length) sendToPlayer(revivedEntry, { type: 'ocean-chat-log', log: state.oceanChatLog });
+      if(getZodiacGroupIds().has(state.night.revivedId) && state.zodiacChatLog.length) sendToPlayer(revivedEntry, { type: 'zodiac-chat-log', log: state.zodiacChatLog });
+    }
     aliveEntries().forEach(([id, entry]) => {
       if(id === state.night.revivedId) return; // already got their own 'revived' message
       sendToPlayer(entry, { type: 'night-result', deadNames, slaughteredNames, revivedName, day: state.day });
@@ -7108,6 +7340,17 @@
           updateRoleGuideButtonVisibility();
         }
         else if(msg.type === 'revived'){ handleRevived(msg); }
+        else if(msg.type === 'revived-by-host'){
+          // Same amAlive fix as کنستانتین's own 'revived' (see
+          // App.revivePlayer's own comment) — no screen change of its own
+          // (resyncPlayer's own replayed messages, sent right alongside
+          // this one, already put them back on the correct current
+          // screen), just the same "you're back" toast کنستانتین's own
+          // revival shows.
+          state.amAlive = true;
+          toast(t('backInGame'));
+          updateMafiaChatVisibility(); updateOceanChatVisibility(); updateZodiacChatVisibility();
+        }
         else if(msg.type === 'day-gun-pending'){
           // The gun holder's own decision — now independent of whatever
           // phase (voting, most likely) is also showing, see
@@ -7150,6 +7393,12 @@
         }
         else if(msg.type === 'mafia-recruit-attempt'){
           // Public (everyone alive hears it) — see announceMafiaRecruitAttempt.
+          showAckBanner(msg.text);
+        }
+        else if(msg.type === 'role-check-result'){
+          // Public (everyone alive hears it) — same deliberate dismiss-or-
+          // timeout banner as a bomb/day-gun outcome — see
+          // App.confirmRoleCheck.
           showAckBanner(msg.text);
         }
         else if(msg.type === 'mafia-chat-log'){
@@ -8434,11 +8683,22 @@
     if(!entry || entry.alive) return;
     if(!confirm(t('confirmRevivePlayer', { name: entry.name }))) return;
     entry.alive = true;
+    entry.notRevivable = false; // a LATER death (any cause) must be judged fresh, not inherit this one's gun-kill exclusion
     const prefix = (state.gamePhase && state.gamePhase.indexOf('night') === 0)
       ? t('nightLogPrefix', { day: state.day })
       : t('dayLogPrefix', { day: state.day });
     logActivity(entry, prefix + t('actRevivedByGod'));
     toast(t('playerRevived', { name: entry.name }));
+    // The 'eliminated' message this player got earlier set their OWN
+    // state.amAlive to false client-side — nothing else ever flips it back
+    // (resyncPlayer below only replays whatever generic phase/chat-log
+    // messages apply right now, it never touches that flag), so every
+    // chat-visibility check (Mafia/اوشن/زودیاک, all gated on amAlive) would
+    // otherwise stay hidden forever even though inOceanGroup/etc. are
+    // still correctly intact. See the 'revived-by-host' handlers (mirrors
+    // کنستانتین's own 'revived' message, minus the night-specific
+    // toast/screen it also carries, since a host can revive at any time).
+    sendToPlayer(entry, { type: 'revived-by-host' });
     if(state.currentPhaseSnapshot) entry.lastPhase = state.currentPhaseSnapshot;
     resyncPlayer(entry, id);
     state.winner = checkWinner();
