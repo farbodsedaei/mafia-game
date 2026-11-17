@@ -132,6 +132,9 @@
   table.vote-tally td.cell-zero{color:var(--text-faint);}
   table.vote-tally td.cell-self{color:var(--text-faint); background:var(--surface-2);}
   table.vote-tally td.cell-hit{color:var(--gold); font-weight:700; cursor:pointer;}
+  .tally-filter{display:flex; gap:8px; margin-bottom:12px;}
+  .tally-filter button{flex:1; background:var(--surface); border:1px solid var(--line); color:var(--text-muted); font-family:'Inter', sans-serif; font-size:12px; font-weight:600; padding:8px 10px; border-radius:10px; cursor:pointer;}
+  .tally-filter button.active{background:var(--gold-dim); color:var(--gold); border-color:var(--gold);}
   .tag{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.08em; padding:5px 10px; border-radius:6px; text-transform:uppercase;}
   .tag.mafia{background:var(--red-dim); color:var(--red-bright);}
   .tag.villager{background:var(--slate-dim); color:var(--slate);}
@@ -746,6 +749,11 @@
     <div class="eyebrow" style="margin-bottom:16px;" data-i18n="voteHistory"></div>
     <div id="vote-tally-section" style="display:none;">
       <div class="eyebrow" style="margin:0 0 8px;" data-i18n="voteTallyTitle"></div>
+      <div class="tally-filter" id="vote-tally-filter">
+        <button type="button" data-filter-mode="all" onclick="App.setVoteTallyFilter('all')" data-i18n="voteTallyFilterAll"></button>
+        <button type="button" data-filter-mode="r1" onclick="App.setVoteTallyFilter('r1')" data-i18n="voteTallyFilterRound1"></button>
+        <button type="button" data-filter-mode="r2" onclick="App.setVoteTallyFilter('r2')" data-i18n="voteTallyFilterFinal"></button>
+      </div>
       <div id="vote-tally-wrap" style="overflow-x:auto; margin-bottom:20px;"></div>
     </div>
     <div class="eyebrow" style="margin:0 0 8px;" data-i18n="voteHistoryByRoundTitle"></div>
@@ -1388,6 +1396,9 @@
       voteTallyTitle: 'آمار کلی رأی‌ها', voteTallyEmpty: 'هنوز رأیی به کسی داده نشده است.',
       voteHistoryByRoundTitle: 'به تفکیک هر دور',
       voteTallyCellDetail: '{voter} به {target} {total} بار رأی داد ({r1} بار در رأی‌گیری اول، {r2} بار در رأی نهایی).',
+      voteTallyCellDetailR1: '{voter} به {target} {total} بار در رأی‌گیری اول (برای به‌دادگاه‌بردن) رأی داد.',
+      voteTallyCellDetailR2: '{voter} به {target} {total} بار در رأی نهایی (پس از دفاع) رأی داد.',
+      voteTallyFilterAll: 'همه رأی‌ها', voteTallyFilterRound1: 'رأی اول (دادگاه)', voteTallyFilterFinal: 'رأی نهایی (پس از دفاع)',
       talkItOut: 'صحبت کنید',
       shareNoticed: 'چیزهایی که متوجه شدید را به اشتراک بگذارید. گاد در زمان مناسب رأی‌گیری را شروع می‌کند.',
       day1HintPlayer: 'امروز رأی‌گیری وجود ندارد — اعضای مافیا هنوز امشب یکدیگر را نمی‌شناسند. فقط با هم آشنا شوید.',
@@ -1665,6 +1676,9 @@
       voteTallyTitle: 'Vote Tally', voteTallyEmpty: 'No votes cast for anyone yet.',
       voteHistoryByRoundTitle: 'Round by Round',
       voteTallyCellDetail: '{voter} voted for {target} {total}x ({r1} in round 1, {r2} in the final vote).',
+      voteTallyCellDetailR1: '{voter} voted for {target} {total}x in round 1 (to bring them to defense).',
+      voteTallyCellDetailR2: '{voter} voted for {target} {total}x in the final vote (after their defense).',
+      voteTallyFilterAll: 'All votes', voteTallyFilterRound1: 'Round 1 (defense)', voteTallyFilterFinal: 'Final (after defense)',
       talkItOut: 'Talk it out',
       shareNoticed: "Share what you've noticed. The God will start a vote when it's time.",
       day1HintPlayer: "There's no voting today — Mafia don't know who their teammates are yet, that only happens tonight. Just get to know each other.",
@@ -2024,6 +2038,7 @@
     hasActivityLog: false,       // (player) whether to show the "My Activity" link at all
     activityReturnScreen: null,  // (player) screen to return to after viewing activity log
     voteHistoryReturnScreen: null, // (player) screen to return to after viewing vote history
+    voteTallyFilter: 'all',      // (any identity, local display preference only — never networked) 'all'|'r1'|'r2' — see renderVoteTallyTable
     gameLogReturnScreen: null, // (host or player) screen to return to after viewing the full game log — see App.viewGameLog
     lastPhaseMsg: null,          // (player) most recent 'phase' message, for re-rendering on language switch
     talkRequestDayTracked: null, // (player) last day number seen in any phase message — see handlePhaseMessage's own reset logic
@@ -8446,10 +8461,30 @@
     return { names, cells };
   }
 
+  // Which count a cell shows under the current state.voteTallyFilter — 'r1'
+  // (round 1, the accusation vote that sends someone to defend themselves),
+  // 'r2' (the final vote, cast after hearing their defense), or 'all' (both
+  // combined, the only mode that existed before the filter was added).
+  function voteTallyFilteredCount(c){
+    if(!c) return 0;
+    if(state.voteTallyFilter === 'r1') return c.r1;
+    if(state.voteTallyFilter === 'r2') return c.r2;
+    return c.r1 + c.r2;
+  }
+  function voteTallyCellToastKey(){
+    if(state.voteTallyFilter === 'r1') return 'voteTallyCellDetailR1';
+    if(state.voteTallyFilter === 'r2') return 'voteTallyCellDetailR2';
+    return 'voteTallyCellDetail';
+  }
+
   // Builds the actual <table class="vote-tally"> element (see its own CSS
   // comment for why there's no sticky row/column), or null when nobody's
   // ever actually voted for anyone yet (callers fall back to the usual
-  // empty-state hint instead of drawing a pointless all-dash grid).
+  // empty-state hint instead of drawing a pointless all-dash grid). Always
+  // builds from the FULL (unfiltered) matrix — state.voteTallyFilter only
+  // changes which count each cell DISPLAYS (see voteTallyFilteredCount), so
+  // a cell with real round-1 votes but zero final votes still correctly
+  // shows as a zero, unclickable cell while the "Final" filter is active.
   function renderVoteTallyTable(){
     const { names, cells } = buildVoteTallyMatrix();
     if(!names.length || !cells.size) return null;
@@ -8478,11 +8513,11 @@
           td.className = 'cell-self';
         } else {
           const c = cells.get(voter + '|' + target);
-          const total = c ? c.r1 + c.r2 : 0;
+          const total = voteTallyFilteredCount(c);
           td.textContent = String(total);
           if(total){
             td.className = 'cell-hit';
-            td.onclick = () => toast(t('voteTallyCellDetail', { voter, target, total, r1: c.r1, r2: c.r2 }));
+            td.onclick = () => toast(t(voteTallyCellToastKey(), { voter, target, total, r1: c.r1, r2: c.r2 }));
           } else {
             td.className = 'cell-zero';
           }
@@ -8494,11 +8529,36 @@
     return table;
   }
 
+  // Marks whichever of the 3 filter buttons matches state.voteTallyFilter
+  // as .active inside the given container (there are two independent sets
+  // of these buttons on screen at once — the player-facing Vote History
+  // screen's and the host debug panel's — see renderVoteHistory/
+  // renderDebugPanel, both pass their own container through this one
+  // shared helper rather than duplicating the lookup logic).
+  function markActiveVoteTallyFilterButton(container){
+    if(!container) return;
+    Array.from(container.querySelectorAll('button')).forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filterMode === state.voteTallyFilter);
+    });
+  }
+
+  App.setVoteTallyFilter = function(mode){
+    if(state.voteTallyFilter === mode) return;
+    state.voteTallyFilter = mode;
+    // Same "only redraw if actually open right now" precedent as every
+    // other live-updated panel here (see renderVoteHistory's own call site
+    // and refreshDebugPanelIfOpen) — this is purely a local DISPLAY
+    // preference, never networked, so there's nothing to broadcast either way.
+    if(document.getElementById('screen-player-vote-history').classList.contains('active')) renderVoteHistory();
+    refreshDebugPanelIfOpen();
+  };
+
   function renderVoteHistory(){
     const history = state.voteHistory || [];
     const tallySection = $('vote-tally-section');
     if(tallySection) tallySection.style.display = history.length ? 'block' : 'none';
     if(history.length){
+      markActiveVoteTallyFilterButton($('vote-tally-filter'));
       const tallyWrap = $('vote-tally-wrap');
       tallyWrap.innerHTML = '';
       const table = renderVoteTallyTable();
@@ -9059,6 +9119,19 @@
         const tallySection = document.createElement('div');
         tallySection.className = 'debug-row';
         tallySection.innerHTML = '<strong>' + escapeHtml(t('voteTallyTitle')) + '</strong>';
+        const filterBar = document.createElement('div');
+        filterBar.className = 'tally-filter';
+        filterBar.style.marginTop = '8px';
+        [['all', 'voteTallyFilterAll'], ['r1', 'voteTallyFilterRound1'], ['r2', 'voteTallyFilterFinal']].forEach(([mode, key]) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = t(key);
+          btn.dataset.filterMode = mode;
+          btn.onclick = () => App.setVoteTallyFilter(mode);
+          filterBar.appendChild(btn);
+        });
+        tallySection.appendChild(filterBar);
+        markActiveVoteTallyFilterButton(filterBar);
         const tallyWrap = document.createElement('div');
         tallyWrap.style.overflowX = 'auto';
         tallyWrap.style.marginTop = '8px';
