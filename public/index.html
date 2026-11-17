@@ -110,6 +110,17 @@
   table.dossier{width:100%; border-collapse:collapse;}
   table.dossier td{padding:13px 6px; border-bottom:1px solid var(--line); font-size:15px;}
   table.dossier tr:last-child td{border-bottom:none;}
+  /* Voter x target vote-count matrix — see buildVoteTallyMatrix/renderVoteTallyTable.
+     No sticky row/column: with only a handful of players this stays small enough
+     that plain horizontal scroll (its container sets overflow-x:auto) is simpler
+     and more robust than fighting position:sticky inside a bordered, RTL-flippable table. */
+  table.vote-tally{width:100%; border-collapse:collapse; font-family:'JetBrains Mono', monospace; font-size:12px;}
+  table.vote-tally th, table.vote-tally td{padding:8px 10px; border:1px solid var(--line); text-align:center; white-space:nowrap;}
+  table.vote-tally th{background:var(--surface-2); color:var(--text-muted); font-weight:600; font-size:11px;}
+  table.vote-tally th.row-head{text-align:start; color:var(--text); font-weight:700;}
+  table.vote-tally td.cell-zero{color:var(--text-faint);}
+  table.vote-tally td.cell-self{color:var(--text-faint); background:var(--surface-2);}
+  table.vote-tally td.cell-hit{color:var(--gold); font-weight:700; cursor:pointer;}
   .tag{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.08em; padding:5px 10px; border-radius:6px; text-transform:uppercase;}
   .tag.mafia{background:var(--red-dim); color:var(--red-bright);}
   .tag.villager{background:var(--slate-dim); color:var(--slate);}
@@ -722,6 +733,11 @@
        See recordVoteHistory (host) / renderVoteHistory (player). -->
   <div class="screen" id="screen-player-vote-history">
     <div class="eyebrow" style="margin-bottom:16px;" data-i18n="voteHistory"></div>
+    <div id="vote-tally-section" style="display:none;">
+      <div class="eyebrow" style="margin:0 0 8px;" data-i18n="voteTallyTitle"></div>
+      <div id="vote-tally-wrap" style="overflow-x:auto; margin-bottom:20px;"></div>
+    </div>
+    <div class="eyebrow" style="margin:0 0 8px;" data-i18n="voteHistoryByRoundTitle"></div>
     <div id="vote-history-list" class="stack" style="overflow-y:auto;"></div>
     <div class="grow"></div>
     <button class="btn btn-ghost" onclick="App.closeVoteHistory()" data-i18n="back"></button>
@@ -1358,6 +1374,9 @@
       voteHistoryVotedFor: '{voter} به {targets} رأی داد.',
       voteHistoryAbstained: '{voter} رأی سفید داد (به کسی رأی نداد).',
       voteHistoryDidNotVote: '{voter} اصلاً رأی نداد.',
+      voteTallyTitle: 'آمار کلی رأی‌ها', voteTallyEmpty: 'هنوز رأیی به کسی داده نشده است.',
+      voteHistoryByRoundTitle: 'به تفکیک هر دور',
+      voteTallyCellDetail: '{voter} به {target} {total} بار رأی داد ({r1} بار در رأی‌گیری اول، {r2} بار در رأی نهایی).',
       talkItOut: 'صحبت کنید',
       shareNoticed: 'چیزهایی که متوجه شدید را به اشتراک بگذارید. گاد در زمان مناسب رأی‌گیری را شروع می‌کند.',
       day1HintPlayer: 'امروز رأی‌گیری وجود ندارد — اعضای مافیا هنوز امشب یکدیگر را نمی‌شناسند. فقط با هم آشنا شوید.',
@@ -1632,6 +1651,9 @@
       voteHistoryVotedFor: '{voter} voted for {targets}.',
       voteHistoryAbstained: '{voter} abstained (voted for no one).',
       voteHistoryDidNotVote: '{voter} did not vote at all.',
+      voteTallyTitle: 'Vote Tally', voteTallyEmpty: 'No votes cast for anyone yet.',
+      voteHistoryByRoundTitle: 'Round by Round',
+      voteTallyCellDetail: '{voter} voted for {target} {total}x ({r1} in round 1, {r2} in the final vote).',
       talkItOut: 'Talk it out',
       shareNoticed: "Share what you've noticed. The God will start a vote when it's time.",
       day1HintPlayer: "There's no voting today — Mafia don't know who their teammates are yet, that only happens tonight. Just get to know each other.",
@@ -8385,10 +8407,95 @@
     return t('voteHistoryVotedFor', { voter: row.voter, targets: row.targets.join(state.lang === 'en' ? ', ' : '، ') });
   }
 
+  // Aggregates the WHOLE game's state.voteHistory into a voter -> target
+  // vote-count matrix, split by round (1 = accusation vote, 2 = final/
+  // runoff vote) — see recordVoteHistory. Keyed by name, same identity
+  // voteHistoryRowText already relies on, since recordVoteHistory itself
+  // only ever stored names, not ids. Roster order follows state.players'
+  // own (join) order, same as every other player listing in the app;
+  // names only ever seen inside old history rows (shouldn't normally
+  // happen, since players are never deleted once the game starts — see
+  // eliminatePlayer) are appended defensively so no vote is ever dropped.
+  function buildVoteTallyMatrix(){
+    const names = Array.from(state.players.values()).map(e => e.name);
+    const cells = new Map(); // "voter|target" -> {r1, r2}
+    (state.voteHistory || []).forEach(entry => {
+      entry.rows.forEach(row => {
+        if(!row.targets || !row.targets.length) return;
+        row.targets.forEach(target => {
+          const key = row.voter + '|' + target;
+          const c = cells.get(key) || { r1: 0, r2: 0 };
+          if(entry.round === 1) c.r1++; else c.r2++;
+          cells.set(key, c);
+          if(names.indexOf(row.voter) === -1) names.push(row.voter);
+          if(names.indexOf(target) === -1) names.push(target);
+        });
+      });
+    });
+    return { names, cells };
+  }
+
+  // Builds the actual <table class="vote-tally"> element (see its own CSS
+  // comment for why there's no sticky row/column), or null when nobody's
+  // ever actually voted for anyone yet (callers fall back to the usual
+  // empty-state hint instead of drawing a pointless all-dash grid).
+  function renderVoteTallyTable(){
+    const { names, cells } = buildVoteTallyMatrix();
+    if(!names.length || !cells.size) return null;
+
+    const table = document.createElement('table');
+    table.className = 'vote-tally';
+    const headRow = document.createElement('tr');
+    headRow.appendChild(document.createElement('th'));
+    names.forEach(n => {
+      const th = document.createElement('th');
+      th.textContent = n;
+      headRow.appendChild(th);
+    });
+    table.appendChild(headRow);
+
+    names.forEach(voter => {
+      const tr = document.createElement('tr');
+      const rowHead = document.createElement('th');
+      rowHead.className = 'row-head';
+      rowHead.textContent = voter;
+      tr.appendChild(rowHead);
+      names.forEach(target => {
+        const td = document.createElement('td');
+        if(voter === target){
+          td.textContent = '—';
+          td.className = 'cell-self';
+        } else {
+          const c = cells.get(voter + '|' + target);
+          const total = c ? c.r1 + c.r2 : 0;
+          td.textContent = String(total);
+          if(total){
+            td.className = 'cell-hit';
+            td.onclick = () => toast(t('voteTallyCellDetail', { voter, target, total, r1: c.r1, r2: c.r2 }));
+          } else {
+            td.className = 'cell-zero';
+          }
+        }
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+    });
+    return table;
+  }
+
   function renderVoteHistory(){
+    const history = state.voteHistory || [];
+    const tallySection = $('vote-tally-section');
+    if(tallySection) tallySection.style.display = history.length ? 'block' : 'none';
+    if(history.length){
+      const tallyWrap = $('vote-tally-wrap');
+      tallyWrap.innerHTML = '';
+      const table = renderVoteTallyTable();
+      if(table) tallyWrap.appendChild(table);
+      else tallyWrap.innerHTML = '<p class="hint">' + escapeHtml(t('voteTallyEmpty')) + '</p>';
+    }
     const box = $('vote-history-list');
     box.innerHTML = '';
-    const history = state.voteHistory || [];
     if(!history.length){
       box.innerHTML = '<p class="hint">' + escapeHtml(t('voteHistoryEmpty')) + '</p>';
       return;
@@ -8938,6 +9045,18 @@
     if(voteHistoryBox){
       voteHistoryBox.innerHTML = '';
       if(state.voteHistory.length){
+        const tallySection = document.createElement('div');
+        tallySection.className = 'debug-row';
+        tallySection.innerHTML = '<strong>' + escapeHtml(t('voteTallyTitle')) + '</strong>';
+        const tallyWrap = document.createElement('div');
+        tallyWrap.style.overflowX = 'auto';
+        tallyWrap.style.marginTop = '8px';
+        const table = renderVoteTallyTable();
+        if(table) tallyWrap.appendChild(table);
+        else tallyWrap.innerHTML = '<p class="hint">' + escapeHtml(t('voteTallyEmpty')) + '</p>';
+        tallySection.appendChild(tallyWrap);
+        voteHistoryBox.appendChild(tallySection);
+
         state.voteHistory.forEach(entryLog => {
           const heading = t('dayVoteEyebrow', { day: entryLog.day, round: entryLog.round === 1 ? t('firstVote') : t('finalVote') });
           voteHistoryBox.appendChild(buildDebugLogSection(heading, entryLog.rows.map(voteHistoryRowText)));
